@@ -44,7 +44,7 @@ global size_t AllocationSize = 0;
 void *Malloc__(size_t Size)
 {
     AllocationCount += 1;
-    return malloc(Size);
+    return calloc(1, Size);
 }
 
 void Free__(void *Ptr)

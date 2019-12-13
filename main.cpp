@@ -152,6 +152,22 @@ struct font
     u32 TexCoordsBuffer;
 };
 
+struct render_target
+{
+    u32 Framebuffer; // The main opengl container for attachments
+    u32 TextureColorBuffer;
+    u32 DepthStencilRenderbuffer;
+
+    // Size of the offscreen buffer
+    i32 Width;
+    i32 Height;
+
+    // The final screen sized Quad which is used to render to the window
+    u32 ScreenQuadVAO;
+    u32 ScreenQuadVBO;
+    u32 ScreenQuadShader;
+};
+
 
 //
 // Globals
@@ -289,6 +305,7 @@ char *ReadTextFile(char *Filename)
 
 void ToggleFullscreen(SDL_Window *WindowIn)
 {
+    // TODO: Recreate the framebuffer attachments so it corresponds to the current resolution
     Assert(WindowIn);
 
     u32 WindowFlags = SDL_GetWindowFlags(WindowIn);
@@ -426,7 +443,7 @@ u32 CreateShaderProgram(char *Filename)
         i32 LogLength = 0;
         char ErrorMessage[1024];
         glGetShaderInfoLog(VertexShaderObject, 1024, &LogLength, ErrorMessage);
-        fprintf(stderr, "%s\n", ErrorMessage);
+        fprintf(stderr, "%s-%s\n", Filename, ErrorMessage);
         VertexShaderObject = 0;
     }
 
@@ -442,7 +459,7 @@ u32 CreateShaderProgram(char *Filename)
         i32 LogLength = 0;
         char ErrorMessage[1024];
         glGetShaderInfoLog(FragmentShaderObject, 1024, &LogLength, ErrorMessage);
-        fprintf(stderr, "%s\n", ErrorMessage);
+        fprintf(stderr, "%s-%s\n", Filename, ErrorMessage);
         FragmentShaderObject = 0;
     }
 
@@ -458,7 +475,7 @@ u32 CreateShaderProgram(char *Filename)
         i32 MaxLogLength = 1024;
         char InfoLog[1024] = {0};
         glGetProgramInfoLog(Result, MaxLogLength, &MaxLogLength, &InfoLog[0]);
-        printf("SHADER PROGRAM FAILED TO COMPILE/LINK\n");
+        printf("%s: SHADER PROGRAM FAILED TO COMPILE/LINK\n", Filename);
         printf("%s\n", InfoLog);
         glDeleteProgram(Result);
         Result = 0;
@@ -476,6 +493,13 @@ void SetShaderUniform(u32 Shader, char *Name, i32 Value)
     Assert(Name);
     glUseProgram(Shader);
     glUniform1i(glGetUniformLocation(Shader, Name), Value);
+}
+
+void SetShaderUniform(u32 Shader, char *Name, f32 Value)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniform1f(glGetUniformLocation(Shader, Name), Value);
 }
 
 void SetShaderUniform(u32 Shader, char *Name, glm::mat4 *Value)
@@ -647,9 +671,9 @@ void DrawTexturedQuad(textured_quad *Quad, glm::vec3 Position, glm::vec3 Size, g
     glUseProgram(Quad->Shader);
 
     glm::mat4 Model = glm::mat4(1.0f);
-    Model = glm::rotate(Model, glm::radians(RotationAngle), RotationAxis); // NOTE: Do we need to normalize the RotationAngle?
-    Model = glm::scale(Model, Size);
     Model = glm::translate(Model, glm::vec3(Position));
+    Model = glm::scale(Model, Size);
+    Model = glm::rotate(Model, glm::radians(RotationAngle), RotationAxis); // NOTE: Do we need to normalize the RotationAngle?
     SetShaderUniform(Quad->Shader, "Model", Model);
     SetShaderUniform(Quad->Shader, "View", Camera.View);
     SetShaderUniform(Quad->Shader, "Projection", Camera.Projection);
@@ -668,9 +692,9 @@ void DrawTexturedCube(textured_cube *Cube, glm::vec3 Position, glm::vec3 Scale, 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Cube->TextureHandle);
     glm::mat4 Model = glm::mat4(1.0f);
-    Model = glm::rotate(Model, glm::radians(RotationAngle), RotationAxis);
-    Model = glm::scale(Model, Scale);
     Model = glm::translate(Model, Position);
+    Model = glm::scale(Model, Scale);
+    Model = glm::rotate(Model, glm::radians(RotationAngle), RotationAxis);
     SetShaderUniform(Cube->Shader, "Model", &Model);
     SetShaderUniform(Cube->Shader, "View", &Camera.View);
     SetShaderUniform(Cube->Shader, "Projection", &Camera.Projection);
@@ -678,7 +702,7 @@ void DrawTexturedCube(textured_cube *Cube, glm::vec3 Position, glm::vec3 Scale, 
 }
 
 
-textured_cube *CreateTexturedCude(u32 Shader, char *TextureFilename)
+textured_cube *CreateTexturedCube(u32 Shader, char *TextureFilename)
 {
     Assert(TextureFilename);
 
@@ -1294,6 +1318,186 @@ DrawText3DCentered(char *Text, font *Font, glm::vec3 Position, glm::vec3 Scale, 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height)
+{
+    // NOTE: If switching to fullscreen and back is slow, we can
+    // create two separate textures and renderbuffers at rendertarget
+    // creation, one for each window resolution. One fullscreen, the
+    // other windowed. It may solve the speed issue.
+
+    // A Framebuffer is a collection of buffers that can be used
+    // as a destination for offscreen rendering. OpenGL has two
+    // kinds of framebuffers: the Default Framebuffer, which is
+    // provided by the OpenGL Context; and user-created
+    // framebuffers called Framebuffer Objects (FBOs). The buffers
+    // for default framebuffers are part of the context and
+    // usually represent a window or display device. The buffers
+    // for FBOs reference images from either Textures or
+    // Renderbuffers; they are never directly visible.
+
+    // Renderbuffer attachments can be Textures or Renderbuffer
+    // objects. Renderbuffer objects are used when we are not
+    // going to sample/read from the renderbuffer, they are stored
+    // in opengl's internal format and are hard/inefficient to
+    // sample/read from.
+
+    // Frambuffer has multiple color buffers attachments + depth + stencil attachments.
+
+    // When the window is created and opengl is initialized,
+    // OpenGL automatically creates a framebuffer. We can also
+    // create our own framebuffers, this will enable us to do
+    // postprocessig and other cool effects.
+
+    Assert(ShaderFilename);
+    Assert(Width > 0);
+    Assert(Height > 0);
+
+    render_target *Result = (render_target*)Malloc(sizeof(render_target));
+    Result->ScreenQuadShader = CreateShaderProgram(ShaderFilename);
+    Result->Width = Width;
+    Result->Height = Height;
+
+    // Create the main framebuffer
+    glGenFramebuffers(1, &Result->Framebuffer);
+    // GL_FRAMEBUFFER binds the framebuffer to both, read + write.
+    glBindFramebuffer(GL_FRAMEBUFFER, Result->Framebuffer);
+
+    // Create a texture as a color attachment for the framebuffer
+    glGenTextures(1, &Result->TextureColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, Result->TextureColorBuffer);
+    // TODO: Edit here when changing internalformat to float to support HDR
+    i32 LevelOfDetail = 0;
+    i32 InternalFormat = GL_RGB;
+    GLenum FormatOfPixelData = GL_RGB;
+    GLenum PixelDataType = GL_UNSIGNED_BYTE;
+    glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the texture buffer to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result->TextureColorBuffer, 0);
+
+    // Create a RenderBuffer object for depth and stencil attachments.
+    glGenRenderbuffers(1, &Result->DepthStencilRenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthStencilRenderbuffer);
+    // Use a single renderbuffer object for both, stencil+depth
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
+    // Attach it
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthStencilRenderbuffer);
+
+    // Now that all attachments are added, we check if the framebuffer is complete
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        // Framebuffer is not complete, free everything, return NULL;
+        printf("ERROR: Framebuffer is not complete! - %s:%d\n", __FILE__, __LINE__);
+        glDeleteFramebuffers(1, &Result->Framebuffer);
+        glDeleteTextures(1, &Result->TextureColorBuffer);
+        glDeleteRenderbuffers(1, &Result->DepthStencilRenderbuffer);
+        Free(Result);
+        return NULL;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+    // VAO and Vertex Data for displaying the off-screen buffer to the main window
+    // VAO for the final screen render quad
+    f32 QuadVertices[] =
+    { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        // positions   // texCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        1.0f, -1.0f,  1.0f, 0.0f,
+        1.0f,  1.0f,  1.0f, 1.0f
+    };
+    glGenVertexArrays(1, &Result->ScreenQuadVAO);
+    glGenBuffers(1, &Result->ScreenQuadVBO);
+    glBindVertexArray(Result->ScreenQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, Result->ScreenQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), &QuadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), NULL);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(f32), (void*)(2 * sizeof(f32)));
+    SetShaderUniform(Result->ScreenQuadShader, "ScreenTexture", 0);
+
+    return Result;
+}
+
+void SetActiveRenderTarget(render_target *RenderTarget)
+{
+    // Cannot assert, RenderTarget is allowed to be NULL/0
+    if(RenderTarget == NULL)
+    {
+        // Set to the default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    else
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, RenderTarget->Framebuffer);
+    }
+}
+
+void DisplayRenderTarget(render_target *RenderTarget)
+{
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(RenderTarget->ScreenQuadShader);
+    glBindVertexArray(RenderTarget->ScreenQuadVAO);
+    glBindTexture(GL_TEXTURE_2D, RenderTarget->TextureColorBuffer);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glEnable(GL_DEPTH_TEST); // Enable depth testing (it's disabled for rendering screen space quad)
+}
+
+void ResizeRenderTarget(render_target *RenderTarget, i32 Width, i32 Height)
+{
+    // TODO: Maybe we can create 2 targets at RenderTarget
+    // initialization and switch between them. It's probably faster!
+
+    Assert(RenderTarget);
+    Assert(Width > 0);
+    Assert(Height > 0);
+
+    // Delete old texture and depth+stencil renderbuffer
+    glDeleteTextures(1, &RenderTarget->TextureColorBuffer);
+    glDeleteRenderbuffers(1, &RenderTarget->DepthStencilRenderbuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, RenderTarget->Framebuffer);
+
+    // Color texture attachment
+
+    // Create a texture as a color attachment for the framebuffer
+    glGenTextures(1, &RenderTarget->TextureColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, RenderTarget->TextureColorBuffer);
+    // TODO: Edit here when changing internalformat to float to support HDR
+    i32 LevelOfDetail = 0;
+    i32 InternalFormat = GL_RGB;
+    GLenum FormatOfPixelData = GL_RGB;
+    GLenum PixelDataType = GL_UNSIGNED_BYTE;
+    glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Attach the texture buffer to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, RenderTarget->TextureColorBuffer, 0);
+
+
+    // RenderBuffer
+    // Create a RenderBuffer object for depth and stencil attachments.
+    glGenRenderbuffers(1, &RenderTarget->DepthStencilRenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, RenderTarget->DepthStencilRenderbuffer);
+    // Use a single renderbuffer object for both, stencil+depth
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
+    // Attach it
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderTarget->DepthStencilRenderbuffer);
+
+    // Now that all attachments are added, we check if the framebuffer is complete
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("ERROR: Framebuffer is not complete!\n");
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 int main(int Argc, char **Argv)
 {
     Argc; Argv;
@@ -1356,10 +1560,10 @@ int main(int Argc, char **Argv)
     glEnable(GL_FRAMEBUFFER_SRGB);
     glFrontFace(GL_CCW);
     glEnable(GL_MULTISAMPLE);
-    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
 
     glViewport(0, 0, WindowWidth, WindowHeight);
 
@@ -1373,60 +1577,27 @@ int main(int Argc, char **Argv)
     InitCamera();
     InitClock();
 
-    // NOTE: Framebuffer
-    {
-        // A Framebuffer is a collection of buffers that can be used
-        // as the destination for rendering. OpenGL has two kinds of
-        // framebuffers: the Default Framebuffer, which is provided by
-        // the OpenGL Context; and user-created framebuffers called
-        // Framebuffer Objects (FBOs). The buffers for default
-        // framebuffers are part of the context and usually represent
-        // a window or display device. The buffers for FBOs reference
-        // images from either Textures or Renderbuffers; they are
-        // never directly visible.
+    u32 TexturedCubeShader   = CreateShaderProgram("shaders/TexturedCube.glsl");
+    u32 TextShader           = CreateShaderProgram("shaders/Text.glsl");
+    u32 TexturedQuadShader   = CreateShaderProgram("shaders/TexturedQuad.glsl");
+    u32 SkyboxShader         = CreateShaderProgram("shaders/Skybox.glsl");
+    u32 ScreenQuadShader     = CreateShaderProgram("shaders/ScreenQuad.glsl");
 
-        // Renderbuffer attachments can be Textures or Renderbuffer
-        // objects. Renderbuffer objects are used when we are not
-        // going to read from the renderbuffer, they are stored in
-        // opengl's internal format and are hard to read from.
+    font *Arial              = CreateFont("fonts/arial.ttf", TextShader, 0, 100);
+    font *DebugInfoFont      = CreateFont("fonts/arial.ttf", TextShader, 0, 22);
 
-        // Frambuffer has multiple color buffers attachments + depth + stencil attachments.
-
-        // When the window is created and opengl is initialized,
-        // OpenGL automatically creates a framebuffer. We can also
-        // create our own framebuffers, this will enable us to do
-        // postprocessig and other cool effects.
-
-
-
-        // NOTE: Renderbuffer objects
-        // Renderbuffer objects store their data in opengl's internal format, making them fast.
-        // Renderbuffer objects are generally write-only
-        u32 RBO;
-        glGenRenderbuffers(1, &RBO);
-        glBindRenderbuffer(GL_RENDERBUFFER, RBO);
-        // Creating/Allocatin data for a Depth+Stencil renderbuffer
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
-    }
-
-    u32 TexturedCubeShader = CreateShaderProgram("shaders/TexturedCube.glsl");
-    u32 TextShader = CreateShaderProgram("shaders/Text.glsl");
-    u32 TexturedQuadShader = CreateShaderProgram("shaders/TexturedQuad.glsl");
-    u32 SkyboxShader = CreateShaderProgram("shaders/Skybox.glsl");
-
-    font *Arial = CreateFont("fonts/arial.ttf", TextShader, 0, 100);
-    font *DebugInfoFont = CreateFont("fonts/arial.ttf", TextShader, 0, 22);
-
-    textured_cube *MyCube = CreateTexturedCude(TexturedCubeShader, "textures/container.jpg");
+    textured_cube *MyCube    = CreateTexturedCube(TexturedCubeShader, "textures/Border.png");
     textured_quad *RedWindow = CreateTexturedQuad("textures/blending_transparent_window.png", TexturedQuadShader);
-    textured_quad *Joker = CreateTexturedQuad("textures/joker.png", TexturedQuadShader);
-    skybox *MainSkybox = CreateSkybox(SkyboxShader,
+    textured_quad *Joker     = CreateTexturedQuad("textures/joker.png", TexturedQuadShader);
+    skybox *MainSkybox       = CreateSkybox(SkyboxShader,
                                       "textures/skybox/right.jpg",
                                       "textures/skybox/left.jpg",
                                       "textures/skybox/top.jpg",
                                       "textures/skybox/bottom.jpg",
                                       "textures/skybox/front.jpg",
                                       "textures/skybox/back.jpg");
+
+    render_target *MainRenderTarget = CreateRenderTarget("shaders/ScreenQuad.glsl", WindowWidth, WindowHeight);
 
     glm::vec3 PlayerPosition = glm::vec3(0,0, 1.0f);
 
@@ -1436,7 +1607,7 @@ int main(int Argc, char **Argv)
     while(IsRunning)
     {
         // TODO: REMOVE
-        Angle += 0.2f;
+        Angle += 0.2f * (f32)Clock.DeltaTime * 999;
 
         UpdateClock();
 
@@ -1510,6 +1681,7 @@ int main(int Argc, char **Argv)
             if(IsReleased(SDL_SCANCODE_RETURN) && IsPressed(SDL_SCANCODE_LALT))
             {
                 ToggleFullscreen(Window);
+                ResizeRenderTarget(MainRenderTarget, WindowWidth, WindowHeight);
             }
 
             // Handle Camera Input
@@ -1575,14 +1747,28 @@ int main(int Argc, char **Argv)
         Camera.View = glm::lookAt(Camera.Position, Camera.Position + Camera.Front, Camera.Up);
         Camera.Projection = glm::perspective(glm::radians(Camera.FoV), (f32)WindowWidth / (f32)WindowHeight, Camera.Near, Camera.Far);
 
-        // Render
-        glClearColor(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f, 1.0f);
+        if(glIsEnabled(GL_CULL_FACE))
+        {
+            printf("Culling enabled!\n");
+        }
+
+
+        // Render //
+        // TODO(Jorge): HDR PIPELINE REQUIRES HDR DATA!, GET SOME HDR DATA NOW!
+        SetActiveRenderTarget(MainRenderTarget);
+
+        glClearColor(0.2f, 0.2f, 0.5f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         DrawSkybox(MainSkybox);
-        // DrawTexturedQuad(Joker, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(100.0f, 100.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f);
-        DrawTexturedQuad(RedWindow, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 1.0f), 0.0f);
-        DrawTexturedCube(MyCube, glm::vec3(0), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), Angle);
+        DrawTexturedQuad(Joker, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f);
+
+        glDisable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
+        DrawTexturedCube(MyCube, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f), Angle);
+        glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
+
+        // DrawTexturedQuad(RedWindow, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 1.0f), 0.0f);
+
 
         // DrawText3DCentered("This is some CENTERED 3D Text", Arial,
         //                    glm::vec3(0.0f, 0.0f, 0.0f),
@@ -1601,6 +1787,12 @@ int main(int Argc, char **Argv)
         // DrawDebugLine();
         // DrawLine();
         // Test Tweening Functions!
+
+        // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+        SetActiveRenderTarget(0);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        DisplayRenderTarget(MainRenderTarget);
 
         // printf("AllocationCount: %d\n", AllocationCount);
 
