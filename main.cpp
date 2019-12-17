@@ -35,16 +35,22 @@ extern "C"
 // NOTE: http://casual-effects.com/data/index.html <--- Cool site for test models
 #include "shared.h"
 
-// TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
+// TODO(Jorge): Read opengl's basic lighting and implement it
+// TODO(Joreg): HDR Rendering!
+// TODO(Jorge): Bloom!
 
+// TODO: Game hotloading?
+// TODO: AABBvsAABB;
+// TODO: DrawDebugLine();
+// TODO: DrawLine();
+// TODO: Test Tweening Functions!
+// TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
 // TODO(Jorge): Visualize the different opengl buffers, depth buffer, stencil, color buffer, etc...
 // TODO(Jorge): Create a lot of bullets and render them using instanced rendering
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
 // TODO(Jorge): Load Sphere model
 // TODO(Jorge): Load Tetrahedron model
 // TODO(Jorge): Load a Cube!
-// TODO(Joreg): HDR Rendering!
-// TODO(Jorge): Bloom!
 // TODO(Jorge): Draw Tetrahedron correctly
 // TODO(Jorge): Add another shape! maybe Torus or Sphere
 // TODO(Jorge): Add a uniform Color to renderable_objects
@@ -129,7 +135,6 @@ struct skybox
     u32 Shader;
 };
 
-
 struct character
 {
     u32 TextureID;
@@ -166,6 +171,8 @@ struct render_target
     u32 ScreenQuadVAO;
     u32 ScreenQuadVBO;
     u32 ScreenQuadShader;
+
+    f32 HDRExposure;
 };
 
 
@@ -490,6 +497,11 @@ u32 CreateShaderProgram(char *Filename)
 
 void SetShaderUniform(u32 Shader, char *Name, i32 Value)
 {
+    // TODO(Jorge): Activate the shader before calling
+    // SetShaderUniform so we dont call glUseProgram multiple times,
+    // something like:
+    // SetActiveshader(Shader);
+    // SetUniform(GlobalActiveShader, "Name", Value);
     Assert(Name);
     glUseProgram(Shader);
     glUniform1i(glGetUniformLocation(Shader, Name), Value);
@@ -560,7 +572,8 @@ u32 CreateOpenGLTexture(char *Filename)
         else if(ChannelCount == 4)
         {
             Format = GL_RGBA;
-            InternalFormat = GL_SRGB_ALPHA;
+            // InternalFormat = GL_SRGB_ALPHA;
+            InternalFormat = GL_SRGB;
         }
         else
         {
@@ -701,7 +714,6 @@ void DrawTexturedCube(textured_cube *Cube, glm::vec3 Position, glm::vec3 Scale, 
     glDrawArrays(GL_TRIANGLES, 0, 36);
 }
 
-
 textured_cube *CreateTexturedCube(u32 Shader, char *TextureFilename)
 {
     Assert(TextureFilename);
@@ -767,7 +779,7 @@ textured_cube *CreateTexturedCube(u32 Shader, char *TextureFilename)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 
     glUseProgram(Result->Shader);
-    SetShaderUniform(Result->Shader, "Texture1", 0);
+    SetShaderUniform(Result->Shader, "Image", 0);
 
     return Result;
 }
@@ -1318,7 +1330,7 @@ DrawText3DCentered(char *Text, font *Font, glm::vec3 Position, glm::vec3 Scale, 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height)
+render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height, b32 HDR)
 {
     // NOTE: If switching to fullscreen and back is slow, we can
     // create two separate textures and renderbuffers at rendertarget
@@ -1356,6 +1368,7 @@ render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height)
     Result->ScreenQuadShader = CreateShaderProgram(ShaderFilename);
     Result->Width = Width;
     Result->Height = Height;
+    Result->HDRExposure = 1.0f;
 
     // Create the main framebuffer
     glGenFramebuffers(1, &Result->Framebuffer);
@@ -1365,9 +1378,21 @@ render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height)
     // Create a texture as a color attachment for the framebuffer
     glGenTextures(1, &Result->TextureColorBuffer);
     glBindTexture(GL_TEXTURE_2D, Result->TextureColorBuffer);
+    // TODO: Create a  Multisample texture so we can support Anti Aliasing
+    // TODO: Write a note of how to create multisampled framebuffers
+    // TODO: Fix colors, should be SRGB
     // TODO: Edit here when changing internalformat to float to support HDR
     i32 LevelOfDetail = 0;
-    i32 InternalFormat = GL_RGB;
+    i32 InternalFormat;
+    if(HDR)
+    {
+        InternalFormat = GL_RGB16F;
+    }
+    else
+    {
+        InternalFormat = GL_SRGB8;
+    }
+
     GLenum FormatOfPixelData = GL_RGB;
     GLenum PixelDataType = GL_UNSIGNED_BYTE;
     glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
@@ -1443,7 +1468,9 @@ void DisplayRenderTarget(render_target *RenderTarget)
 {
     glDisable(GL_DEPTH_TEST);
     glUseProgram(RenderTarget->ScreenQuadShader);
+    SetShaderUniform(RenderTarget->ScreenQuadShader, "Exposure", RenderTarget->HDRExposure);
     glBindVertexArray(RenderTarget->ScreenQuadVAO);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, RenderTarget->TextureColorBuffer);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST); // Enable depth testing (it's disabled for rendering screen space quad)
@@ -1577,18 +1604,23 @@ int main(int Argc, char **Argv)
     InitCamera();
     InitClock();
 
-    u32 TexturedCubeShader   = CreateShaderProgram("shaders/TexturedCube.glsl");
+    // TODO: Unite the two equal shaders, TexturedQuad.glsl and TexturedCube.glsl
+    u32 TexturedObjectShader = CreateShaderProgram("shaders/TexturedObject.glsl");
     u32 TextShader           = CreateShaderProgram("shaders/Text.glsl");
-    u32 TexturedQuadShader   = CreateShaderProgram("shaders/TexturedQuad.glsl");
     u32 SkyboxShader         = CreateShaderProgram("shaders/Skybox.glsl");
     u32 ScreenQuadShader     = CreateShaderProgram("shaders/ScreenQuad.glsl");
+
+    u32 ColorShader          = CreateShaderProgram("shaders/Color.glsl");
+    u32 LampShader           = CreateShaderProgram("shaders/Lamp.glsl");
+    u32 HDRShader            = CreateShaderProgram("shaders/HDR.glsl");
 
     font *Arial              = CreateFont("fonts/arial.ttf", TextShader, 0, 100);
     font *DebugInfoFont      = CreateFont("fonts/arial.ttf", TextShader, 0, 22);
 
-    textured_cube *MyCube    = CreateTexturedCube(TexturedCubeShader, "textures/Border.png");
-    textured_quad *RedWindow = CreateTexturedQuad("textures/blending_transparent_window.png", TexturedQuadShader);
-    textured_quad *Joker     = CreateTexturedQuad("textures/joker.png", TexturedQuadShader);
+    textured_cube *MyCube    = CreateTexturedCube(TexturedObjectShader, "textures/Border.png");
+    textured_quad *RedWindow = CreateTexturedQuad("textures/blending_transparent_window.png", TexturedObjectShader);
+    textured_quad *Joker     = CreateTexturedQuad("textures/TestFloat.hdr", TexturedObjectShader);
+
     skybox *MainSkybox       = CreateSkybox(SkyboxShader,
                                       "textures/skybox/right.jpg",
                                       "textures/skybox/left.jpg",
@@ -1597,10 +1629,98 @@ int main(int Argc, char **Argv)
                                       "textures/skybox/front.jpg",
                                       "textures/skybox/back.jpg");
 
-    render_target *MainRenderTarget = CreateRenderTarget("shaders/ScreenQuad.glsl", WindowWidth, WindowHeight);
+    render_target *MainRenderTarget = CreateRenderTarget("shaders/HDR.glsl", WindowWidth, WindowHeight, 1);
 
     glm::vec3 PlayerPosition = glm::vec3(0,0, 1.0f);
 
+
+    //
+    // Colors
+    //
+
+    f32 Vertices[] =
+    {
+        // positions          // normals           // texture coords
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+    };
+
+    // Cube
+    u32 CubeVAO;
+    u32 CubeVBO;
+    glGenVertexArrays(1, &CubeVAO);
+    glGenBuffers(1, &CubeVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+    glBindVertexArray(CubeVAO);
+    // Position Attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Normals Attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(sizeof(f32) * 3));
+    glEnableVertexAttribArray(1);
+    // UV Attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(sizeof(f32) * 6));
+    glEnableVertexAttribArray(2);
+
+    // Light
+    u32 LightVAO;
+    u32 LightVBO;
+    glGenVertexArrays(1, &LightVAO);
+    glGenBuffers(1, &LightVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, LightVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
+    glBindVertexArray(LightVAO);
+    // Position Attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    u32 DiffuseMap = CreateOpenGLTexture("textures/container2.png");
+    u32 SpecularMap = CreateOpenGLTexture("textures/container2_specular.png");
+
+
+    //
+    //
+    //
 
     f32 Angle = 0.0f;
     SDL_Event Event;
@@ -1732,15 +1852,33 @@ int main(int Argc, char **Argv)
             }
 
             // Play with FoV
+            // if(IsPressed(SDL_SCANCODE_UP))
+            // {
+            //     Camera.FoV += 0.1f;
+            // }
+            // if(IsPressed(SDL_SCANCODE_DOWN))
+            // {
+            //     Camera.FoV -= 0.1f;
+            // }
+
+
+            // Playing with HDR Exposure
             if(IsPressed(SDL_SCANCODE_UP))
             {
-                Camera.FoV += 0.1f;
+                MainRenderTarget->HDRExposure += 0.05f;
             }
             if(IsPressed(SDL_SCANCODE_DOWN))
             {
-                Camera.FoV -= 0.1f;
+                if(MainRenderTarget->HDRExposure > 0.0f)
+                {
+                    MainRenderTarget->HDRExposure -= 0.05f;
+                }
+                else
+                {
+                    MainRenderTarget->HDRExposure = 0.001f;
+                }
             }
-
+            printf("Expsure: %2.2f\n", MainRenderTarget->HDRExposure);
         }
 
         // Update Camera Matrices
@@ -1752,47 +1890,146 @@ int main(int Argc, char **Argv)
             printf("Culling enabled!\n");
         }
 
-
         // Render //
+        // TODO: Resume "Light Casters"
+        // TODO(Jorge): Create a bind texture to texture unit wrapper, void BindMultiTextureEXT(enum texunit, enum target, uint texture);
         // TODO(Jorge): HDR PIPELINE REQUIRES HDR DATA!, GET SOME HDR DATA NOW!
         SetActiveRenderTarget(MainRenderTarget);
 
-        glClearColor(0.2f, 0.2f, 0.5f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        DrawSkybox(MainSkybox);
-        DrawTexturedQuad(Joker, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f);
-
-        glDisable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
-        DrawTexturedCube(MyCube, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f), Angle);
-        glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
-
+        // DrawSkybox(MainSkybox);
+        // DrawTexturedQuad(Joker, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f);
+        // glDisable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
+        // DrawTexturedCube(MyCube, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f), Angle);
+        // glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
         // DrawTexturedQuad(RedWindow, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 1.0f), 0.0f);
-
-
         // DrawText3DCentered("This is some CENTERED 3D Text", Arial,
         //                    glm::vec3(0.0f, 0.0f, 0.0f),
         //                    glm::vec3(0.3f, 0.3f, 0.3f),
         //                    glm::vec3(1.0f, 1.0f, 1.0f), Angle,
         //                    glm::vec3(1.0f, 0.1f, 1.0f));
-
         // DrawText2DCentered("This is some 2D Text", DebugInfoFont,
         //                    glm::vec2(WindowWidth / 2.0f, WindowHeight / 2.0f), glm::vec2(2.0f, 2.0f), glm::vec3(1,1,1));
 
-        // Shader Hotloading
-        // DrawShape;
-        // Game hotloading?
-        // CheckForCollisionsAgainstFloor;
-        // AABBvsAABB;
-        // DrawDebugLine();
-        // DrawLine();
-        // Test Tweening Functions!
+        glm::vec3 LampPosition(1.2f, 1.0f, 2.0f);
+
+        // positions of the point lights
+        glm::vec3 PointLightPositions[] =
+        {
+            glm::vec3( 0.7f,  0.2f,  2.0f),
+            glm::vec3( 2.3f, -3.3f, -4.0f),
+            glm::vec3(-4.0f,  2.0f, -12.0f),
+            glm::vec3( 0.0f,  0.0f, -3.0f)
+        };
+
+
+        // Draw Cube //
+        SetShaderUniform(ColorShader, "ViewPos", Camera.Position);
+        // Set Material Uniforms
+        SetShaderUniform(ColorShader, "Material.Diffuse", 0);
+        SetShaderUniform(ColorShader, "Material.Specular", 1);
+        SetShaderUniform(ColorShader, "Material.Shininess", 32.0f);
+        // Set Directional Light Uniforms
+        SetShaderUniform(ColorShader, "DirLight.Direction", -0.2f, -1.0f, -0.3f);
+        SetShaderUniform(ColorShader, "DirLight.Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(ColorShader, "DirLight.Diffuse", 0.04f, 0.04f, 0.04f);
+        SetShaderUniform(ColorShader, "DirLight.Specular", 0.05f, 0.05f, 0.05f);
+        // Point Light 1
+        SetShaderUniform(ColorShader, "PointLights[0].Position", PointLightPositions[0]);
+        SetShaderUniform(ColorShader, "PointLights[0].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(ColorShader, "PointLights[0].Diffuse", 0.08f, 0.08f, 0.08f);
+        SetShaderUniform(ColorShader, "PointLights[0].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[0].Constant", 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[0].Linear", 0.09f);
+        SetShaderUniform(ColorShader, "PointLights[0].Quadratic", 0.032f);
+        // Point Light 2
+        SetShaderUniform(ColorShader, "PointLights[1].Position", PointLightPositions[1]);
+        SetShaderUniform(ColorShader, "PointLights[1].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(ColorShader, "PointLights[1].Diffuse", 200.0f, 0.08f, 200.0f);
+        SetShaderUniform(ColorShader, "PointLights[1].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[1].Constant", 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[1].Linear", 0.09f);
+        SetShaderUniform(ColorShader, "PointLights[1].Quadratic", 0.032f);
+        // Point Light 3
+        SetShaderUniform(ColorShader, "PointLights[2].Position", PointLightPositions[2]);
+        SetShaderUniform(ColorShader, "PointLights[2].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(ColorShader, "PointLights[2].Diffuse", 0.08f, 0.08f, 0.08f);
+        SetShaderUniform(ColorShader, "PointLights[2].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[2].Constant", 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[2].Linear", 0.09f);
+        SetShaderUniform(ColorShader, "PointLights[2].Quadratic", 0.032f);
+        // Point Light 4
+        SetShaderUniform(ColorShader, "PointLights[3].Position", PointLightPositions[3]);
+        SetShaderUniform(ColorShader, "PointLights[3].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(ColorShader, "PointLights[3].Diffuse", 0.08f, 0.08f, 0.08f);
+        SetShaderUniform(ColorShader, "PointLights[3].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[3].Constant", 1.0f);
+        SetShaderUniform(ColorShader, "PointLights[3].Linear", 0.09f);
+        SetShaderUniform(ColorShader, "PointLights[3].Quadratic", 0.032f);
+
+        // Set Transformation uniforms
+        glm::mat4 Model = glm::mat4(1.0f);
+        SetShaderUniform(ColorShader, "Model", &Model);
+        SetShaderUniform(ColorShader, "View", &Camera.View);
+        SetShaderUniform(ColorShader, "Projection", &Camera.Projection);
+        glBindVertexArray(CubeVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, DiffuseMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, SpecularMap);
+        // Scene setup
+        glm::vec3 CubePositions[] =
+        {
+            glm::vec3( 0.0f,  0.0f,  0.0f),
+            glm::vec3( 2.0f,  5.0f, -15.0f),
+            glm::vec3(-1.5f, -2.2f, -2.5f),
+            glm::vec3(-3.8f, -2.0f, -12.3f),
+            glm::vec3( 2.4f, -0.4f, -3.5f),
+            glm::vec3(-1.7f,  3.0f, -7.5f),
+            glm::vec3( 1.3f, -2.0f, -2.5f),
+            glm::vec3( 1.5f,  2.0f, -2.5f),
+            glm::vec3( 1.5f,  0.2f, -1.5f),
+            glm::vec3(-1.3f,  1.0f, -1.5f)
+        };
+        for(u32 i = 0; i < 10; i++)
+        {
+            glm::mat4 LocalModel = glm::mat4(1.0f);
+            LocalModel = glm::translate(LocalModel, CubePositions[i]);
+            f32 LocalAngle = 20.0f * i;
+            LocalModel = glm::rotate(LocalModel, glm::radians(LocalAngle), glm::vec3(1.0f, 0.3f, 0.5f));
+            SetShaderUniform(ColorShader, "Model", &LocalModel);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        // Draw Lamps
+        SetShaderUniform(LampShader, "View", &Camera.View);
+        SetShaderUniform(LampShader, "Projection", &Camera.Projection);
+        glBindVertexArray(LightVAO);
+        for(u32 i = 0; i < 4; i++)
+        {
+            Model = glm::mat4(1.0f);
+            Model = glm::translate(Model, PointLightPositions[i]);
+            Model = glm::scale(Model, glm::vec3(0.2f)); // a smaller cube
+            SetShaderUniform(LampShader, "Model", &Model);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
         SetActiveRenderTarget(0);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         DisplayRenderTarget(MainRenderTarget);
+
+        // glDisable(GL_DEPTH_TEST);
+        // glUseProgram(HDRShader);
+        // SetShaderUniform(HDRShader, "Exposure", 1.0f);
+        // glBindVertexArray(MainRenderTarget->ScreenQuadVAO);
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_2D, MainRenderTarget->TextureColorBuffer);
+        // glDrawArrays(GL_TRIANGLES, 0, 6);
+        // glEnable(GL_DEPTH_TEST); // Enable depth testing (it's disabled for rendering screen space quad)
 
         // printf("AllocationCount: %d\n", AllocationCount);
 
