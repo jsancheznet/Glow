@@ -35,10 +35,11 @@ extern "C"
 // NOTE: http://casual-effects.com/data/index.html <--- Cool site for test models
 #include "shared.h"
 
-// TODO(Jorge): Read opengl's basic lighting and implement it
-// TODO(Joreg): HDR Rendering!
 // TODO(Jorge): Bloom!
+// TODO(Jorge): Input Queue!
 
+// TODO(Jorge): Remove unused shaders! Make sure only what is needed exist
+// TODO: Make sure everything is gamma corrected, lighting calculations also need to be done with Gamma correction!
 // TODO: Game hotloading?
 // TODO: AABBvsAABB;
 // TODO: DrawDebugLine();
@@ -107,6 +108,8 @@ struct camera
     glm::mat4 Ortho;
 };
 
+
+
 struct textured_cube
 {
     u32 VAO;
@@ -160,7 +163,8 @@ struct font
 struct render_target
 {
     u32 Framebuffer; // The main opengl container for attachments
-    u32 TextureColorBuffer;
+    u32 ColorBufferTexture;
+    u32 BloomBufferTexture;
     u32 DepthStencilRenderbuffer;
 
     // Size of the offscreen buffer
@@ -174,6 +178,7 @@ struct render_target
 
     f32 HDRExposure;
 };
+
 
 
 //
@@ -275,41 +280,6 @@ b32 IsReleased(SDL_Scancode Scancode)
     return (!Keyboard.State[Scancode] && Keyboard.PrevState[Scancode]);
 }
 
-char *ReadTextFile(char *Filename)
-{
-    // IMPORTANT(Jorge): The caller of this function needs to free the allocated pointer!
-    Assert(Filename);
-
-    SDL_RWops *RWops = SDL_RWFromFile(Filename, "rb");
-    if (RWops == NULL)
-    {
-        return NULL;
-    }
-
-    size_t FileSize = SDL_RWsize(RWops);
-    char* Result = (char*)Malloc(FileSize + 1);
-    char* Buffer = Result;
-
-    size_t BytesReadTotal = 0, BytesRead = 1;
-    while (BytesReadTotal < FileSize && BytesRead != 0)
-    {
-        BytesRead = SDL_RWread(RWops, Buffer, 1, (FileSize - BytesReadTotal));
-        BytesReadTotal += BytesRead;
-        Buffer += BytesRead;
-    }
-
-    SDL_RWclose(RWops);
-    if (BytesReadTotal != FileSize)
-    {
-        Free(Result);
-        return NULL;
-    }
-
-    Result[BytesReadTotal] = '\0';
-
-    return Result;
-}
-
 void ToggleFullscreen(SDL_Window *WindowIn)
 {
     // TODO: Recreate the framebuffer attachments so it corresponds to the current resolution
@@ -331,6 +301,54 @@ void ToggleFullscreen(SDL_Window *WindowIn)
         fprintf(stdout, "FULLSCREEN: Drawable Width: %d\nDrawable Height: %d\n", WindowWidth, WindowHeight);
     }
     glViewport(0, 0, WindowWidth, WindowHeight);
+}
+
+
+void SetShaderUniform(u32 Shader, char *Name, i32 Value)
+{
+    // TODO(Jorge): Activate the shader before calling
+    // SetShaderUniform so we dont call glUseProgram multiple times,
+    // something like:
+    // SetActiveshader(Shader);
+    // SetUniform(GlobalActiveShader, "Name", Value);
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniform1i(glGetUniformLocation(Shader, Name), Value);
+}
+
+void SetShaderUniform(u32 Shader, char *Name, f32 Value)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniform1f(glGetUniformLocation(Shader, Name), Value);
+}
+
+void SetShaderUniform(u32 Shader, char *Name, glm::mat4 *Value)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(*Value));
+}
+
+void SetShaderUniform(u32 Shader, char *Name, glm::mat4 Value)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(Value));
+}
+
+void SetShaderUniform(u32 Shader, char *Name, f32 X, f32 Y, f32 Z)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniform3f(glGetUniformLocation(Shader, Name), X, Y, Z);
+}
+
+void SetShaderUniform(u32 Shader, char *Name, glm::vec3 Value)
+{
+    Assert(Name);
+    glUseProgram(Shader);
+    glUniform3f(glGetUniformLocation(Shader, Name), Value.x, Value.y, Value.z);
 }
 
 u32 CompileShaderObject(const char *Source, GLenum ShaderType)
@@ -495,52 +513,6 @@ u32 CreateShaderProgram(char *Filename)
     return Result;
 }
 
-void SetShaderUniform(u32 Shader, char *Name, i32 Value)
-{
-    // TODO(Jorge): Activate the shader before calling
-    // SetShaderUniform so we dont call glUseProgram multiple times,
-    // something like:
-    // SetActiveshader(Shader);
-    // SetUniform(GlobalActiveShader, "Name", Value);
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniform1i(glGetUniformLocation(Shader, Name), Value);
-}
-
-void SetShaderUniform(u32 Shader, char *Name, f32 Value)
-{
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniform1f(glGetUniformLocation(Shader, Name), Value);
-}
-
-void SetShaderUniform(u32 Shader, char *Name, glm::mat4 *Value)
-{
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(*Value));
-}
-
-void SetShaderUniform(u32 Shader, char *Name, glm::mat4 Value)
-{
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(Value));
-}
-
-void SetShaderUniform(u32 Shader, char *Name, f32 X, f32 Y, f32 Z)
-{
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniform3f(glGetUniformLocation(Shader, Name), X, Y, Z);
-}
-
-void SetShaderUniform(u32 Shader, char *Name, glm::vec3 Value)
-{
-    Assert(Name);
-    glUseProgram(Shader);
-    glUniform3f(glGetUniformLocation(Shader, Name), Value.x, Value.y, Value.z);
-}
 
 u32 CreateOpenGLTexture(char *Filename)
 {
@@ -600,6 +572,7 @@ u32 CreateOpenGLTexture(char *Filename)
 
     return Result;
 }
+
 
 textured_quad *CreateTexturedQuad(char *Filename, u32 Shader)
 {
@@ -952,6 +925,7 @@ void DrawSkybox(skybox *Skybox)
     glBindVertexArray(0);
     glDepthMask(GL_TRUE);
 }
+
 
 font *CreateFont(char *Filename, u32 Shader, i32 Width, i32 Height)
 {
@@ -1330,7 +1304,7 @@ DrawText3DCentered(char *Text, font *Font, glm::vec3 Position, glm::vec3 Scale, 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height, b32 HDR)
+render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height, b32 EnableHDR)
 {
     // NOTE: If switching to fullscreen and back is slow, we can
     // create two separate textures and renderbuffers at rendertarget
@@ -1360,6 +1334,8 @@ render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height, b
     // create our own framebuffers, this will enable us to do
     // postprocessig and other cool effects.
 
+    // NOTE: This function creates an HDR + Bloom framebuffer
+
     Assert(ShaderFilename);
     Assert(Width > 0);
     Assert(Height > 0);
@@ -1368,60 +1344,71 @@ render_target *CreateRenderTarget(char *ShaderFilename, i32 Width, i32 Height, b
     Result->ScreenQuadShader = CreateShaderProgram(ShaderFilename);
     Result->Width = Width;
     Result->Height = Height;
+    // Result->HDRExposure = 0.01f;
     Result->HDRExposure = 1.0f;
 
     // Create the main framebuffer
     glGenFramebuffers(1, &Result->Framebuffer);
-    // GL_FRAMEBUFFER binds the framebuffer to both, read + write.
     glBindFramebuffer(GL_FRAMEBUFFER, Result->Framebuffer);
 
-    // Create a texture as a color attachment for the framebuffer
-    glGenTextures(1, &Result->TextureColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, Result->TextureColorBuffer);
-    // TODO: Create a  Multisample texture so we can support Anti Aliasing
-    // TODO: Write a note of how to create multisampled framebuffers
-    // TODO: Fix colors, should be SRGB
-    // TODO: Edit here when changing internalformat to float to support HDR
-    i32 LevelOfDetail = 0;
-    i32 InternalFormat;
-    if(HDR)
-    {
-        InternalFormat = GL_RGB16F;
-    }
-    else
-    {
-        InternalFormat = GL_SRGB8;
+    { // SECTION: Color Buffer Texture
+        glGenTextures(1, &Result->ColorBufferTexture);
+        glBindTexture(GL_TEXTURE_2D, Result->ColorBufferTexture);
+        // TODO: Create a  Multisample texture so we can support Anti Aliasing
+        // TODO: Write a note of how to create multisampled framebuffers
+        // TODO: Fix colors, should be SRGB
+        i32 LevelOfDetail = 0;
+        i32 InternalFormat = GL_RGB16F;
+        GLenum FormatOfPixelData = GL_RGB;
+        GLenum PixelDataType = GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result->ColorBufferTexture, 0);
     }
 
-    GLenum FormatOfPixelData = GL_RGB;
-    GLenum PixelDataType = GL_UNSIGNED_BYTE;
-    glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Attach the texture buffer to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Result->TextureColorBuffer, 0);
+    { // SECTION: Bloom Buffer Texture
+        glGenTextures(1, &Result->BloomBufferTexture);
+        glBindTexture(GL_TEXTURE_2D, Result->BloomBufferTexture);
+        // TODO: Create a  Multisample texture so we can support Anti Aliasing
+        // TODO: Write a note of how to create multisampled framebuffers
+        // TODO: Fix colors, should be SRGB
+        i32 LevelOfDetail = 0;
+        i32 InternalFormat = GL_RGB16F;
+        GLenum FormatOfPixelData = GL_RGB;
+        GLenum PixelDataType = GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Attach the texture buffer to the framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Result->BloomBufferTexture, 0);
+    }
+    // TODO: Jorge, Does the glDrawBuffers call go here?!?!?!?!?
+    u32 Attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, Attachments);
 
     // Create a RenderBuffer object for depth and stencil attachments.
     glGenRenderbuffers(1, &Result->DepthStencilRenderbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, Result->DepthStencilRenderbuffer);
-    // Use a single renderbuffer object for both, stencil+depth
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
-    // Attach it
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Result->DepthStencilRenderbuffer);
 
     // Now that all attachments are added, we check if the framebuffer is complete
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
-        // Framebuffer is not complete, free everything, return NULL;
         printf("ERROR: Framebuffer is not complete! - %s:%d\n", __FILE__, __LINE__);
         glDeleteFramebuffers(1, &Result->Framebuffer);
-        glDeleteTextures(1, &Result->TextureColorBuffer);
+        glDeleteTextures(1, &Result->ColorBufferTexture);
+        glDeleteTextures(1, &Result->BloomBufferTexture);
         glDeleteRenderbuffers(1, &Result->DepthStencilRenderbuffer);
         Free(Result);
         return NULL;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
     // VAO and Vertex Data for displaying the off-screen buffer to the main window
     // VAO for the final screen render quad
@@ -1471,50 +1458,56 @@ void DisplayRenderTarget(render_target *RenderTarget)
     SetShaderUniform(RenderTarget->ScreenQuadShader, "Exposure", RenderTarget->HDRExposure);
     glBindVertexArray(RenderTarget->ScreenQuadVAO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, RenderTarget->TextureColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, RenderTarget->ColorBufferTexture);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glEnable(GL_DEPTH_TEST); // Enable depth testing (it's disabled for rendering screen space quad)
 }
 
 void ResizeRenderTarget(render_target *RenderTarget, i32 Width, i32 Height)
 {
-    // TODO: Maybe we can create 2 targets at RenderTarget
-    // initialization and switch between them. It's probably faster!
-
     Assert(RenderTarget);
     Assert(Width > 0);
     Assert(Height > 0);
 
     // Delete old texture and depth+stencil renderbuffer
-    glDeleteTextures(1, &RenderTarget->TextureColorBuffer);
+    glDeleteTextures(1, &RenderTarget->ColorBufferTexture);
+    glDeleteTextures(1, &RenderTarget->BloomBufferTexture);
     glDeleteRenderbuffers(1, &RenderTarget->DepthStencilRenderbuffer);
 
     glBindFramebuffer(GL_FRAMEBUFFER, RenderTarget->Framebuffer);
 
-    // Color texture attachment
+    { // SECTION: Color Attachment 0
+        glGenTextures(1, &RenderTarget->ColorBufferTexture);
+        glBindTexture(GL_TEXTURE_2D, RenderTarget->ColorBufferTexture);
+        i32 LevelOfDetail = 0;
+        i32 InternalFormat = GL_RGB16F;
+        GLenum FormatOfPixelData = GL_RGB;
+        GLenum PixelDataType = GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Attach the texture buffer to the framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, RenderTarget->ColorBufferTexture, 0);
+    }
 
-    // Create a texture as a color attachment for the framebuffer
-    glGenTextures(1, &RenderTarget->TextureColorBuffer);
-    glBindTexture(GL_TEXTURE_2D, RenderTarget->TextureColorBuffer);
-    // TODO: Edit here when changing internalformat to float to support HDR
-    i32 LevelOfDetail = 0;
-    i32 InternalFormat = GL_RGB;
-    GLenum FormatOfPixelData = GL_RGB;
-    GLenum PixelDataType = GL_UNSIGNED_BYTE;
-    glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Attach the texture buffer to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, RenderTarget->TextureColorBuffer, 0);
-
+    { // SECTION: Bloom Texture color attachment
+        glGenTextures(1, &RenderTarget->BloomBufferTexture);
+        glBindTexture(GL_TEXTURE_2D, RenderTarget->BloomBufferTexture);
+        i32 LevelOfDetail = 0;
+        i32 InternalFormat = GL_RGB16F;
+        GLenum FormatOfPixelData = GL_RGB;
+        GLenum PixelDataType = GL_UNSIGNED_BYTE;
+        glTexImage2D(GL_TEXTURE_2D, LevelOfDetail, InternalFormat, Width, Height, 0, FormatOfPixelData, PixelDataType, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Attach the texture buffer to the framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, RenderTarget->ColorBufferTexture, 0);
+    }
 
     // RenderBuffer
-    // Create a RenderBuffer object for depth and stencil attachments.
     glGenRenderbuffers(1, &RenderTarget->DepthStencilRenderbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, RenderTarget->DepthStencilRenderbuffer);
-    // Use a single renderbuffer object for both, stencil+depth
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
-    // Attach it
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RenderTarget->DepthStencilRenderbuffer);
 
     // Now that all attachments are added, we check if the framebuffer is complete
@@ -1525,7 +1518,39 @@ void ResizeRenderTarget(render_target *RenderTarget, i32 Width, i32 Height)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-int main(int Argc, char **Argv)
+
+// renderQuad() renders a 1x1 XY quad in NDC
+// -----------------------------------------
+unsigned int quadVAO = 0;
+unsigned int quadVBO;
+void renderQuad()
+{
+    if (quadVAO == 0)
+    {
+        float quadVertices[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+
+int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
@@ -1578,19 +1603,20 @@ int main(int Argc, char **Argv)
     printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
     printf("GLSL Version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 
+    // No V-Sync
     if(SDL_GL_SetSwapInterval(0) != 0)
     {
         printf("Something went wrong in SDL_GL_SetSwapInterval");
         return -2;
     }
 
-    glEnable(GL_FRAMEBUFFER_SRGB);
+    // glEnable(GL_FRAMEBUFFER_SRGB); // NOTE: We are doing gamma correction in our shader, there's no ned for SRGB Framebuffer
     glFrontFace(GL_CCW);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_CULL_FACE);
+    // glDisable(GL_CULL_FACE);
 
     glViewport(0, 0, WindowWidth, WindowHeight);
 
@@ -1605,14 +1631,17 @@ int main(int Argc, char **Argv)
     InitClock();
 
     // TODO: Unite the two equal shaders, TexturedQuad.glsl and TexturedCube.glsl
-    u32 TexturedObjectShader = CreateShaderProgram("shaders/TexturedObject.glsl");
     u32 TextShader           = CreateShaderProgram("shaders/Text.glsl");
     u32 SkyboxShader         = CreateShaderProgram("shaders/Skybox.glsl");
-    u32 ScreenQuadShader     = CreateShaderProgram("shaders/ScreenQuad.glsl");
+    u32 PostProcessingShader = CreateShaderProgram("shaders/PostProcessing.glsl");
 
-    u32 ColorShader          = CreateShaderProgram("shaders/Color.glsl");
-    u32 LampShader           = CreateShaderProgram("shaders/Lamp.glsl");
+    u32 TexturedObjectShader = CreateShaderProgram("shaders/TexturedObject.glsl");
+
     u32 HDRShader            = CreateShaderProgram("shaders/HDR.glsl");
+    u32 BlurShader           = CreateShaderProgram("shaders/Blur.glsl");
+
+    u32 WoodContainerShader  = CreateShaderProgram("shaders/WoodContainer.glsl");
+    u32 LampShader           = CreateShaderProgram("shaders/Lamp.glsl");
 
     font *Arial              = CreateFont("fonts/arial.ttf", TextShader, 0, 100);
     font *DebugInfoFont      = CreateFont("fonts/arial.ttf", TextShader, 0, 22);
@@ -1718,6 +1747,26 @@ int main(int Argc, char **Argv)
     u32 SpecularMap = CreateOpenGLTexture("textures/container2_specular.png");
 
 
+    //
+    //
+    //
+    u32 PingPongFBO[2];
+    u32 PingPongBuffer[2];
+    { // SECTION: Create Ping Pong framebuffers
+        glGenFramebuffers(2, PingPongFBO);
+        glGenTextures(2, PingPongBuffer);
+        for (u32 i = 0; i < 2; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, PingPongFBO[i]);
+            glBindTexture(GL_TEXTURE_2D, PingPongBuffer[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, WindowWidth, WindowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, PingPongBuffer[i], 0);
+        }
+    }
     //
     //
     //
@@ -1878,25 +1927,23 @@ int main(int Argc, char **Argv)
                     MainRenderTarget->HDRExposure = 0.001f;
                 }
             }
-            printf("Expsure: %2.2f\n", MainRenderTarget->HDRExposure);
         }
 
         // Update Camera Matrices
         Camera.View = glm::lookAt(Camera.Position, Camera.Position + Camera.Front, Camera.Up);
         Camera.Projection = glm::perspective(glm::radians(Camera.FoV), (f32)WindowWidth / (f32)WindowHeight, Camera.Near, Camera.Far);
 
-        if(glIsEnabled(GL_CULL_FACE))
-        {
-            printf("Culling enabled!\n");
-        }
-
         // Render //
-        // TODO: Resume "Light Casters"
         // TODO(Jorge): Create a bind texture to texture unit wrapper, void BindMultiTextureEXT(enum texunit, enum target, uint texture);
-        // TODO(Jorge): HDR PIPELINE REQUIRES HDR DATA!, GET SOME HDR DATA NOW!
         SetActiveRenderTarget(MainRenderTarget);
 
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // TODO(Jorge): What happens if we call
+        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH,
+        // SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL); on an existing
+        // texture, does it resize it in place or does it create a new
+        // one?
+
+        glClearColor(0.f, 0.f, 0.f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // DrawSkybox(MainSkybox);
@@ -1923,57 +1970,64 @@ int main(int Argc, char **Argv)
             glm::vec3(-4.0f,  2.0f, -12.0f),
             glm::vec3( 0.0f,  0.0f, -3.0f)
         };
+        glm::vec3 PointLightColors[4] =
+        {
+            glm::vec3(5.0f, 5.0f, 5.0f),
+            glm::vec3(10.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 50.0f),
+            glm::vec3(0.0f, 15.0f, 0.0f),
+        };
 
 
         // Draw Cube //
-        SetShaderUniform(ColorShader, "ViewPos", Camera.Position);
-        // Set Material Uniforms
-        SetShaderUniform(ColorShader, "Material.Diffuse", 0);
-        SetShaderUniform(ColorShader, "Material.Specular", 1);
-        SetShaderUniform(ColorShader, "Material.Shininess", 32.0f);
+        SetShaderUniform(WoodContainerShader, "ViewPos", Camera.Position);
+        // Set Material Uniforms for 4 lights
+        SetShaderUniform(WoodContainerShader, "Material.Diffuse", 0);
+        SetShaderUniform(WoodContainerShader, "Material.Specular", 1);
+        SetShaderUniform(WoodContainerShader, "Material.Shininess", 32.0f);
         // Set Directional Light Uniforms
-        SetShaderUniform(ColorShader, "DirLight.Direction", -0.2f, -1.0f, -0.3f);
-        SetShaderUniform(ColorShader, "DirLight.Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(ColorShader, "DirLight.Diffuse", 0.04f, 0.04f, 0.04f);
-        SetShaderUniform(ColorShader, "DirLight.Specular", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "DirLight.Direction", -0.2f, -1.0f, -0.3f);
+        SetShaderUniform(WoodContainerShader, "DirLight.Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "DirLight.Diffuse", 0.5f, 0.5f, 0.5f);
+        SetShaderUniform(WoodContainerShader, "DirLight.Specular", 0.05f, 0.05f, 0.05f);
         // Point Light 1
-        SetShaderUniform(ColorShader, "PointLights[0].Position", PointLightPositions[0]);
-        SetShaderUniform(ColorShader, "PointLights[0].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(ColorShader, "PointLights[0].Diffuse", 0.08f, 0.08f, 0.08f);
-        SetShaderUniform(ColorShader, "PointLights[0].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[0].Constant", 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[0].Linear", 0.09f);
-        SetShaderUniform(ColorShader, "PointLights[0].Quadratic", 0.032f);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Position", PointLightPositions[0]);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Diffuse", PointLightColors[0]);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Constant", 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Linear", 0.09f);
+        SetShaderUniform(WoodContainerShader, "PointLights[0].Quadratic", 0.032f);
         // Point Light 2
-        SetShaderUniform(ColorShader, "PointLights[1].Position", PointLightPositions[1]);
-        SetShaderUniform(ColorShader, "PointLights[1].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(ColorShader, "PointLights[1].Diffuse", 200.0f, 0.08f, 200.0f);
-        SetShaderUniform(ColorShader, "PointLights[1].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[1].Constant", 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[1].Linear", 0.09f);
-        SetShaderUniform(ColorShader, "PointLights[1].Quadratic", 0.032f);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Position", PointLightPositions[1]);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Diffuse", PointLightColors[1]);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Constant", 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Linear", 0.09f);
+        SetShaderUniform(WoodContainerShader, "PointLights[1].Quadratic", 0.032f);
         // Point Light 3
-        SetShaderUniform(ColorShader, "PointLights[2].Position", PointLightPositions[2]);
-        SetShaderUniform(ColorShader, "PointLights[2].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(ColorShader, "PointLights[2].Diffuse", 0.08f, 0.08f, 0.08f);
-        SetShaderUniform(ColorShader, "PointLights[2].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[2].Constant", 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[2].Linear", 0.09f);
-        SetShaderUniform(ColorShader, "PointLights[2].Quadratic", 0.032f);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Position", PointLightPositions[2]);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Diffuse", PointLightColors[2]);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Constant", 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Linear", 0.09f);
+        SetShaderUniform(WoodContainerShader, "PointLights[2].Quadratic", 0.032f);
         // Point Light 4
-        SetShaderUniform(ColorShader, "PointLights[3].Position", PointLightPositions[3]);
-        SetShaderUniform(ColorShader, "PointLights[3].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(ColorShader, "PointLights[3].Diffuse", 0.08f, 0.08f, 0.08f);
-        SetShaderUniform(ColorShader, "PointLights[3].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[3].Constant", 1.0f);
-        SetShaderUniform(ColorShader, "PointLights[3].Linear", 0.09f);
-        SetShaderUniform(ColorShader, "PointLights[3].Quadratic", 0.032f);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Position", PointLightPositions[3]);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Ambient", 0.05f, 0.05f, 0.05f);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Diffuse", PointLightColors[3]);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Specular", 1.0f, 1.0f, 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Constant", 1.0f);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Linear", 0.09f);
+        SetShaderUniform(WoodContainerShader, "PointLights[3].Quadratic", 0.032f);
 
         // Set Transformation uniforms
         glm::mat4 Model = glm::mat4(1.0f);
-        SetShaderUniform(ColorShader, "Model", &Model);
-        SetShaderUniform(ColorShader, "View", &Camera.View);
-        SetShaderUniform(ColorShader, "Projection", &Camera.Projection);
+        SetShaderUniform(WoodContainerShader, "Model", &Model);
+        SetShaderUniform(WoodContainerShader, "View", &Camera.View);
+        SetShaderUniform(WoodContainerShader, "Projection", &Camera.Projection);
         glBindVertexArray(CubeVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, DiffuseMap);
@@ -1999,10 +2053,9 @@ int main(int Argc, char **Argv)
             LocalModel = glm::translate(LocalModel, CubePositions[i]);
             f32 LocalAngle = 20.0f * i;
             LocalModel = glm::rotate(LocalModel, glm::radians(LocalAngle), glm::vec3(1.0f, 0.3f, 0.5f));
-            SetShaderUniform(ColorShader, "Model", &LocalModel);
+            SetShaderUniform(WoodContainerShader, "Model", &LocalModel);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-
         // Draw Lamps
         SetShaderUniform(LampShader, "View", &Camera.View);
         SetShaderUniform(LampShader, "Projection", &Camera.Projection);
@@ -2013,8 +2066,31 @@ int main(int Argc, char **Argv)
             Model = glm::translate(Model, PointLightPositions[i]);
             Model = glm::scale(Model, glm::vec3(0.2f)); // a smaller cube
             SetShaderUniform(LampShader, "Model", &Model);
+            SetShaderUniform(LampShader, "LightColor", PointLightColors[i]);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+
+        //
+        // TODO: Render Here Ping Pong blurr
+        // NOTE: WoodenContainer.glsl is the shader that draws to brightness draw buffer
+        // TODO: When WoodenContainer.glsl is out of use, we need to draw to brightness buffer in another shader
+        //
+        // 2. blur bright fragments with two-pass Gaussian Blur
+        // --------------------------------------------------
+        bool horizontal = true, first_iteration = true;
+        unsigned int amount = 10;
+        glUseProgram(BlurShader);
+        for (unsigned int i = 0; i < amount; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, PingPongFBO[horizontal]);
+            SetShaderUniform(BlurShader, "Horizontal", horizontal);
+            glBindTexture(GL_TEXTURE_2D, first_iteration ? PingPongBuffer[1] : PingPongBuffer[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+            renderQuad();
+            horizontal = !horizontal;
+            if (first_iteration)
+                first_iteration = false;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
         SetActiveRenderTarget(0);

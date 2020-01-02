@@ -26,6 +26,7 @@ void main()
 
     // Reinhard tone mapping
     vec3 Mapped = vec3(1.0) - exp(-HDRColor * Exposure);
+
     // Gamma correction
     Mapped = pow(Mapped, vec3(1.0 / Gamma));
 
