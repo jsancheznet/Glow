@@ -2080,6 +2080,9 @@ int main(i32 Argc, char **Argv)
         bool horizontal = true, first_iteration = true;
         unsigned int amount = 10;
         glUseProgram(BlurShader);
+        // SetShaderUniform(BlurShader, "Image", 0);
+        // glBindTexture(GL_TEXTURE_2D, MainRenderTarget->BloomBufferTexture);
+        // glActiveTexture(GL_TEXTURE0);
         for (unsigned int i = 0; i < amount; i++)
         {
             glBindFramebuffer(GL_FRAMEBUFFER, PingPongFBO[horizontal]);
