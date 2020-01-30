@@ -1,35 +1,44 @@
 #ifdef VERTEX_SHADER
 
-layout (location = 0) in vec2 Position;
+layout (location = 0) in vec3 Position;
 layout (location = 1) in vec2 UV;
 
 out vec2 TexCoords;
 
 void main()
 {
-    gl_Position = vec4(Position.x, Position.y, 0.0, 1.0);
     TexCoords = UV;
+    gl_Position = vec4(Position, 1.0);
 }
 
 #endif
 #ifdef FRAGMENT_SHADER
-out vec4 FragColor;
+
 in vec2 TexCoords;
+
+out vec4 FragmentColor;
 
 uniform sampler2D HDRBuffer;
 uniform float Exposure;
+uniform bool HDR;
 
 void main()
 {
     const float Gamma = 2.2;
     vec3 HDRColor = texture(HDRBuffer, TexCoords).rgb;
 
-    // Reinhard tone mapping
-    vec3 Mapped = vec3(1.0) - exp(-HDRColor * Exposure);
-
-    // Gamma correction
-    Mapped = pow(Mapped, vec3(1.0 / Gamma));
-
-    FragColor = vec4(Mapped, 1.0);
+    if(HDR)
+    {
+        // Exposure
+        vec3 Result = vec3(1.0) - exp(-HDRColor * Exposure);
+        // Gamma Correction
+        Result = pow(Result, vec3(1.0 / Gamma));
+        FragmentColor = vec4(Result, 1.0);
+    }
+    else
+    {
+        vec3 Result = pow(HDRColor, vec3(1.0 / Gamma));
+        FragmentColor = vec4(Result, 1.0);
+    }
 }
 #endif

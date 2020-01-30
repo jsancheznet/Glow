@@ -10,6 +10,8 @@ extern "C"
 }
 #endif
 
+#include <windows.h>
+
 #include <stdio.h>
 
 #include "external/glad.c"
@@ -34,6 +36,7 @@ extern "C"
 
 // NOTE: http://casual-effects.com/data/index.html <--- Cool site for test models
 #include "shared.h"
+#include "input.cpp"
 
 // TODO(Jorge): Bloom!
 // TODO(Jorge): Input Queue!
@@ -62,24 +65,6 @@ extern "C"
 // IDEAS: Load variables from a file, such as SetSwapInterval
 // IDEAS: Stop using relative mouse mode, use regular so nSight can work correctly, and we can have mouse navigatable debug in game menus
 
-struct mouse
-{
-    u32 ButtonState;
-    i32 RelX;
-    i32 RelY;
-    f32 Sensitivity;
-    b32 FirstMouse; // FirstMouse is used only on the first mouse/frame input to avoid a camera jump
-};
-
-struct keyboard
-{
-    const u8 *State;
-    u8 *CurrentState;
-    u8 *PrevState;
-    i32 Numkeys;
-    SDL_Keymod ModState;
-};
-
 struct clock
 {
     u64 PerfCounterNow;
@@ -107,8 +92,6 @@ struct camera
     glm::mat4 Projection;
     glm::mat4 Ortho;
 };
-
-
 
 struct textured_cube
 {
@@ -179,8 +162,6 @@ struct render_target
     f32 HDRExposure;
 };
 
-
-
 //
 // Globals
 //
@@ -199,43 +180,17 @@ global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
 
-void InitMouse()
-{
-    Mouse.ButtonState = 0;
-    Mouse.Sensitivity = 0.3f;
-    Mouse.FirstMouse = 1;
-    Mouse.RelX = 0;
-    Mouse.RelY = 0;
-}
-
-void UpdateMouse()
-{
-    Mouse.ButtonState = SDL_GetRelativeMouseState(&Mouse.RelX, &Mouse.RelY);
-}
-
-void InitKeyboard()
-{
-    Keyboard.State = SDL_GetKeyboardState(&Keyboard.Numkeys);
-    Keyboard.CurrentState = (u8*)Malloc(sizeof(u8) * Keyboard.Numkeys);
-    Keyboard.PrevState = (u8*)Malloc(sizeof(u8) * Keyboard.Numkeys);
-    Assert(Keyboard.PrevState);
-    Assert(Keyboard.CurrentState);
-    *Keyboard.CurrentState = {};
-    *Keyboard.PrevState = {};
-}
-
-void UpdateKeyboard()
-{
-    memcpy((void*)Keyboard.PrevState, (void*)Keyboard.CurrentState, sizeof(u8) * Keyboard.Numkeys);
-    Keyboard.State = SDL_GetKeyboardState(NULL);
-    memcpy((void*)Keyboard.CurrentState, (void*)Keyboard.State, sizeof(u8) * Keyboard.Numkeys);
-    Keyboard.ModState = SDL_GetModState();
-}
+// Renderer Things
+f32 Exposure = 0.1f;
+const u8 *HardwareVendor = NULL;
+const u8 *HardwareModel = NULL;
+const u8 *OpenGLVersion = NULL;
+const u8 *GLSLVersion = NULL;
 
 void InitCamera()
 {
     // NOTE(Jorge): This functions makes use of the global_variable camera Camera;
-    Camera.Position = glm::vec3(0.0f, 0.0f, 2.0f);
+    Camera.Position = glm::vec3(0.0f, 0.0f, 6.0f);
     Camera.Front = glm::vec3(0.0f, 0.0f, -1.0f);
     Camera.Up = glm::vec3(0.0f, 1.0f, 0.0f);
     Camera.Speed = 1.5f;
@@ -265,21 +220,6 @@ void UpdateClock()
     Clock.SecondsElapsed += Clock.DeltaTime;
 }
 
-b32 IsPressed(SDL_Scancode Scancode)
-{
-    return Keyboard.State[Scancode];
-}
-
-b32 IsNotPressed(SDL_Scancode Scancode)
-{
-    return !Keyboard.State[Scancode];
-}
-
-b32 IsReleased(SDL_Scancode Scancode)
-{
-    return (!Keyboard.State[Scancode] && Keyboard.PrevState[Scancode]);
-}
-
 void ToggleFullscreen(SDL_Window *WindowIn)
 {
     // TODO: Recreate the framebuffer attachments so it corresponds to the current resolution
@@ -306,48 +246,37 @@ void ToggleFullscreen(SDL_Window *WindowIn)
 
 void SetShaderUniform(u32 Shader, char *Name, i32 Value)
 {
-    // TODO(Jorge): Activate the shader before calling
-    // SetShaderUniform so we dont call glUseProgram multiple times,
-    // something like:
-    // SetActiveshader(Shader);
-    // SetUniform(GlobalActiveShader, "Name", Value);
     Assert(Name);
-    glUseProgram(Shader);
     glUniform1i(glGetUniformLocation(Shader, Name), Value);
 }
 
 void SetShaderUniform(u32 Shader, char *Name, f32 Value)
 {
     Assert(Name);
-    glUseProgram(Shader);
     glUniform1f(glGetUniformLocation(Shader, Name), Value);
 }
 
 void SetShaderUniform(u32 Shader, char *Name, glm::mat4 *Value)
 {
     Assert(Name);
-    glUseProgram(Shader);
     glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(*Value));
 }
 
 void SetShaderUniform(u32 Shader, char *Name, glm::mat4 Value)
 {
     Assert(Name);
-    glUseProgram(Shader);
     glUniformMatrix4fv(glGetUniformLocation(Shader, Name), 1, GL_FALSE, glm::value_ptr(Value));
 }
 
 void SetShaderUniform(u32 Shader, char *Name, f32 X, f32 Y, f32 Z)
 {
     Assert(Name);
-    glUseProgram(Shader);
     glUniform3f(glGetUniformLocation(Shader, Name), X, Y, Z);
 }
 
 void SetShaderUniform(u32 Shader, char *Name, glm::vec3 Value)
 {
     Assert(Name);
-    glUseProgram(Shader);
     glUniform3f(glGetUniformLocation(Shader, Name), Value.x, Value.y, Value.z);
 }
 
@@ -573,7 +502,6 @@ u32 CreateOpenGLTexture(char *Filename)
     return Result;
 }
 
-
 textured_quad *CreateTexturedQuad(char *Filename, u32 Shader)
 {
     Assert(Filename);
@@ -669,7 +597,6 @@ void DrawTexturedQuad(textured_quad *Quad, glm::vec3 Position, glm::vec3 Size, g
     glBindVertexArray(Quad->VAO);
     glDrawElements(GL_TRIANGLES,6, GL_UNSIGNED_INT, 0);
 }
-
 
 void DrawTexturedCube(textured_cube *Cube, glm::vec3 Position, glm::vec3 Scale, glm::vec3 RotationAxis, f32 RotationAngle)
 {
@@ -1598,10 +1525,14 @@ int main(i32 Argc, char **Argv)
         return -1;
     }
 
-    printf("GPU VENDOR: %s\n", glGetString(GL_VENDOR));
-    printf("GPU: %s\n", glGetString(GL_RENDERER));
-    printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
-    printf("GLSL Version: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    HardwareVendor = glGetString(GL_VENDOR);
+    HardwareModel = glGetString(GL_RENDERER);
+    OpenGLVersion = glGetString(GL_VERSION);
+    GLSLVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
+    printf("GPU VENDOR: %s\n", HardwareVendor);
+    printf("GPU: %s\n", HardwareModel);
+    printf("OpenGL Version: %s\n", OpenGLVersion);
+    printf("GLSL Version: %s\n", GLSLVersion);
 
     // No V-Sync
     if(SDL_GL_SetSwapInterval(0) != 0)
@@ -1625,134 +1556,147 @@ int main(i32 Argc, char **Argv)
         printf("Error setting relative mouse mode!\n");
     }
 
-    InitMouse();
-    InitKeyboard();
+    InitMouse(&Mouse);
+    InitKeyboard(&Keyboard);
     InitCamera();
     InitClock();
 
-    // TODO: Unite the two equal shaders, TexturedQuad.glsl and TexturedCube.glsl
-    u32 TextShader           = CreateShaderProgram("shaders/Text.glsl");
-    u32 SkyboxShader         = CreateShaderProgram("shaders/Skybox.glsl");
-    u32 PostProcessingShader = CreateShaderProgram("shaders/PostProcessing.glsl");
+    glm::vec3 PlayerPosition = glm::vec3(0);
 
-    u32 TexturedObjectShader = CreateShaderProgram("shaders/TexturedObject.glsl");
+    u32 BlurShader = CreateShaderProgram("shaders/blur.glsl");
+    glUseProgram(BlurShader);
+    SetShaderUniform(BlurShader, "Image", 0);
 
-    u32 HDRShader            = CreateShaderProgram("shaders/HDR.glsl");
-    u32 BlurShader           = CreateShaderProgram("shaders/Blur.glsl");
-
-    u32 WoodContainerShader  = CreateShaderProgram("shaders/WoodContainer.glsl");
-    u32 LampShader           = CreateShaderProgram("shaders/Lamp.glsl");
-
-    font *Arial              = CreateFont("fonts/arial.ttf", TextShader, 0, 100);
-    font *DebugInfoFont      = CreateFont("fonts/arial.ttf", TextShader, 0, 22);
-
-    textured_cube *MyCube    = CreateTexturedCube(TexturedObjectShader, "textures/Border.png");
-    textured_quad *RedWindow = CreateTexturedQuad("textures/blending_transparent_window.png", TexturedObjectShader);
-    textured_quad *Joker     = CreateTexturedQuad("textures/TestFloat.hdr", TexturedObjectShader);
-
-    skybox *MainSkybox       = CreateSkybox(SkyboxShader,
-                                      "textures/skybox/right.jpg",
-                                      "textures/skybox/left.jpg",
-                                      "textures/skybox/top.jpg",
-                                      "textures/skybox/bottom.jpg",
-                                      "textures/skybox/front.jpg",
-                                      "textures/skybox/back.jpg");
-
-    render_target *MainRenderTarget = CreateRenderTarget("shaders/HDR.glsl", WindowWidth, WindowHeight, 1);
-
-    glm::vec3 PlayerPosition = glm::vec3(0,0, 1.0f);
-
+    u32 BloomShader = CreateShaderProgram("shaders/bloom_final.glsl");
+    glUseProgram(BloomShader);
+    SetShaderUniform(BloomShader, "Scene", 0);
+    SetShaderUniform(BloomShader, "BloomBlur", 1);
 
     //
-    // Colors
     //
-
-    f32 Vertices[] =
-    {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-        0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    };
-
-    // Cube
+    //
+    u32 CubeShader = CreateShaderProgram("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
     u32 CubeVAO;
     u32 CubeVBO;
+    f32 Vertices[] =
+    {
+        // layout (location = 0) in vec3 aPos;
+        // layout (location = 1) in vec3 aNormal;
+        // layout (location = 2) in vec2 aTexCoords;
+        // back face
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+        -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+        -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+        // front face
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+        1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+        1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+        -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+        -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+        // left face
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+        // right face
+        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+        1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+        1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
+        // bottom face
+        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+        1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+        1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+        -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+        -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+        // top face
+        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+        1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+        1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
+        1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+        -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+        -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
+    };
     glGenVertexArrays(1, &CubeVAO);
     glGenBuffers(1, &CubeVBO);
     glBindBuffer(GL_ARRAY_BUFFER, CubeVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
     glBindVertexArray(CubeVAO);
-    // Position Attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // Normals Attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(sizeof(f32) * 3));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)0);
     glEnableVertexAttribArray(1);
-    // UV Attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(sizeof(f32) * 6));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
     glEnableVertexAttribArray(2);
-
-    // Light
-    u32 LightVAO;
-    u32 LightVBO;
-    glGenVertexArrays(1, &LightVAO);
-    glGenBuffers(1, &LightVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, LightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-    glBindVertexArray(LightVAO);
-    // Position Attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    u32 DiffuseMap = CreateOpenGLTexture("textures/container2.png");
-    u32 SpecularMap = CreateOpenGLTexture("textures/container2_specular.png");
-
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    //
+    //
+    //
 
     //
     //
     //
+
+    u32 HdrShader = CreateShaderProgram("shaders/HDR.glsl");
+    SetShaderUniform(HdrShader, "HDRBuffer", 0);
+    GLERR;
+
+    u32 Framebuffer;
+    glGenFramebuffers(1, &Framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
+
+    u32 ColorBuffer;
+    glGenTextures(1, &ColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, ColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WindowWidth, WindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    u32 BrightnessBuffer;
+    glGenTextures(1, &BrightnessBuffer);
+    glBindTexture(GL_TEXTURE_2D, BrightnessBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WindowWidth, WindowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    u32 DepthStencilRenderbuffer;
+    glGenRenderbuffers(1, &DepthStencilRenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, DepthStencilRenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WindowWidth, WindowHeight);
+
+    // Attach Buffers to Framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ColorBuffer, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, BrightnessBuffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, DepthStencilRenderbuffer);
+    // Tell opengl we are rendering to multiple buffers
+    u32 Attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, Attachments);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("Framebuffer not complete, exiting!\n");
+        return -1;
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
     u32 PingPongFBO[2];
     u32 PingPongBuffer[2];
-    { // SECTION: Create Ping Pong framebuffers
+    { // SECTION: PingPong Framebuffers creation
+
         glGenFramebuffers(2, PingPongFBO);
         glGenTextures(2, PingPongBuffer);
         for (u32 i = 0; i < 2; i++)
@@ -1765,8 +1709,15 @@ int main(i32 Argc, char **Argv)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, PingPongBuffer[i], 0);
+            if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                printf("PingPong Framebuffer %d is not complete, exiting!\n", i);
+            }
         }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+
     //
     //
     //
@@ -1775,13 +1726,10 @@ int main(i32 Argc, char **Argv)
     SDL_Event Event;
     while(IsRunning)
     {
-        // TODO: REMOVE
-        Angle += 0.2f * (f32)Clock.DeltaTime * 999;
-
+        Angle += 0.01f;
         UpdateClock();
 
-        // Compute Average FPS - Average Milliseconds Per Frame
-        {
+        { // Compute Average FPS - Average Milliseconds Per Frame
             f32 FramesPerSecondToShow = 2; // How many times per second to calculate fps
             if(FPSTimerSecondsElapsed > (1.0f / FramesPerSecondToShow))
             {
@@ -1789,6 +1737,7 @@ int main(i32 Argc, char **Argv)
                 AverageMillisecondsPerFrame = (FPSTimerSecondsElapsed / FPSCounter) * 1000.0f;
                 FPSCounter = 0;
                 FPSTimerSecondsElapsed = 0.0f;
+
                 char Title[60] = {};
                 sprintf_s(Title, sizeof(Title),"Average FPS: %2.2f - Average Ms per frame: %2.2f", AverageFPS, AverageMillisecondsPerFrame);
                 SDL_SetWindowTitle(Window, Title);
@@ -1813,306 +1762,198 @@ int main(i32 Argc, char **Argv)
                     }
                 }
             }
-            UpdateKeyboard();
-            UpdateMouse();
 
-            if(IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                // Camera Stuff
-                if(Mouse.FirstMouse)
+            { // SECTION: Update
+                UpdateKeyboard(&Keyboard);
+                UpdateMouse(&Mouse);
+
+                if(IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    Camera.Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
-                    Camera.Pitch = 0.0f;
-                    Mouse.FirstMouse = false;
+                    // Camera Stuff
+                    if(Mouse.FirstMouse)
+                    {
+                        Camera.Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
+                        Camera.Pitch = 0.0f;
+                        Mouse.FirstMouse = false;
+                    }
+                    Camera.Yaw += Mouse.RelX * Mouse.Sensitivity;
+                    Camera.Pitch += -Mouse.RelY *Mouse.Sensitivity; // reversed since y-coordinates range from bottom to top
+                    if(Camera.Pitch > 89.0f)
+                    {
+                        Camera.Pitch =  89.0f;
+                    }
+                    else if(Camera.Pitch < -89.0f)
+                    {
+                        Camera.Pitch = -89.0f;
+                    }
+                    glm::vec3 Front;
+                    Front.x = cos(glm::radians(Camera.Yaw)) * cos(glm::radians(Camera.Pitch));
+                    Front.y = sin(glm::radians(Camera.Pitch));
+                    Front.z = sin(glm::radians(Camera.Yaw)) * cos(glm::radians(Camera.Pitch));
+                    Camera.Front = glm::normalize(Front);
                 }
-                Camera.Yaw += Mouse.RelX * Mouse.Sensitivity;
-                Camera.Pitch += -Mouse.RelY *Mouse.Sensitivity; // reversed since y-coordinates range from bottom to top
-                if(Camera.Pitch > 89.0f)
+
+                // Handle Window input stuff
+                if(IsPressed(SDL_SCANCODE_ESCAPE))
                 {
-                    Camera.Pitch =  89.0f;
+                    IsRunning = false;
                 }
-                else if(Camera.Pitch < -89.0f)
+                if(IsReleased(SDL_SCANCODE_RETURN) && IsPressed(SDL_SCANCODE_LALT))
                 {
-                    Camera.Pitch = -89.0f;
+                    ToggleFullscreen(Window);
                 }
-                glm::vec3 Front;
-                Front.x = cos(glm::radians(Camera.Yaw)) * cos(glm::radians(Camera.Pitch));
-                Front.y = sin(glm::radians(Camera.Pitch));
-                Front.z = sin(glm::radians(Camera.Yaw)) * cos(glm::radians(Camera.Pitch));
-                Camera.Front = glm::normalize(Front);
-            }
 
-            // Handle Window input stuff
-            if(IsPressed(SDL_SCANCODE_ESCAPE))
-            {
-                IsRunning = false;
-            }
-            if(IsReleased(SDL_SCANCODE_RETURN) && IsPressed(SDL_SCANCODE_LALT))
-            {
-                ToggleFullscreen(Window);
-                ResizeRenderTarget(MainRenderTarget, WindowWidth, WindowHeight);
-            }
-
-            // Handle Camera Input
-            if(IsPressed(SDL_SCANCODE_W) && IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                Camera.Position += Camera.Front * Camera.Speed * (f32)Clock.DeltaTime;
-            }
-            if(IsPressed(SDL_SCANCODE_S) && IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                Camera.Position -= Camera.Speed * Camera.Front * (f32)Clock.DeltaTime;
-            }
-            if(IsPressed(SDL_SCANCODE_A) && IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                Camera.Position -= glm::normalize(glm::cross(Camera.Front, Camera.Up)) * Camera.Speed * (f32)Clock.DeltaTime;
-            }
-            if(IsPressed(SDL_SCANCODE_D) && IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                Camera.Position += glm::normalize(glm::cross(Camera.Front, Camera.Up)) * Camera.Speed * (f32)Clock.DeltaTime;
-            }
-            if(IsPressed(SDL_SCANCODE_SPACE) && IsPressed(SDL_SCANCODE_LSHIFT))
-            {
-                // Camera.Position.y += Camera.Speed * (f32)Clock.DeltaTime;
-                InitCamera();
-                InitMouse();
-            }
-
-            // Handle Player Input
-            f32 PlayerSpeed = 0.01f;
-            if(IsPressed(SDL_SCANCODE_W) && IsNotPressed(SDL_SCANCODE_LSHIFT))
-            {
-                PlayerPosition.y += PlayerSpeed;
-            }
-            if(IsPressed(SDL_SCANCODE_S) && IsNotPressed(SDL_SCANCODE_LSHIFT))
-            {
-                PlayerPosition.y -= PlayerSpeed;
-            }
-            if(IsPressed(SDL_SCANCODE_A) && IsNotPressed(SDL_SCANCODE_LSHIFT))
-            {
-                PlayerPosition.x -= PlayerSpeed;
-            }
-            if(IsPressed(SDL_SCANCODE_D) && IsNotPressed(SDL_SCANCODE_LSHIFT))
-            {
-                PlayerPosition.x += PlayerSpeed;
-            }
-            if(IsPressed(SDL_SCANCODE_SPACE) && IsNotPressed(SDL_SCANCODE_LSHIFT))
-            {
-                // Jump?!?!?
-            }
-
-            // Play with FoV
-            // if(IsPressed(SDL_SCANCODE_UP))
-            // {
-            //     Camera.FoV += 0.1f;
-            // }
-            // if(IsPressed(SDL_SCANCODE_DOWN))
-            // {
-            //     Camera.FoV -= 0.1f;
-            // }
-
-
-            // Playing with HDR Exposure
-            if(IsPressed(SDL_SCANCODE_UP))
-            {
-                MainRenderTarget->HDRExposure += 0.05f;
-            }
-            if(IsPressed(SDL_SCANCODE_DOWN))
-            {
-                if(MainRenderTarget->HDRExposure > 0.0f)
+                // Handle Camera Input
+                if(IsPressed(SDL_SCANCODE_W) && IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainRenderTarget->HDRExposure -= 0.05f;
+                    Camera.Position += Camera.Front * Camera.Speed * (f32)Clock.DeltaTime;
                 }
-                else
+                if(IsPressed(SDL_SCANCODE_S) && IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainRenderTarget->HDRExposure = 0.001f;
+                    Camera.Position -= Camera.Speed * Camera.Front * (f32)Clock.DeltaTime;
+                }
+                if(IsPressed(SDL_SCANCODE_A) && IsPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    Camera.Position -= glm::normalize(glm::cross(Camera.Front, Camera.Up)) * Camera.Speed * (f32)Clock.DeltaTime;
+                }
+                if(IsPressed(SDL_SCANCODE_D) && IsPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    Camera.Position += glm::normalize(glm::cross(Camera.Front, Camera.Up)) * Camera.Speed * (f32)Clock.DeltaTime;
+                }
+                if(IsPressed(SDL_SCANCODE_SPACE) && IsPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    // Camera.Position.y += Camera.Speed * (f32)Clock.DeltaTime;
+                    InitCamera();
+                    InitMouse(&Mouse);
+                }
+
+                // Handle Player Input
+                f32 PlayerSpeed = 0.01f;
+                if(IsPressed(SDL_SCANCODE_W) && IsNotPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    PlayerPosition.y += PlayerSpeed;
+                }
+                if(IsPressed(SDL_SCANCODE_S) && IsNotPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    PlayerPosition.y -= PlayerSpeed;
+                }
+                if(IsPressed(SDL_SCANCODE_A) && IsNotPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    PlayerPosition.x -= PlayerSpeed;
+                }
+                if(IsPressed(SDL_SCANCODE_D) && IsNotPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    PlayerPosition.x += PlayerSpeed;
+                }
+                if(IsPressed(SDL_SCANCODE_SPACE) && IsNotPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    // Jump?!?!?
+                }
+
+                if(IsPressed(SDL_SCANCODE_UP))
+                {
+                    Exposure += 0.01f;
+                }
+                if(IsPressed(SDL_SCANCODE_DOWN))
+                {
+                    Exposure -= 0.01f;
                 }
             }
-        }
-
-        // Update Camera Matrices
-        Camera.View = glm::lookAt(Camera.Position, Camera.Position + Camera.Front, Camera.Up);
-        Camera.Projection = glm::perspective(glm::radians(Camera.FoV), (f32)WindowWidth / (f32)WindowHeight, Camera.Near, Camera.Far);
-
-        // Render //
-        // TODO(Jorge): Create a bind texture to texture unit wrapper, void BindMultiTextureEXT(enum texunit, enum target, uint texture);
-        SetActiveRenderTarget(MainRenderTarget);
-
-        // TODO(Jorge): What happens if we call
-        // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SCR_WIDTH,
-        // SCR_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL); on an existing
-        // texture, does it resize it in place or does it create a new
-        // one?
-
-        glClearColor(0.f, 0.f, 0.f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // DrawSkybox(MainSkybox);
-        // DrawTexturedQuad(Joker, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.0f);
-        // glDisable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
-        // DrawTexturedCube(MyCube, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f), Angle);
-        // glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
-        // DrawTexturedQuad(RedWindow, PlayerPosition, glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 1.0f, 1.0f), 0.0f);
-        // DrawText3DCentered("This is some CENTERED 3D Text", Arial,
-        //                    glm::vec3(0.0f, 0.0f, 0.0f),
-        //                    glm::vec3(0.3f, 0.3f, 0.3f),
-        //                    glm::vec3(1.0f, 1.0f, 1.0f), Angle,
-        //                    glm::vec3(1.0f, 0.1f, 1.0f));
-        // DrawText2DCentered("This is some 2D Text", DebugInfoFont,
-        //                    glm::vec2(WindowWidth / 2.0f, WindowHeight / 2.0f), glm::vec2(2.0f, 2.0f), glm::vec3(1,1,1));
-
-        glm::vec3 LampPosition(1.2f, 1.0f, 2.0f);
-
-        // positions of the point lights
-        glm::vec3 PointLightPositions[] =
-        {
-            glm::vec3( 0.7f,  0.2f,  2.0f),
-            glm::vec3( 2.3f, -3.3f, -4.0f),
-            glm::vec3(-4.0f,  2.0f, -12.0f),
-            glm::vec3( 0.0f,  0.0f, -3.0f)
-        };
-        glm::vec3 PointLightColors[4] =
-        {
-            glm::vec3(5.0f, 5.0f, 5.0f),
-            glm::vec3(10.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 50.0f),
-            glm::vec3(0.0f, 15.0f, 0.0f),
-        };
 
 
-        // Draw Cube //
-        SetShaderUniform(WoodContainerShader, "ViewPos", Camera.Position);
-        // Set Material Uniforms for 4 lights
-        SetShaderUniform(WoodContainerShader, "Material.Diffuse", 0);
-        SetShaderUniform(WoodContainerShader, "Material.Specular", 1);
-        SetShaderUniform(WoodContainerShader, "Material.Shininess", 32.0f);
-        // Set Directional Light Uniforms
-        SetShaderUniform(WoodContainerShader, "DirLight.Direction", -0.2f, -1.0f, -0.3f);
-        SetShaderUniform(WoodContainerShader, "DirLight.Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(WoodContainerShader, "DirLight.Diffuse", 0.5f, 0.5f, 0.5f);
-        SetShaderUniform(WoodContainerShader, "DirLight.Specular", 0.05f, 0.05f, 0.05f);
-        // Point Light 1
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Position", PointLightPositions[0]);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Diffuse", PointLightColors[0]);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Constant", 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Linear", 0.09f);
-        SetShaderUniform(WoodContainerShader, "PointLights[0].Quadratic", 0.032f);
-        // Point Light 2
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Position", PointLightPositions[1]);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Diffuse", PointLightColors[1]);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Constant", 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Linear", 0.09f);
-        SetShaderUniform(WoodContainerShader, "PointLights[1].Quadratic", 0.032f);
-        // Point Light 3
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Position", PointLightPositions[2]);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Diffuse", PointLightColors[2]);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Constant", 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Linear", 0.09f);
-        SetShaderUniform(WoodContainerShader, "PointLights[2].Quadratic", 0.032f);
-        // Point Light 4
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Position", PointLightPositions[3]);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Ambient", 0.05f, 0.05f, 0.05f);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Diffuse", PointLightColors[3]);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Specular", 1.0f, 1.0f, 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Constant", 1.0f);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Linear", 0.09f);
-        SetShaderUniform(WoodContainerShader, "PointLights[3].Quadratic", 0.032f);
+            // Update Camera Matrices
+            Camera.View = glm::lookAt(Camera.Position, Camera.Position + Camera.Front, Camera.Up);
+            Camera.Projection = glm::perspective(glm::radians(Camera.FoV), (f32)WindowWidth / (f32)WindowHeight, Camera.Near, Camera.Far);
 
-        // Set Transformation uniforms
-        glm::mat4 Model = glm::mat4(1.0f);
-        SetShaderUniform(WoodContainerShader, "Model", &Model);
-        SetShaderUniform(WoodContainerShader, "View", &Camera.View);
-        SetShaderUniform(WoodContainerShader, "Projection", &Camera.Projection);
-        glBindVertexArray(CubeVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, DiffuseMap);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, SpecularMap);
-        // Scene setup
-        glm::vec3 CubePositions[] =
-        {
-            glm::vec3( 0.0f,  0.0f,  0.0f),
-            glm::vec3( 2.0f,  5.0f, -15.0f),
-            glm::vec3(-1.5f, -2.2f, -2.5f),
-            glm::vec3(-3.8f, -2.0f, -12.3f),
-            glm::vec3( 2.4f, -0.4f, -3.5f),
-            glm::vec3(-1.7f,  3.0f, -7.5f),
-            glm::vec3( 1.3f, -2.0f, -2.5f),
-            glm::vec3( 1.5f,  2.0f, -2.5f),
-            glm::vec3( 1.5f,  0.2f, -1.5f),
-            glm::vec3(-1.3f,  1.0f, -1.5f)
-        };
-        for(u32 i = 0; i < 10; i++)
-        {
-            glm::mat4 LocalModel = glm::mat4(1.0f);
-            LocalModel = glm::translate(LocalModel, CubePositions[i]);
-            f32 LocalAngle = 20.0f * i;
-            LocalModel = glm::rotate(LocalModel, glm::radians(LocalAngle), glm::vec3(1.0f, 0.3f, 0.5f));
-            SetShaderUniform(WoodContainerShader, "Model", &LocalModel);
+        } // SECTION END: Update
+
+        { // SECTION: Render
+
+            /*
+              TODO: Explain rendering method
+              1- Render to offscreen framebuffer
+              2- Extract pixels that are higher than 1.0f to secondary color buffer
+              3- Blurr that secondary color buffer
+              4- Merge secondary color buffer into regulat buffer
+              5- Display merged colorbuffer to screen
+            */
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            // Render scene to offscreen framebuffer
+            // NOTE: We need to clear the color buffer black, or else
+            // the extracted brightness texture has another color
+            // besides black, making the whole background glow
+            glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+            // render Cube
+            glUseProgram(CubeShader);
+            glm::mat4 Model = glm::mat4(1.0);
+            Model = glm::translate(Model, PlayerPosition);
+            SetShaderUniform(CubeShader, "Model", Model);
+            SetShaderUniform(CubeShader, "View", Camera.View);
+            SetShaderUniform(CubeShader, "Projection", Camera.Projection);
+            SetShaderUniform(CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
+            glBindVertexArray(CubeVAO);
+            // Render Glowing Cube
             glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        // Draw Lamps
-        SetShaderUniform(LampShader, "View", &Camera.View);
-        SetShaderUniform(LampShader, "Projection", &Camera.Projection);
-        glBindVertexArray(LightVAO);
-        for(u32 i = 0; i < 4; i++)
-        {
+            // Render not glowing cube
+            Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
             Model = glm::mat4(1.0f);
-            Model = glm::translate(Model, PointLightPositions[i]);
-            Model = glm::scale(Model, glm::vec3(0.2f)); // a smaller cube
-            SetShaderUniform(LampShader, "Model", &Model);
-            SetShaderUniform(LampShader, "LightColor", PointLightColors[i]);
+            SetShaderUniform(CubeShader, "Model", Model);
+            SetShaderUniform(CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
             glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+            glBindVertexArray(0);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        //
-        // TODO: Render Here Ping Pong blurr
-        // NOTE: WoodenContainer.glsl is the shader that draws to brightness draw buffer
-        // TODO: When WoodenContainer.glsl is out of use, we need to draw to brightness buffer in another shader
-        //
-        // 2. blur bright fragments with two-pass Gaussian Blur
-        // --------------------------------------------------
-        bool horizontal = true, first_iteration = true;
-        unsigned int amount = 10;
-        glUseProgram(BlurShader);
-        // SetShaderUniform(BlurShader, "Image", 0);
-        // glBindTexture(GL_TEXTURE_2D, MainRenderTarget->BloomBufferTexture);
-        // glActiveTexture(GL_TEXTURE0);
-        for (unsigned int i = 0; i < amount; i++)
-        {
-            glBindFramebuffer(GL_FRAMEBUFFER, PingPongFBO[horizontal]);
-            SetShaderUniform(BlurShader, "Horizontal", horizontal);
-            glBindTexture(GL_TEXTURE_2D, first_iteration ? PingPongBuffer[1] : PingPongBuffer[!horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+            // 2. blur bright fragments with two-pass Gaussian Blur
+            // --------------------------------------------------
+            b32 Horizontal = true, FirstIteration = true;
+            u32 Amount = 10;
+            glUseProgram(BlurShader);
+            for (u32 i = 0; i < Amount; i++)
+            {
+                glBindFramebuffer(GL_FRAMEBUFFER, PingPongFBO[Horizontal]);
+                SetShaderUniform(BlurShader, "Horizontal", Horizontal);
+                SetShaderUniform(BlurShader, "Test", Angle);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, FirstIteration ? BrightnessBuffer : PingPongBuffer[!Horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
+                renderQuad();
+                Horizontal = !Horizontal;
+                if (FirstIteration)
+                {
+                    FirstIteration = false;
+                }
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // 3. now render floating point color buffer to 2D quad and tonemap HDR colors to default framebuffer's (clamped) color range
+            // --------------------------------------------------------------------------------------------------------------------------
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glUseProgram(BloomShader);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, ColorBuffer);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, PingPongBuffer[!Horizontal]);
+            SetShaderUniform(BloomShader, "Bloom", 1);
+            SetShaderUniform(BloomShader, "Exposure", Exposure);
             renderQuad();
-            horizontal = !horizontal;
-            if (first_iteration)
-                first_iteration = false;
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        // now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
-        SetActiveRenderTarget(0);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        DisplayRenderTarget(MainRenderTarget);
+            // // Render offscreen color buffer to a quad that fills the screen
+            // glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+            // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            // glUseProgram(HdrShader);
+            // glActiveTexture(GL_TEXTURE0);
+            // glBindTexture(GL_TEXTURE_2D, ColorBuffer);
+            // SetShaderUniform(HdrShader, "HDR", true);
+            // SetShaderUniform(HdrShader, "Exposure", Exposure);
+            // renderQuad(); // TODO: Jorgenize this function!
 
-        // glDisable(GL_DEPTH_TEST);
-        // glUseProgram(HDRShader);
-        // SetShaderUniform(HDRShader, "Exposure", 1.0f);
-        // glBindVertexArray(MainRenderTarget->ScreenQuadVAO);
-        // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_2D, MainRenderTarget->TextureColorBuffer);
-        // glDrawArrays(GL_TRIANGLES, 0, 6);
-        // glEnable(GL_DEPTH_TEST); // Enable depth testing (it's disabled for rendering screen space quad)
-
-        // printf("AllocationCount: %d\n", AllocationCount);
-
-        SDL_GL_SwapWindow(Window);
+            SDL_GL_SwapWindow(Window);
+        } // SECTION END: Render
     }
 
     SDL_GL_DeleteContext(GLContext);
