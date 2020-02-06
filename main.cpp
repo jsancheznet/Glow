@@ -1,5 +1,3 @@
-#define DEBUG 1
-
 #ifdef _WIN32
 extern "C"
 {
@@ -11,15 +9,11 @@ extern "C"
 #endif
 
 #include <windows.h>
-
 #include <stdio.h>
 
 #include "external/glad.c"
 #include <SDL.h>
 #include <SDL_opengl.h>
-
-#include <ft2build.h>
-#include FT_FREETYPE_H
 
 // NOTE: http://casual-effects.com/data/index.html <--- Cool site for test models
 #include "shared.h"
@@ -64,8 +58,8 @@ global b32 IsRunning = 1;
 global clock Clock;
 global mouse Mouse;
 global keyboard Keyboard;
-global renderer Renderer;
-
+global window *Window;
+global renderer *Renderer;
 global camera *MainCamera;
 
 // These variables correspond to the FPS counter, TODO: make them not global
@@ -74,16 +68,36 @@ global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
 
+#if 0
+void R_ResizeRenderer(renderer *Renderer, i32 Width, i32 Height)
+{
+    Assert(Renderer);
+    Assert(Width > 0);
+    Assert(Height > 0);
+
+    // Delete old buffer textures and renderbuffers, also pingpong buffers
+    // u32 Framebuffer;
+    // u32 ColorBuffer;
+    // u32 BrightnessBuffer;
+    // u32 DepthStencilRenderbuffer;
+    // u32 Attachments[2];
+    // u32 PingPongFBO[2];
+    // u32 PingPongBuffer[2];
+
+}
+#endif
+
 int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
     SDL_Init(SDL_INIT_EVERYTHING); // TODO: Init only the subsystems we need!
 
-    window *MainWindow = P_CreateOpenGLWindow("No title!", WindowWidth, WindowHeight);
+    Window = P_CreateOpenGLWindow("No title!", WindowWidth, WindowHeight);
+    Renderer = R_CreateRenderer(Window);
 
     I_Init(&Keyboard, &Mouse);
-    R_Init(&Renderer, WindowWidth, WindowHeight);
+
     P_InitClock(&Clock);
 
     MainCamera = G_CreateCamera(WindowWidth, WindowHeight);
@@ -107,7 +121,7 @@ int main(i32 Argc, char **Argv)
 
                 char Title[60] = {};
                 sprintf_s(Title, sizeof(Title),"Average FPS: %2.2f - Average Ms per frame: %2.2f", AverageFPS, AverageMillisecondsPerFrame);
-                SDL_SetWindowTitle(MainWindow->Handle, Title);
+                SDL_SetWindowTitle(Window->Handle, Title);
             }
             else
             {
@@ -167,7 +181,7 @@ int main(i32 Argc, char **Argv)
                 }
                 if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                 {
-                    P_ToggleFullscreen(MainWindow);
+                    P_ToggleFullscreen(Window);
                 }
 
                 // Handle Camera Input
@@ -218,11 +232,11 @@ int main(i32 Argc, char **Argv)
 
                 if(I_IsPressed(SDL_SCANCODE_UP))
                 {
-                    Renderer.Exposure += 0.01f;
+                    Renderer->Exposure += 0.01f;
                 }
                 if(I_IsPressed(SDL_SCANCODE_DOWN))
                 {
-                    Renderer.Exposure -= 0.01f;
+                    Renderer->Exposure -= 0.01f;
                 }
             }
 
@@ -234,36 +248,35 @@ int main(i32 Argc, char **Argv)
 
         { // SECTION: Render
 
-            R_BeginFrame(&Renderer);
+            R_BeginFrame(Renderer);
 
             // R_DrawCube(renderable_cube *Cube);
+
             // render Cube
-            glUseProgram(Renderer.CubeShader);
+            glUseProgram(Renderer->CubeShader);
             glm::mat4 Model = glm::mat4(1.0);
             Model = glm::translate(Model, PlayerPosition);
-            R_SetUniform(Renderer.CubeShader, "Model", Model);
-            R_SetUniform(Renderer.CubeShader, "View", MainCamera->View);
-            R_SetUniform(Renderer.CubeShader, "Projection", MainCamera->Projection);
-            R_SetUniform(Renderer.CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
-            glBindVertexArray(Renderer.CubeVAO);
+            R_SetUniform(Renderer->CubeShader, "Model", Model);
+            R_SetUniform(Renderer->CubeShader, "View", MainCamera->View);
+            R_SetUniform(Renderer->CubeShader, "Projection", MainCamera->Projection);
+            R_SetUniform(Renderer->CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
+            glBindVertexArray(Renderer->CubeVAO);
             // Render Glowing Cube
             glDrawArrays(GL_TRIANGLES, 0, 36);
             // Render not glowing cube
             Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
             Model = glm::mat4(1.0f);
-            R_SetUniform(Renderer.CubeShader, "Model", Model);
-            R_SetUniform(Renderer.CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
+            R_SetUniform(Renderer->CubeShader, "Model", Model);
+            R_SetUniform(Renderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-            R_EndFrame(&Renderer);
-
-            SDL_GL_SwapWindow(MainWindow->Handle);
+            R_EndFrame(Renderer);
         } // SECTION END: Render
     }
 
-    SDL_GL_DeleteContext(MainWindow->Handle);
+    SDL_GL_DeleteContext(Window->Handle);
 
     return 0;
 }

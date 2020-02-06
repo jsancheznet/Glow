@@ -44,6 +44,9 @@ void P_ToggleFullscreen(window *Window)
 window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)
 {
     window *Result = NULL;
+    Result = (window*)Malloc(sizeof(window));
+    Result->Width = Width;
+    Result->Height = Height;
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -55,8 +58,6 @@ window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)
 #if DEBUG
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
-
-    Result = (window*)Malloc(sizeof(window));
 
     Result->Handle = SDL_CreateWindow(Title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Width, Height, SDL_WINDOW_OPENGL);
     if(Result->Handle == NULL)

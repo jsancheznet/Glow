@@ -8,7 +8,7 @@ camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
     Result = (camera*)Malloc(sizeof(camera));
     Assert(Result);
 
-    Result->Position = glm::vec3(0.0f, 0.0f, 100.0f);
+    Result->Position = glm::vec3(0.0f, 0.0f, 20.0f);
     Result->Front = glm::vec3(0.0f, 0.0f, -1.0f);
     Result->Up = glm::vec3(0.0f, 1.0f, 0.0f);
     Result->Speed = 1.5f;

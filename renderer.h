@@ -1,9 +1,13 @@
 #pragma once
 
 #include "shared.h"
+#include "platform.h"
 
 struct renderer
 {
+    SDL_Window *Window;
+
+    // Settings
     f32 Exposure;
 
     // OpenGL
