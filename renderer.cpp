@@ -26,7 +26,7 @@ global f32 Exposure__ = 0.1f;
 global f32 EnableVSync = 0;
 
 void R_DrawQuad(renderer *Renderer)
-{
+{ // TODO: This function is suspiciously too short, wtf?
     glBindVertexArray(Renderer->QuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
@@ -179,6 +179,92 @@ void R_EndFrame(renderer *Renderer)
     R_DrawQuad(Renderer);
 
     SDL_GL_SwapWindow(Renderer->Window);
+}
+
+void R_ResizeRenderer(renderer *Renderer, i32 Width, i32 Height)
+{
+    /*
+      This function deletes and recreates the opengl textures that we
+      are using/rendering to. Framebuffers do not need to be resized,
+      only the textures. The following textures are deleted and
+      recreated to reflect the new width and height.
+
+      u32 ColorBuffer;
+      u32 BrightnessBuffer;
+      u32 DepthStencilRenderbuffer;
+      u32 PingPongBuffer[2];
+    */
+
+    Assert(Renderer);
+    Assert(Width > 0);
+    Assert(Height > 0);
+
+    // Delete old texture and depth+stencil renderbuffer
+    glDeleteTextures(1, &Renderer->ColorBuffer);
+    glDeleteTextures(1, &Renderer->BrightnessBuffer);
+    glDeleteRenderbuffers(1, &Renderer->DepthStencilRenderbuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, Renderer->Framebuffer);
+    // Colorbuffer
+    glGenTextures(1, &Renderer->ColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, Renderer->ColorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, Width, Height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // BrightnessBuffer
+    glGenTextures(1, &Renderer->BrightnessBuffer);
+    glBindTexture(GL_TEXTURE_2D, Renderer->BrightnessBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, Width, Height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // Renderbuffer
+    glGenRenderbuffers(1, &Renderer->DepthStencilRenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, Renderer->DepthStencilRenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
+    // Attach Buffers to Framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Renderer->ColorBuffer, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, Renderer->BrightnessBuffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Renderer->DepthStencilRenderbuffer);
+    // Tell opengl we are rendering to multiple buffers
+    u32 Attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, Attachments);
+
+    // Check if framebuffer is complete
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("Framebuffer not complete, exiting!\n");
+        exit(-1);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    { // SUBSECTION: PingPongFramebuffers
+        glDeleteTextures(1, &Renderer->PingPongBuffer[0]);
+        glDeleteTextures(1, &Renderer->PingPongBuffer[1]);
+
+        glGenTextures(2, Renderer->PingPongBuffer);
+        for (u32 i = 0; i < 2; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, Renderer->PingPongFBO[i]);
+            glBindTexture(GL_TEXTURE_2D, Renderer->PingPongBuffer[i]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, Width, Height, 0, GL_RGB, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Renderer->PingPongBuffer[i], 0);
+            if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            {
+                printf("PingPong Framebuffer %d is not complete, exiting!\n", i);
+            }
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    glViewport(0, 0, Width, Height);
 }
 
 renderer *R_CreateRenderer(window *Window)
@@ -547,7 +633,7 @@ u32 R_CreateShader(char *VertexFile, char *FragmentFile)
 }
 
 
-u32 R_CreateOpenGLTexture(char *Filename)
+u32 R_CreateTexture(char *Filename)
 {
     Assert(Filename);
     u32 Result = 0;

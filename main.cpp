@@ -59,8 +59,8 @@ global clock Clock;
 global mouse Mouse;
 global keyboard Keyboard;
 global window *Window;
-global renderer *Renderer;
-global camera *MainCamera;
+global renderer *MainRenderer;
+global camera *Camera;
 
 // These variables correspond to the FPS counter, TODO: make them not global
 global f32 AverageFPS;
@@ -68,41 +68,23 @@ global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
 
-#if 0
-void R_ResizeRenderer(renderer *Renderer, i32 Width, i32 Height)
-{
-    Assert(Renderer);
-    Assert(Width > 0);
-    Assert(Height > 0);
-
-    // Delete old buffer textures and renderbuffers, also pingpong buffers
-    // u32 Framebuffer;
-    // u32 ColorBuffer;
-    // u32 BrightnessBuffer;
-    // u32 DepthStencilRenderbuffer;
-    // u32 Attachments[2];
-    // u32 PingPongFBO[2];
-    // u32 PingPongBuffer[2];
-
-}
-#endif
-
 int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
     SDL_Init(SDL_INIT_EVERYTHING); // TODO: Init only the subsystems we need!
-
     Window = P_CreateOpenGLWindow("No title!", WindowWidth, WindowHeight);
-    Renderer = R_CreateRenderer(Window);
+    MainRenderer = R_CreateRenderer(Window);
 
+    // TODO: Move this to our new standard *Mouse = P_CreateMouse, P_CreateClock, etc...
     I_Init(&Keyboard, &Mouse);
-
     P_InitClock(&Clock);
 
-    MainCamera = G_CreateCamera(WindowWidth, WindowHeight);
-    glm::vec3 PlayerPosition = glm::vec3(0);
+    Camera = G_CreateCamera(WindowWidth, WindowHeight);
 
+    u32 Image = R_CreateTexture("textures/wanderer.png");
+
+    glm::vec3 PlayerPosition = glm::vec3(0);
     f32 Angle = 0.0f;
     SDL_Event Event;
     while(IsRunning)
@@ -153,25 +135,25 @@ int main(i32 Argc, char **Argv)
                     // Camera Stuff
                     if(Mouse.FirstMouse)
                     {
-                        MainCamera->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
-                        MainCamera->Pitch = 0.0f;
+                        Camera->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
+                        Camera->Pitch = 0.0f;
                         Mouse.FirstMouse = false;
                     }
-                    MainCamera->Yaw += Mouse.RelX * Mouse.Sensitivity;
-                    MainCamera->Pitch += -Mouse.RelY *Mouse.Sensitivity; // reversed since y-coordinates range from bottom to top
-                    if(MainCamera->Pitch > 89.0f)
+                    Camera->Yaw += Mouse.RelX * Mouse.Sensitivity;
+                    Camera->Pitch += -Mouse.RelY *Mouse.Sensitivity; // reversed since y-coordinates range from bottom to top
+                    if(Camera->Pitch > 89.0f)
                     {
-                        MainCamera->Pitch =  89.0f;
+                        Camera->Pitch =  89.0f;
                     }
-                    else if(MainCamera->Pitch < -89.0f)
+                    else if(Camera->Pitch < -89.0f)
                     {
-                        MainCamera->Pitch = -89.0f;
+                        Camera->Pitch = -89.0f;
                     }
                     glm::vec3 Front;
-                    Front.x = cos(glm::radians(MainCamera->Yaw)) * cos(glm::radians(MainCamera->Pitch));
-                    Front.y = sin(glm::radians(MainCamera->Pitch));
-                    Front.z = sin(glm::radians(MainCamera->Yaw)) * cos(glm::radians(MainCamera->Pitch));
-                    MainCamera->Front = glm::normalize(Front);
+                    Front.x = cos(glm::radians(Camera->Yaw)) * cos(glm::radians(Camera->Pitch));
+                    Front.y = sin(glm::radians(Camera->Pitch));
+                    Front.z = sin(glm::radians(Camera->Yaw)) * cos(glm::radians(Camera->Pitch));
+                    Camera->Front = glm::normalize(Front);
                 }
 
                 // Handle Window input stuff
@@ -182,28 +164,31 @@ int main(i32 Argc, char **Argv)
                 if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                 {
                     P_ToggleFullscreen(Window);
+                    i32 Width, Height;
+                    SDL_GL_GetDrawableSize(Window->Handle, &Width, &Height);
+                    R_ResizeRenderer(MainRenderer, Width, Height);
                 }
 
                 // Handle Camera Input
                 if(I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainCamera->Position += MainCamera->Front * MainCamera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position += Camera->Front * Camera->Speed * (f32)Clock.DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainCamera->Position -= MainCamera->Speed * MainCamera->Front * (f32)Clock.DeltaTime;
+                    Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock.DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainCamera->Position -= glm::normalize(glm::cross(MainCamera->Front, MainCamera->Up)) * MainCamera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock.DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    MainCamera->Position += glm::normalize(glm::cross(MainCamera->Front, MainCamera->Up)) * MainCamera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock.DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    G_ResetCamera(MainCamera, WindowWidth, WindowHeight);
+                    G_ResetCamera(Camera, WindowWidth, WindowHeight);
                     I_ResetMouse(&Mouse);
                 }
 
@@ -232,47 +217,46 @@ int main(i32 Argc, char **Argv)
 
                 if(I_IsPressed(SDL_SCANCODE_UP))
                 {
-                    Renderer->Exposure += 0.01f;
+                    MainRenderer->Exposure += 0.01f;
                 }
                 if(I_IsPressed(SDL_SCANCODE_DOWN))
                 {
-                    Renderer->Exposure -= 0.01f;
+                    MainRenderer->Exposure -= 0.01f;
                 }
             }
 
-            // Update MainCamera Matrices
-            MainCamera->View = glm::lookAt(MainCamera->Position, MainCamera->Position + MainCamera->Front, MainCamera->Up);
-            MainCamera->Projection = glm::perspective(glm::radians(MainCamera->FoV), (f32)WindowWidth / (f32)WindowHeight, MainCamera->Near, MainCamera->Far);
+            // Update Camera Matrices
+            Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
+            Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
 
         } // SECTION END: Update
 
         { // SECTION: Render
 
-            R_BeginFrame(Renderer);
+            R_BeginFrame(MainRenderer);
 
-            // R_DrawCube(renderable_cube *Cube);
+            { // Render Cube, TODO(Jorge): Create a function for this!
+                glUseProgram(MainRenderer->CubeShader);
+                glm::mat4 Model = glm::mat4(1.0);
+                Model = glm::translate(Model, PlayerPosition);
+                R_SetUniform(MainRenderer->CubeShader, "Model", Model);
+                R_SetUniform(MainRenderer->CubeShader, "View", Camera->View);
+                R_SetUniform(MainRenderer->CubeShader, "Projection", Camera->Projection);
+                R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
+                glBindVertexArray(MainRenderer->CubeVAO);
+                // Render Glowing Cube
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+                // Render not glowing cube
+                Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
+                Model = glm::mat4(1.0f);
+                R_SetUniform(MainRenderer->CubeShader, "Model", Model);
+                R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+                glBindVertexArray(0);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
 
-            // render Cube
-            glUseProgram(Renderer->CubeShader);
-            glm::mat4 Model = glm::mat4(1.0);
-            Model = glm::translate(Model, PlayerPosition);
-            R_SetUniform(Renderer->CubeShader, "Model", Model);
-            R_SetUniform(Renderer->CubeShader, "View", MainCamera->View);
-            R_SetUniform(Renderer->CubeShader, "Projection", MainCamera->Projection);
-            R_SetUniform(Renderer->CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
-            glBindVertexArray(Renderer->CubeVAO);
-            // Render Glowing Cube
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            // Render not glowing cube
-            Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
-            Model = glm::mat4(1.0f);
-            R_SetUniform(Renderer->CubeShader, "Model", Model);
-            R_SetUniform(Renderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-            glBindVertexArray(0);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-            R_EndFrame(Renderer);
+            R_EndFrame(MainRenderer);
         } // SECTION END: Render
     }
 

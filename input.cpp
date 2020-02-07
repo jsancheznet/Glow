@@ -3,6 +3,7 @@
 #include "shared.h"
 #include "input.h"
 
+// TODO: Avoid the use of hacky shortcuts
 global keyboard *__Keyboard = NULL; // Variable to be used as shortcut inside this file
 global mouse *__Mouse = NULL;
 
@@ -23,7 +24,7 @@ void I_Init(keyboard *Keyboard, mouse *Mouse)
     Mouse->FirstMouse = 1;
     Mouse->RelX = 0;
     Mouse->RelY = 0;
-    SDL_SetRelativeMouseMode(SDL_TRUE);
+    // SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 void I_ResetMouse(mouse *Mouse)
@@ -33,7 +34,7 @@ void I_ResetMouse(mouse *Mouse)
     Mouse->FirstMouse = 1;
     Mouse->RelX = 0;
     Mouse->RelY = 0;
-    SDL_SetRelativeMouseMode(SDL_TRUE);
+    // SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 void I_UpdateMouse(mouse *Mouse)

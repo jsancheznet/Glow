@@ -40,6 +40,11 @@ struct renderer
     u32 PingPongBuffer[2];
 };
 
+struct texture
+{
+    u32 Handle;
+};
+
 struct character
 {
     u32 TextureID;
