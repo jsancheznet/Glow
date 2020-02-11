@@ -23,12 +23,19 @@ struct renderer
     u32 QuadVBO;
     u32 CubeVAO;
     u32 CubeVBO;
+    u32 TextVAO;
+    u32 TextVertexBuffer;
+    u32 TextTexCoordsBuffer;
 
-    // Shaders
-    u32 BlurShader;
-    u32 BloomShader;
-    u32 CubeShader;
-    u32 HdrShader;
+    struct Shaders
+    {
+        u32 Blur;
+        u32 Bloom;
+        u32 Cube; // TODO(Jorge): Are we using this? delete if anwser is no
+        u32 Hdr;
+        u32 Texture;
+        u32 Text;
+    } Shaders;
 
     // TODO:(Jorge): Rename and comment what each buffer/variable is for
     u32 Framebuffer;
@@ -43,6 +50,11 @@ struct renderer
 struct texture
 {
     u32 Handle;
+    i32 Width;
+    i32 Height;
+    i32 ChannelCount;
+    GLenum InternalFormat;
+    GLenum Format;
 };
 
 struct character
@@ -56,15 +68,18 @@ struct character
 struct font
 {
     char *Filename;
-    u32 Shader;
     i32 CharacterWidth;
     i32 CharacterHeight;
-
     character Characters[256];
 
+#if 0
+    // TODO(Joreg): Delete this!
+    //
+    u32 Shader;
     u32 VAO;
     u32 VertexBuffer;
     u32 TexCoordsBuffer;
+#endif
 };
 
 //
@@ -127,4 +142,14 @@ f32 QuadVertices__[] =
     -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
     1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+};
+
+f32 TextTexCoords__[6][2] =
+{
+    {0.0, 0.0f},
+    {0.0f, 1.0f},
+    {1.0, 1.0},
+    {0.0, 0.0},
+    {1.0, 1.0},
+    {1.0, 0.0},
 };

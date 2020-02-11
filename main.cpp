@@ -22,32 +22,29 @@ extern "C"
 #include "renderer.cpp"
 #include "game.cpp"
 
+/*
+  TODO:
+  STB_Image HDR Loading
+  Create and Draw Sprites
+  Draw the sprites with HDR floating point values in order to make them glow
+  DrawText2D
+  PlaySound
+  PlayMusic
+  AABB Collision Detection
+ */
+
 // TODO(Jorge): Create game.cpp and put al things that belong to the game in here, such as camera, etc..
-// TODO(Jorge): Fix togglefullscreen bug!
 // TODO(Jorge): Replace every printf with MessageBox!
 // TODO: Make sure everything is gamma corrected, lighting calculations also need to be done with Gamma correction!
-// TODO: Game hotloading?
-// TODO: AABBvsAABB;
 // TODO: DrawDebugLine();
 // TODO: DrawLine();
 // TODO: Test Tweening Functions!
 // TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
-// TODO(Jorge): Visualize the different opengl buffers, depth buffer, stencil, color buffer, etc...
 // TODO(Jorge): Create a lot of bullets and render them using instanced rendering
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
-// TODO(Jorge): Load Sphere model
-// TODO(Jorge): Load Tetrahedron model
-// TODO(Jorge): Draw Tetrahedron correctly
-// TODO(Jorge): Add another shape! maybe Torus or Sphere
-// TODO(Jorge): Add a uniform Color to renderable_objects
-// TODO(Jorge): Add Normals to objects
 // TODO(Jorge): Add License to all files
 // TODO(Jorge): Changing focus to the console window clicking on it and switching to the main game window crashes the program. Is this a bug?
 // TODO(Jorge): Remove unused functions from final version
-// TODO(Jorge): Put license in all files
-
-// IDEAS: Load variables from a file, such as SetSwapInterval
-// IDEAS: Stop using relative mouse mode, use regular so nSight can work correctly, and we can have mouse navigatable debug in game menus
 
 //
 // Globals
@@ -68,11 +65,68 @@ global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
 
+void
+DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
+{
+    Assert(Renderer);
+    Assert(Text);
+    Assert(Font);
+
+    glUseProgram(Renderer->Shaders.Text);
+    glm::mat4 Identity = glm::mat4(1.0f);
+    R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
+    R_SetUniform(Renderer->Shaders.Text, "View", Identity);
+    // TODO(Jorge): We are using the camera global, fix this shit
+    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
+    R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
+
+    glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913
+    glBindVertexArray(Renderer->TextVAO);
+
+    // Iterate through all the characters in string
+    for(char *Ptr = Text; *Ptr != '\0'; Ptr++)
+    {
+        character Ch = Font->Characters[*Ptr];
+
+        f32 XPos = Position.x + Ch.Bearing.x * Scale.x;
+        f32 YPos = Position.y - (Ch.Size.y - Ch.Bearing.y) * Scale.y;
+
+        f32 W = Ch.Size.x * Scale.x;
+        f32 H = Ch.Size.y * Scale.y;
+
+        // Update VBO for each character
+        f32 QuadVertices[6][3] =
+        {
+            { XPos,     YPos + H, 0.0f},
+            { XPos,     YPos,     0.0f},
+            { XPos + W, YPos,     0.0f},
+            { XPos,     YPos + H, 0.0f},
+            { XPos + W, YPos,     0.0f},
+            { XPos + W, YPos + H, 0.0f}
+        };
+
+        // Render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, Ch.TextureID);
+        glBindBuffer(GL_ARRAY_BUFFER, Renderer->TextVertexBuffer); // Update content of Vertex buffer
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Render  Quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        Position.x += (Ch.Advance >> 6) * Scale.x; // Bitshift by 6 to get value in pixels (2^6 = 64)
+    }
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
     SDL_Init(SDL_INIT_EVERYTHING); // TODO: Init only the subsystems we need!
+
     Window = P_CreateOpenGLWindow("No title!", WindowWidth, WindowHeight);
     MainRenderer = R_CreateRenderer(Window);
 
@@ -82,7 +136,16 @@ int main(i32 Argc, char **Argv)
 
     Camera = G_CreateCamera(WindowWidth, WindowHeight);
 
-    u32 Image = R_CreateTexture("textures/wanderer.png");
+    texture *BlackHole = R_CreateTexture("textures/Black Hole.png");
+    texture *Bullet = R_CreateTexture("textures/Bullet.png");
+    texture *Glow = R_CreateTexture("textures/Glow.png");
+    texture *Laser = R_CreateTexture("textures/Laser.png");
+    texture *Player = R_CreateTexture("textures/Player.png");
+    texture *Pointer = R_CreateTexture("textures/Pointer.png");
+    texture *Seeker = R_CreateTexture("textures/Seeker.png");
+    texture *Wanderer = R_CreateTexture("textures/Wanderer.png");
+
+    font *Arial = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
     glm::vec3 PlayerPosition = glm::vec3(0);
     f32 Angle = 0.0f;
@@ -164,9 +227,7 @@ int main(i32 Argc, char **Argv)
                 if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                 {
                     P_ToggleFullscreen(Window);
-                    i32 Width, Height;
-                    SDL_GL_GetDrawableSize(Window->Handle, &Width, &Height);
-                    R_ResizeRenderer(MainRenderer, Width, Height);
+                    R_ResizeRenderer(MainRenderer, Window->Width, Window->Height);
                 }
 
                 // Handle Camera Input
@@ -223,6 +284,11 @@ int main(i32 Argc, char **Argv)
                 {
                     MainRenderer->Exposure -= 0.01f;
                 }
+
+                if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
+                {
+                    SDL_SetRelativeMouseMode(SDL_TRUE);
+                }
             }
 
             // Update Camera Matrices
@@ -234,27 +300,29 @@ int main(i32 Argc, char **Argv)
         { // SECTION: Render
 
             R_BeginFrame(MainRenderer);
+            DrawText2D(MainRenderer, "Score: 516", Arial, glm::vec2(30, 40), glm::vec2(1.0f), glm::vec3(0.1f, 0.0f, 1.0f));
+            R_DrawTexture(MainRenderer, Camera, Pointer, PlayerPosition, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
 
-            { // Render Cube, TODO(Jorge): Create a function for this!
-                glUseProgram(MainRenderer->CubeShader);
-                glm::mat4 Model = glm::mat4(1.0);
-                Model = glm::translate(Model, PlayerPosition);
-                R_SetUniform(MainRenderer->CubeShader, "Model", Model);
-                R_SetUniform(MainRenderer->CubeShader, "View", Camera->View);
-                R_SetUniform(MainRenderer->CubeShader, "Projection", Camera->Projection);
-                R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(800.0f, 2.0f, 100.0f));
-                glBindVertexArray(MainRenderer->CubeVAO);
-                // Render Glowing Cube
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-                // Render not glowing cube
-                Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
-                Model = glm::mat4(1.0f);
-                R_SetUniform(MainRenderer->CubeShader, "Model", Model);
-                R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
-                glDrawArrays(GL_TRIANGLES, 0, 36);
-                glBindVertexArray(0);
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            }
+            // { // Render Cube, TODO(Jorge): Create a function for this!
+            //     glUseProgram(MainRenderer->CubeShader);
+            //     glm::mat4 Model = glm::mat4(1.0);
+            //     Model = glm::translate(Model, PlayerPosition);
+            //     R_SetUniform(MainRenderer->CubeShader, "Model", Model);
+            //     R_SetUniform(MainRenderer->CubeShader, "View", Camera->View);
+            //     R_SetUniform(MainRenderer->CubeShader, "Projection", Camera->Projection);
+            //     R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(2.0f, 2.0f, 2.0f));
+            //     glBindVertexArray(MainRenderer->CubeVAO);
+            //     // Render Glowing Cube
+            //     glDrawArrays(GL_TRIANGLES, 0, 36);
+            //     // Render not glowing cube
+            //     Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
+            //     Model = glm::mat4(1.0f);
+            //     R_SetUniform(MainRenderer->CubeShader, "Model", Model);
+            //     R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
+            //     glDrawArrays(GL_TRIANGLES, 0, 36);
+            //     glBindVertexArray(0);
+            //     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // }
 
             R_EndFrame(MainRenderer);
         } // SECTION END: Render

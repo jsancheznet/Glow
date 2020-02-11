@@ -1,6 +1,7 @@
 @echo off
 
 REM TODO(Jorge): Make sure we compile with all libraries in release mode
+REM TODO(Jorge): Use relative paths
 
 pushd build
 
@@ -10,8 +11,9 @@ set GLADINCLUDE="C:\Users\Jsanchez\Dropbox\Projects\Untitled\external\glad\inclu
 set GLM="C:\Users\Jsanchez\Dropbox\Projects\Untitled\external\glm-0.9.9.6\glm-0.9.9.6"
 set FREETYPEINCLUDE="C:\Users\Jsanchez\Dropbox\Projects\Untitled\external\Freetype\include"
 set FREETYPELIB="C:\Users\Jsanchez\Dropbox\Projects\Untitled\external\Freetype\win64"
+set SOLOUD_INCLUDE="C:\Users\Jsanchez\Dropbox\Projects\Untitled\external\soloud\include"
 
-set IncludeDirectories=-I%SDLINCLUDE% -I%GLADINCLUDE% -I%GLM% -I%FREETYPEINCLUDE%
+set IncludeDirectories=-I%SDLINCLUDE% -I%GLADINCLUDE% -I%GLM% -I%FREETYPEINCLUDE% -I%SOLOUD_INCLUDE%
 set LibDirectories=-LIBPATH:%SDLLIB64% -LIBPATH:%FREETYPELIB%
 
 set CompilerFlags= -DDEBUG -nologo -W4 -WX -Od %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"

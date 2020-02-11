@@ -2,13 +2,15 @@
 
 #include "game.h"
 
+global glm::vec3 InitialCameraPosition = glm::vec3(0.0f, 0.0f, 20.0f);
+
 camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
 {
     camera *Result;
     Result = (camera*)Malloc(sizeof(camera));
     Assert(Result);
 
-    Result->Position = glm::vec3(0.0f, 0.0f, 20.0f);
+    Result->Position = InitialCameraPosition;
     Result->Front = glm::vec3(0.0f, 0.0f, -1.0f);
     Result->Up = glm::vec3(0.0f, 1.0f, 0.0f);
     Result->Speed = 1.5f;

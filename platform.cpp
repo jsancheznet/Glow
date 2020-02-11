@@ -37,8 +37,6 @@ void P_ToggleFullscreen(window *Window)
         SDL_SetWindowFullscreen(Window->Handle, SDL_WINDOW_FULLSCREEN_DESKTOP);
         SDL_GL_GetDrawableSize(Window->Handle, &Window->Width, &Window->Height);
     }
-
-    glViewport(0, 0, Window->Width, Window->Height);
 }
 
 window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)

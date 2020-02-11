@@ -19,11 +19,14 @@
 
 #include "shared.h"
 #include "renderer.h"
+#include "game.h"
 
 // TODO: Step through renderer and set global configuration variables
 // Global renderer settings
-global f32 Exposure__ = 0.1f;
+global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
+global i32 EnableBloom = 1;
+global u32 BlurPassCount = 10; // How many times should we blurr the image
 
 void R_DrawQuad(renderer *Renderer)
 { // TODO: This function is suspiciously too short, wtf?
@@ -149,12 +152,11 @@ void R_EndFrame(renderer *Renderer)
     // Blur bright fragments with two-pass Gaussian Blur
     // --------------------------------------------------
     b32 Horizontal = true, FirstIteration = true;
-    u32 Amount = 2;
-    glUseProgram(Renderer->BlurShader);
-    for (u32 i = 0; i < Amount; i++)
+    glUseProgram(Renderer->Shaders.Blur);
+    for (u32 i = 0; i < BlurPassCount; i++)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, Renderer->PingPongFBO[Horizontal]);
-        R_SetUniform(Renderer->BlurShader, "Horizontal", Horizontal);
+        R_SetUniform(Renderer->Shaders.Blur, "Horizontal", Horizontal);
         // R_SetUniform(Renderer->BlurShader, "Test", Angle);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, FirstIteration ? Renderer->BrightnessBuffer : Renderer->PingPongBuffer[!Horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
@@ -169,13 +171,13 @@ void R_EndFrame(renderer *Renderer)
     // --------------------------------------------------------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glUseProgram(Renderer->BloomShader);
+    glUseProgram(Renderer->Shaders.Bloom);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Renderer->ColorBuffer);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, Renderer->PingPongBuffer[!Horizontal]);
-    R_SetUniform(Renderer->BloomShader, "Bloom", 1);
-    R_SetUniform(Renderer->BloomShader, "Exposure", Renderer->Exposure); //
+    R_SetUniform(Renderer->Shaders.Bloom, "Bloom", EnableBloom);
+    R_SetUniform(Renderer->Shaders.Bloom, "Exposure", Renderer->Exposure);
     R_DrawQuad(Renderer);
 
     SDL_GL_SwapWindow(Renderer->Window);
@@ -300,24 +302,30 @@ renderer *R_CreateRenderer(window *Window)
 
     glViewport(0, 0, Window->Width, Window->Height);
 
-    { // SUBSECTION: Compile shaders
-        Result->BlurShader = R_CreateShader("shaders/blur.glsl");
-        glUseProgram(Result->BlurShader);
-        R_SetUniform(Result->BlurShader, "Image", 0);
+    { // SUBSECTION: Shader compilation
+        Result->Shaders.Blur = R_CreateShader("shaders/blur.glsl");
+        glUseProgram(Result->Shaders.Blur);
+        R_SetUniform(Result->Shaders.Blur, "Image", 0);
 
-        Result->BloomShader = R_CreateShader("shaders/bloom_final.glsl");
-        glUseProgram(Result->BloomShader);
-        R_SetUniform(Result->BloomShader, "Scene", 0);
-        R_SetUniform(Result->BloomShader, "BloomBlur", 1);
+        Result->Shaders.Bloom = R_CreateShader("shaders/bloom_final.glsl");
+        glUseProgram(Result->Shaders.Bloom);
+        R_SetUniform(Result->Shaders.Bloom, "Scene", 0);
+        R_SetUniform(Result->Shaders.Bloom, "BloomBlur", 1);
 
-        Result->CubeShader = R_CreateShader("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
+        Result->Shaders.Cube = R_CreateShader("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
 
-        Result->HdrShader = R_CreateShader("shaders/HDR.glsl");
-        R_SetUniform(Result->HdrShader, "HDRBuffer", 0);
+        Result->Shaders.Hdr = R_CreateShader("shaders/HDR.glsl");
+        R_SetUniform(Result->Shaders.Hdr, "HDRBuffer", 0);
 
+        Result->Shaders.Texture = R_CreateShader("shaders/draw_texture.glsl");
+        R_SetUniform(Result->Shaders.Texture, "Image", 0);
+
+        Result->Shaders.Text = R_CreateShader("shaders/text.glsl");
+        R_SetUniform(Result->Shaders.Text, "Text", 0);
+        R_SetUniform(Result->Shaders.Text, "TextColor", glm::vec3(1.0f, 0.0f, 1.0f));
     }
 
-    { // SECTION: Upload vertex data to GPU
+    { // SUBSECTION: Upload vertex data to GPU
         // Upload Quad Data to the GPU
         glGenVertexArrays(1, &Result->QuadVAO);
         glGenBuffers(1, &Result->QuadVBO);
@@ -343,6 +351,26 @@ renderer *R_CreateRenderer(window *Window)
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+
+        // Upload Text Data to GPU
+        {
+            glGenVertexArrays(1, &Result->TextVAO);
+            glBindVertexArray(Result->TextVAO);
+            glGenBuffers(1, &Result->TextVertexBuffer);
+            glBindBuffer(GL_ARRAY_BUFFER, Result->TextVertexBuffer);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 3, NULL, GL_DYNAMIC_DRAW); // 6 Vertices, 3 floats each
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), 0);
+
+            // f32 TextTexCoords__[6][2] =
+            glGenBuffers(1, &Result->TextTexCoordsBuffer);
+            glBindBuffer(GL_ARRAY_BUFFER, Result->TextTexCoordsBuffer);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TextTexCoords__, GL_DYNAMIC_DRAW); // 6 Vertices, 2 floats(UV) each
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+        }
     }
 
     { // SECTION: HDR+Bloom setup
@@ -415,8 +443,9 @@ renderer *R_CreateRenderer(window *Window)
     return (Result);
 }
 
-font *R_CreateFont(char *Filename, u32 Shader, i32 Width, i32 Height)
+font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
 {
+    Assert(Renderer);
     Assert(Filename);
     Assert(Width >= 0);
     Assert(Height >= 0);
@@ -425,7 +454,6 @@ font *R_CreateFont(char *Filename, u32 Shader, i32 Width, i32 Height)
     Result->Filename = Filename;
     Result->CharacterWidth = Width;
     Result->CharacterHeight = Height;
-    Result->Shader = Shader;
 
     FT_Library FT;
     FT_Face Face;
@@ -501,11 +529,11 @@ font *R_CreateFont(char *Filename, u32 Shader, i32 Width, i32 Height)
     // Destroy a given FreeType library object and all of its children, including resources, drivers, faces, sizes, etc.
     FT_Done_FreeType(FT);
     // glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // NOTE: Do we need to reset it?
-
+#if 0
     glGenVertexArrays(1, &Result->VAO);
+    glBindVertexArray(Result->VAO);
     // Upload Vertex Data
     glGenBuffers(1, &Result->VertexBuffer);
-    glBindVertexArray(Result->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, Result->VertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 3, NULL, GL_DYNAMIC_DRAW); // 6 Vertices, 3 floats each
     glEnableVertexAttribArray(0);
@@ -529,7 +557,7 @@ font *R_CreateFont(char *Filename, u32 Shader, i32 Width, i32 Height)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-
+#endif
     return Result;
 }
 
@@ -632,39 +660,34 @@ u32 R_CreateShader(char *VertexFile, char *FragmentFile)
     return (Result);
 }
 
-
-u32 R_CreateTexture(char *Filename)
+texture *R_CreateTexture(char *Filename)
 {
     Assert(Filename);
-    u32 Result = 0;
 
-    // Load Texture
-    i32 Width, Height, ChannelCount;
-    GLenum InternalFormat, Format;
-    stbi_set_flip_vertically_on_load(1);
+    texture *Result = (texture*)Malloc(sizeof(texture));
+
     i32 RequestedChannelCount = 0;
-    u8 *Data = stbi_load(Filename, &Width, &Height, &ChannelCount, RequestedChannelCount);
+    i32 FlipVertically = 1;
+    stbi_set_flip_vertically_on_load(FlipVertically);
+    u8 *Data = stbi_load(Filename, &Result->Width, &Result->Height, &Result->ChannelCount, RequestedChannelCount);
     if(Data)
     {
-        glGenTextures(1, &Result);
-        glBindTexture(GL_TEXTURE_2D, Result);
-        // Texture Wrapping Parameters
+        glGenTextures(1, &Result->Handle);
+        glBindTexture(GL_TEXTURE_2D, Result->Handle);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        // Texture Filtering Parameters
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        if(ChannelCount == 3)
+        if(Result->ChannelCount == 3)
         {
-            Format = GL_RGB;
-            InternalFormat = GL_SRGB;
+            Result->Format = GL_RGB;
+            Result->InternalFormat = GL_SRGB;
         }
-        else if(ChannelCount == 4)
+        else if(Result->ChannelCount == 4)
         {
-            Format = GL_RGBA;
-            // InternalFormat = GL_SRGB_ALPHA;
-            InternalFormat = GL_SRGB;
+            Result->Format = GL_RGBA;
+            Result->InternalFormat = GL_SRGB;
+            // Result->InternalFormat = GL_SRGB_ALPHA;
         }
         else
         {
@@ -676,7 +699,7 @@ u32 R_CreateTexture(char *Filename)
         i32 MipMapDetailLevel = 0;
         // REMINDER: Textures to be used for data should not be uploaded as GL_SRGB!
         // NOTE: InternalFormat is the format we want to store the data, Format is the input format
-        glTexImage2D(GL_TEXTURE_2D, MipMapDetailLevel, InternalFormat, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
+        glTexImage2D(GL_TEXTURE_2D, MipMapDetailLevel, Result->InternalFormat, Result->Width, Result->Height, 0, Result->Format, GL_UNSIGNED_BYTE, Data);
         // NOTE(Jorge): Set custom MipMaps filtering values here!
         // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -690,4 +713,22 @@ u32 R_CreateTexture(char *Filename)
     }
 
     return Result;
+}
+
+// TODO(Jorge): Remove the camera from functions parameters, maybe pass them in UBO? Or set the uniform to all shaders in R_BeginFrame();
+void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::vec3 Position, glm::vec3 Size, glm::vec3 RotationAxis, f32 RotationAngle)
+{
+    glUseProgram(Renderer->Shaders.Texture);
+    glm::mat4 Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, Position);
+    Model = glm::scale(Model, Size);
+    Model = glm::rotate(Model, RotationAngle, RotationAxis);
+    R_SetUniform(Renderer->Shaders.Texture, "Model", Model);
+    R_SetUniform(Renderer->Shaders.Texture, "View", Camera->View);
+    R_SetUniform(Renderer->Shaders.Texture, "Projection", Camera->Projection);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, Texture->Handle);
+    glBindVertexArray(Renderer->QuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }
