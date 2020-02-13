@@ -1,15 +1,16 @@
 #pragma once
 
-// TODO: Replace all glViewport calls with a wrapper made in .cpp
-
+#include "shared.h"
 #include "platform.h"
 
-void P_InitClock(clock *Clock)
+clock *P_CreateClock()
 {
-    // NOTE(Jorge): This function makes use of the global_variable clock Clock;
-    Clock->DeltaTime = 0.0f;
-    Clock->PerfCounterNow = SDL_GetPerformanceCounter();
-    Clock->PerfCounterLast = 0;
+    clock *Result = (clock*)Malloc(sizeof(clock)); Assert(Result);
+    Result->DeltaTime = 0.0f;
+    Result->PerfCounterNow = SDL_GetPerformanceCounter();
+    Result->PerfCounterLast = 0;
+
+    return Result;
 }
 
 void P_UpdateClock(clock *Clock)
@@ -23,7 +24,7 @@ void P_UpdateClock(clock *Clock)
 }
 
 void P_ToggleFullscreen(window *Window)
-{ // TODO: Fix bug when going fullscreen, try resizing the colorbuffers and renderbuffers size!
+{
     u32 WindowFlags = SDL_GetWindowFlags(Window->Handle);
 
     if(WindowFlags & SDL_WINDOW_FULLSCREEN_DESKTOP ||

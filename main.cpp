@@ -14,6 +14,7 @@ extern "C"
 #include "external/glad.c"
 #include <SDL.h>
 #include <SDL_opengl.h>
+#include <SDL_mixer.h>
 
 // NOTE: http://casual-effects.com/data/index.html <--- Cool site for test models
 #include "shared.h"
@@ -22,28 +23,14 @@ extern "C"
 #include "renderer.cpp"
 #include "game.cpp"
 
-/*
-  TODO:
-  STB_Image HDR Loading
-  Create and Draw Sprites
-  Draw the sprites with HDR floating point values in order to make them glow
-  DrawText2D
-  PlaySound
-  PlayMusic
-  AABB Collision Detection
- */
-
-// TODO(Jorge): Create game.cpp and put al things that belong to the game in here, such as camera, etc..
+// TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
 // TODO(Jorge): Replace every printf with MessageBox!
-// TODO: Make sure everything is gamma corrected, lighting calculations also need to be done with Gamma correction!
 // TODO: DrawDebugLine();
 // TODO: DrawLine();
 // TODO: Test Tweening Functions!
-// TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
 // TODO(Jorge): Create a lot of bullets and render them using instanced rendering
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
 // TODO(Jorge): Add License to all files
-// TODO(Jorge): Changing focus to the console window clicking on it and switching to the main game window crashes the program. Is this a bug?
 // TODO(Jorge): Remove unused functions from final version
 
 //
@@ -52,12 +39,13 @@ extern "C"
 global i32 WindowWidth = 1366;
 global i32 WindowHeight = 768;
 global b32 IsRunning = 1;
-global clock Clock;
-global mouse Mouse;
-global keyboard Keyboard;
+global keyboard *Keyboard;
+global mouse *Mouse;
+global clock *Clock;
 global window *Window;
 global renderer *MainRenderer;
 global camera *Camera;
+global b32 DebugText = 0;
 
 // These variables correspond to the FPS counter, TODO: make them not global
 global f32 AverageFPS;
@@ -65,75 +53,17 @@ global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
 
-void
-DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
-{
-    Assert(Renderer);
-    Assert(Text);
-    Assert(Font);
-
-    glUseProgram(Renderer->Shaders.Text);
-    glm::mat4 Identity = glm::mat4(1.0f);
-    R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
-    R_SetUniform(Renderer->Shaders.Text, "View", Identity);
-    // TODO(Jorge): We are using the camera global, fix this shit
-    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
-    R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
-
-    glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913
-    glBindVertexArray(Renderer->TextVAO);
-
-    // Iterate through all the characters in string
-    for(char *Ptr = Text; *Ptr != '\0'; Ptr++)
-    {
-        character Ch = Font->Characters[*Ptr];
-
-        f32 XPos = Position.x + Ch.Bearing.x * Scale.x;
-        f32 YPos = Position.y - (Ch.Size.y - Ch.Bearing.y) * Scale.y;
-
-        f32 W = Ch.Size.x * Scale.x;
-        f32 H = Ch.Size.y * Scale.y;
-
-        // Update VBO for each character
-        f32 QuadVertices[6][3] =
-        {
-            { XPos,     YPos + H, 0.0f},
-            { XPos,     YPos,     0.0f},
-            { XPos + W, YPos,     0.0f},
-            { XPos,     YPos + H, 0.0f},
-            { XPos + W, YPos,     0.0f},
-            { XPos + W, YPos + H, 0.0f}
-        };
-
-        // Render glyph texture over quad
-        glBindTexture(GL_TEXTURE_2D, Ch.TextureID);
-        glBindBuffer(GL_ARRAY_BUFFER, Renderer->TextVertexBuffer); // Update content of Vertex buffer
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        // Render  Quad
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-        // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-        Position.x += (Ch.Advance >> 6) * Scale.x; // Bitshift by 6 to get value in pixels (2^6 = 64)
-    }
-
-    glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
 int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
-    SDL_Init(SDL_INIT_EVERYTHING); // TODO: Init only the subsystems we need!
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS); // TODO: Init only the subsystems we need!
 
-    Window = P_CreateOpenGLWindow("No title!", WindowWidth, WindowHeight);
+    Window = P_CreateOpenGLWindow("Untitled", WindowWidth, WindowHeight);
     MainRenderer = R_CreateRenderer(Window);
-
-    // TODO: Move this to our new standard *Mouse = P_CreateMouse, P_CreateClock, etc...
-    I_Init(&Keyboard, &Mouse);
-    P_InitClock(&Clock);
-
+    Keyboard = I_CreateKeyboard();
+    Mouse = I_CreateMouse();
+    Clock = P_CreateClock();
     Camera = G_CreateCamera(WindowWidth, WindowHeight);
 
     texture *BlackHole = R_CreateTexture("textures/Black Hole.png");
@@ -145,7 +75,41 @@ int main(i32 Argc, char **Argv)
     texture *Seeker = R_CreateTexture("textures/Seeker.png");
     texture *Wanderer = R_CreateTexture("textures/Wanderer.png");
 
-    font *Arial = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
+    font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
+
+    Mix_Music *Music;
+    Mix_Chunk *Effect;
+    { // Black Mesa audio test chamber brackets
+        if(Mix_Init(MIX_INIT_MP3) != MIX_INIT_MP3)
+        {
+            printf("Error Initializing Mixer: %s\n", Mix_GetError());
+        }
+
+        //Initialize SDL_mixer
+        if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+        {
+            printf( "SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError() );
+        }
+
+        // load the MP3 file "music.mp3" to play as music
+        Music = Mix_LoadMUS("audio/Music.mp3");
+        if(!Music)
+        {
+            printf("Mix_LoadMUS(\"music.mp3\"): %s\n", Mix_GetError());
+            // this might be a critical error...
+        }
+        Mix_VolumeMusic(0); // 0-128
+        // Mix_Music *music; // I assume this has been loaded already
+        if(Mix_PlayMusic(Music, -1) == -1)
+        {
+            printf("Mix_PlayMusic: %s\n", Mix_GetError());
+            // well, there's no music, but most games don't break without music...
+        }
+
+        Effect = Mix_LoadWAV("audio/shoot-02.wav");
+        // Volume is 0 to MIX_MAX_VOLUME (128), this only applies to sound effects
+        Mix_Volume(-1, 1);
+    }
 
     glm::vec3 PlayerPosition = glm::vec3(0);
     f32 Angle = 0.0f;
@@ -153,7 +117,7 @@ int main(i32 Argc, char **Argv)
     while(IsRunning)
     {
         Angle += 0.01f;
-        P_UpdateClock(&Clock);
+        P_UpdateClock(Clock);
 
         { // Compute Average FPS - Average Milliseconds Per Frame
             f32 FramesPerSecondToShow = 2; // How many times per second to calculate fps
@@ -163,15 +127,11 @@ int main(i32 Argc, char **Argv)
                 AverageMillisecondsPerFrame = (FPSTimerSecondsElapsed / FPSCounter) * 1000.0f;
                 FPSCounter = 0;
                 FPSTimerSecondsElapsed = 0.0f;
-
-                char Title[60] = {};
-                sprintf_s(Title, sizeof(Title),"Average FPS: %2.2f - Average Ms per frame: %2.2f", AverageFPS, AverageMillisecondsPerFrame);
-                SDL_SetWindowTitle(Window->Handle, Title);
             }
             else
             {
                 FPSCounter += 1.0f;
-                FPSTimerSecondsElapsed += (f32)Clock.DeltaTime;
+                FPSTimerSecondsElapsed += (f32)Clock->DeltaTime;
             }
         }
 
@@ -189,21 +149,21 @@ int main(i32 Argc, char **Argv)
                 }
             }
 
-            { // SECTION: Update
-                I_UpdateKeyboard(&Keyboard);
-                I_UpdateMouse(&Mouse);
+            {  // SECTION: Update
+                I_UpdateKeyboard(Keyboard);
+                I_UpdateMouse(Mouse);
 
                 if(I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
                     // Camera Stuff
-                    if(Mouse.FirstMouse)
+                    if(Mouse->FirstMouse)
                     {
                         Camera->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
                         Camera->Pitch = 0.0f;
-                        Mouse.FirstMouse = false;
+                        Mouse->FirstMouse = false;
                     }
-                    Camera->Yaw += Mouse.RelX * Mouse.Sensitivity;
-                    Camera->Pitch += -Mouse.RelY *Mouse.Sensitivity; // reversed since y-coordinates range from bottom to top
+                    Camera->Yaw += Mouse->RelX * Mouse->Sensitivity;
+                    Camera->Pitch += -Mouse->RelY *Mouse->Sensitivity; // reversed since y-coordinates range from bottom to top
                     if(Camera->Pitch > 89.0f)
                     {
                         Camera->Pitch =  89.0f;
@@ -217,6 +177,11 @@ int main(i32 Argc, char **Argv)
                     Front.y = sin(glm::radians(Camera->Pitch));
                     Front.z = sin(glm::radians(Camera->Yaw)) * cos(glm::radians(Camera->Pitch));
                     Camera->Front = glm::normalize(Front);
+                }
+
+                if(I_IsReleased(SDL_SCANCODE_F1))
+                {
+                    DebugText = !DebugText;
                 }
 
                 // Handle Window input stuff
@@ -233,28 +198,28 @@ int main(i32 Argc, char **Argv)
                 // Handle Camera Input
                 if(I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    Camera->Position += Camera->Front * Camera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock.DeltaTime;
+                    Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock.DeltaTime;
+                    Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime;
                 }
                 if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                 {
                     G_ResetCamera(Camera, WindowWidth, WindowHeight);
-                    I_ResetMouse(&Mouse);
+                    I_ResetMouse(Mouse);
                 }
 
                 // Handle Player Input
-                f32 PlayerSpeed = 0.01f;
+                f32 PlayerSpeed = 0.05f;
                 if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
                     PlayerPosition.y += PlayerSpeed;
@@ -274,6 +239,7 @@ int main(i32 Argc, char **Argv)
                 if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
                     // Jump?!?!?
+                    Mix_PlayChannel( -1, Effect, 0 );
                 }
 
                 if(I_IsPressed(SDL_SCANCODE_UP))
@@ -294,35 +260,32 @@ int main(i32 Argc, char **Argv)
             // Update Camera Matrices
             Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
             Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
-
-        } // SECTION END: Update
+            Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+        } // END: Update
 
         { // SECTION: Render
 
+            // TODO: Camera Values should go into UBO
             R_BeginFrame(MainRenderer);
-            DrawText2D(MainRenderer, "Score: 516", Arial, glm::vec2(30, 40), glm::vec2(1.0f), glm::vec3(0.1f, 0.0f, 1.0f));
-            R_DrawTexture(MainRenderer, Camera, Pointer, PlayerPosition, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
 
-            // { // Render Cube, TODO(Jorge): Create a function for this!
-            //     glUseProgram(MainRenderer->CubeShader);
-            //     glm::mat4 Model = glm::mat4(1.0);
-            //     Model = glm::translate(Model, PlayerPosition);
-            //     R_SetUniform(MainRenderer->CubeShader, "Model", Model);
-            //     R_SetUniform(MainRenderer->CubeShader, "View", Camera->View);
-            //     R_SetUniform(MainRenderer->CubeShader, "Projection", Camera->Projection);
-            //     R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(2.0f, 2.0f, 2.0f));
-            //     glBindVertexArray(MainRenderer->CubeVAO);
-            //     // Render Glowing Cube
-            //     glDrawArrays(GL_TRIANGLES, 0, 36);
-            //     // Render not glowing cube
-            //     Model = glm::translate(Model, glm::vec3(-3.0f, 0.0f, 0.0f));
-            //     Model = glm::mat4(1.0f);
-            //     R_SetUniform(MainRenderer->CubeShader, "Model", Model);
-            //     R_SetUniform(MainRenderer->CubeShader, "Color", glm::vec3(0.0f, 0.0f, 1.0f));
-            //     glDrawArrays(GL_TRIANGLES, 0, 36);
-            //     glBindVertexArray(0);
-            //     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // }
+            R_DrawTexture(MainRenderer, Camera, Wanderer, PlayerPosition, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Player, glm::vec3(10, 10, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Pointer, glm::vec3(20, 10, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, BlackHole, glm::vec3(20, 20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Bullet, glm::vec3(-20, -20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Laser, glm::vec3(20, -20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Seeker, glm::vec3(-20, 20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+
+            if(DebugText)
+            {
+                char FPSText[20] = {};
+                sprintf_s(FPSText, sizeof(FPSText),"FPS: %2.2f", AverageFPS);
+                R_DrawText2D(MainRenderer, Camera, FPSText, NovaSquare, glm::vec2(0, WindowHeight - 30), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                char ExposureText[20] = {};
+                sprintf_s(ExposureText, sizeof(ExposureText),"Exposure: %2.2f", MainRenderer->Exposure);
+                R_DrawText2D(MainRenderer, Camera, ExposureText, NovaSquare, glm::vec2(0, WindowHeight - 60), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+            }
 
             R_EndFrame(MainRenderer);
         } // SECTION END: Render

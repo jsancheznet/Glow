@@ -299,7 +299,6 @@ renderer *R_CreateRenderer(window *Window)
 
         Result->Exposure = Exposure__;
     }
-
     glViewport(0, 0, Window->Width, Window->Height);
 
     { // SUBSECTION: Shader compilation
@@ -312,7 +311,7 @@ renderer *R_CreateRenderer(window *Window)
         R_SetUniform(Result->Shaders.Bloom, "Scene", 0);
         R_SetUniform(Result->Shaders.Bloom, "BloomBlur", 1);
 
-        Result->Shaders.Cube = R_CreateShader("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
+        // Result->Shaders.Cube = R_CreateShader("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
 
         Result->Shaders.Hdr = R_CreateShader("shaders/HDR.glsl");
         R_SetUniform(Result->Shaders.Hdr, "HDRBuffer", 0);
@@ -353,24 +352,20 @@ renderer *R_CreateRenderer(window *Window)
         glBindVertexArray(0);
 
         // Upload Text Data to GPU
-        {
-            glGenVertexArrays(1, &Result->TextVAO);
-            glBindVertexArray(Result->TextVAO);
-            glGenBuffers(1, &Result->TextVertexBuffer);
-            glBindBuffer(GL_ARRAY_BUFFER, Result->TextVertexBuffer);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 3, NULL, GL_DYNAMIC_DRAW); // 6 Vertices, 3 floats each
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), 0);
-
-            // f32 TextTexCoords__[6][2] =
-            glGenBuffers(1, &Result->TextTexCoordsBuffer);
-            glBindBuffer(GL_ARRAY_BUFFER, Result->TextTexCoordsBuffer);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TextTexCoords__, GL_DYNAMIC_DRAW); // 6 Vertices, 2 floats(UV) each
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
-        }
+        glGenVertexArrays(1, &Result->TextVAO);
+        glBindVertexArray(Result->TextVAO);
+        glGenBuffers(1, &Result->TextVertexBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, Result->TextVertexBuffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 3, NULL, GL_DYNAMIC_DRAW); // 6 Vertices, 3 floats each
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), 0);
+        glGenBuffers(1, &Result->TextTexCoordsBuffer);
+        glBindBuffer(GL_ARRAY_BUFFER, Result->TextTexCoordsBuffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TextTexCoords__, GL_DYNAMIC_DRAW); // 6 Vertices, 2 floats(UV) each
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 
     { // SECTION: HDR+Bloom setup
@@ -529,35 +524,7 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
     // Destroy a given FreeType library object and all of its children, including resources, drivers, faces, sizes, etc.
     FT_Done_FreeType(FT);
     // glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // NOTE: Do we need to reset it?
-#if 0
-    glGenVertexArrays(1, &Result->VAO);
-    glBindVertexArray(Result->VAO);
-    // Upload Vertex Data
-    glGenBuffers(1, &Result->VertexBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, Result->VertexBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 3, NULL, GL_DYNAMIC_DRAW); // 6 Vertices, 3 floats each
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), 0);
 
-    // Upload TexCoords
-    f32 TexCoords[6][2] =
-    {
-        {0.0, 0.0f},
-        {0.0f, 1.0f},
-        {1.0, 1.0},
-        {0.0, 0.0},
-        {1.0, 1.0},
-        {1.0, 0.0},
-    };
-    glGenBuffers(1, &Result->TexCoordsBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, Result->TexCoordsBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TexCoords, GL_DYNAMIC_DRAW); // 6 Vertices, 2 floats(UV) each
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-#endif
     return Result;
 }
 
@@ -731,4 +698,60 @@ void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::ve
     glBindVertexArray(Renderer->QuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+}
+
+void
+R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
+{
+    Assert(Renderer);
+    Assert(Text);
+    Assert(Font);
+
+    glUseProgram(Renderer->Shaders.Text);
+    glm::mat4 Identity = glm::mat4(1.0f);
+    R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
+    R_SetUniform(Renderer->Shaders.Text, "View", Identity);
+    // TODO(Jorge): We are using the camera global, fix this shit
+    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
+    R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
+
+    glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913
+    glBindVertexArray(Renderer->TextVAO);
+
+    // Iterate through all the characters in string
+    for(char *Ptr = Text; *Ptr != '\0'; Ptr++)
+    {
+        character Ch = Font->Characters[*Ptr];
+
+        f32 XPos = Position.x + Ch.Bearing.x * Scale.x;
+        f32 YPos = Position.y - (Ch.Size.y - Ch.Bearing.y) * Scale.y;
+
+        f32 W = Ch.Size.x * Scale.x;
+        f32 H = Ch.Size.y * Scale.y;
+
+        // Update VBO for each character
+        f32 QuadVertices[6][3] =
+        {
+            { XPos,     YPos + H, 0.0f},
+            { XPos,     YPos,     0.0f},
+            { XPos + W, YPos,     0.0f},
+            { XPos,     YPos + H, 0.0f},
+            { XPos + W, YPos,     0.0f},
+            { XPos + W, YPos + H, 0.0f}
+        };
+
+        // Render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, Ch.TextureID);
+        glBindBuffer(GL_ARRAY_BUFFER, Renderer->TextVertexBuffer); // Update content of Vertex buffer
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(QuadVertices), QuadVertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        // Render  Quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        Position.x += (Ch.Advance >> 6) * Scale.x; // Bitshift by 6 to get value in pixels (2^6 = 64)
+    }
+
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }

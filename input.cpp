@@ -7,24 +7,32 @@
 global keyboard *__Keyboard = NULL; // Variable to be used as shortcut inside this file
 global mouse *__Mouse = NULL;
 
-void I_Init(keyboard *Keyboard, mouse *Mouse)
+keyboard *I_CreateKeyboard()
 {
-    Keyboard->State = SDL_GetKeyboardState(&Keyboard->Numkeys);
-    Keyboard->CurrentState = (u8*)Malloc(sizeof(u8) * Keyboard->Numkeys);
-    Keyboard->PrevState = (u8*)Malloc(sizeof(u8) * Keyboard->Numkeys);
-    Assert(Keyboard->PrevState);
-    Assert(Keyboard->CurrentState);
-    *Keyboard->CurrentState = {};
-    *Keyboard->PrevState = {};
+    keyboard *Result = (keyboard*)Malloc(sizeof(keyboard)); Assert(Result);
+    Result->State = SDL_GetKeyboardState(&Result->Numkeys);
+    Result->CurrentState = (u8*)Malloc(sizeof(u8) * Result->Numkeys); Assert(Result->CurrentState);
+    Result->PrevState = (u8*)Malloc(sizeof(u8) * Result->Numkeys); Assert(Result->PrevState);
+    *Result->CurrentState = {};
+    *Result->PrevState = {};
 
-    __Keyboard = Keyboard;
+    __Keyboard = Result;
 
-    Mouse->ButtonState = 0;
-    Mouse->Sensitivity = 0.3f;
-    Mouse->FirstMouse = 1;
-    Mouse->RelX = 0;
-    Mouse->RelY = 0;
+    return Result;
+}
+
+mouse *I_CreateMouse()
+{
+    mouse *Result = (mouse*)Malloc(sizeof(mouse)); Assert(Result);
+
+    Result->ButtonState = 0;
+    Result->Sensitivity = 0.3f;
+    Result->FirstMouse = 1;
+    Result->RelX = 0;
+    Result->RelY = 0;
     // SDL_SetRelativeMouseMode(SDL_TRUE);
+
+    return Result;
 }
 
 void I_ResetMouse(mouse *Mouse)
