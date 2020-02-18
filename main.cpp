@@ -21,6 +21,7 @@ extern "C"
 #include "platform.cpp"
 #include "input.cpp"
 #include "renderer.cpp"
+#include "sound.cpp"
 #include "game.cpp"
 
 // TODO(Jorge): Shader Hot reloading: http://antongerdelan.net/opengl/shader_hot_reload.html
@@ -44,14 +45,54 @@ global mouse *Mouse;
 global clock *Clock;
 global window *Window;
 global renderer *MainRenderer;
+global sound_system *SoundSystem;
 global camera *Camera;
-global b32 DebugText = 0;
+
+global b32 ShowDebugText = 0;
 
 // These variables correspond to the FPS counter, TODO: make them not global
 global f32 AverageFPS;
 global f32 AverageMillisecondsPerFrame;
 global f32 FPSTimerSecondsElapsed = 0.0f;
 global f32 FPSCounter = 0.0f;
+
+global entity Entity = {};
+global entity Enemy = {};
+
+struct rectangle
+{
+    glm::vec2 Origin;
+    glm::vec2 Size;
+};
+
+b32 Overlapping(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
+{
+    return MinB <= MaxA && MinA <= MaxB;
+}
+
+b32 RectanglesCollide(rectangle A, rectangle B)
+{
+    /*
+      |----------------|
+      |                |
+      |                |
+      |----------------|
+     */
+
+    // Compute MinA, MaxA, MinB, MaxB for horizontal plane
+    f32 ALeft = A.Origin.x;
+    f32 ARight = ALeft + A.Size.x;
+    f32 BLeft = B.Origin.x;
+    f32 BRight = BLeft + B.Size.x;
+
+    // Compute MinA, MaxA, MinB, MaxB for vertical plane
+    f32 ABottom = A.Origin.y;
+    f32 ATop = ABottom + A.Size.y;
+    f32 BBottom = B.Origin.y;
+    f32 BTop = BBottom + B.Size.y;
+
+    return Overlapping(ALeft, ARight, BLeft, BRight) && Overlapping(ABottom, ATop, BBottom, BTop);
+}
 
 int main(i32 Argc, char **Argv)
 {
@@ -64,54 +105,21 @@ int main(i32 Argc, char **Argv)
     Keyboard = I_CreateKeyboard();
     Mouse = I_CreateMouse();
     Clock = P_CreateClock();
+    SoundSystem = S_CreateSoundSystem();
     Camera = G_CreateCamera(WindowWidth, WindowHeight);
 
-    texture *BlackHole = R_CreateTexture("textures/Black Hole.png");
-    texture *Bullet = R_CreateTexture("textures/Bullet.png");
-    texture *Glow = R_CreateTexture("textures/Glow.png");
-    texture *Laser = R_CreateTexture("textures/Laser.png");
     texture *Player = R_CreateTexture("textures/Player.png");
-    texture *Pointer = R_CreateTexture("textures/Pointer.png");
-    texture *Seeker = R_CreateTexture("textures/Seeker.png");
-    texture *Wanderer = R_CreateTexture("textures/Wanderer.png");
+    texture *EnemyTexture = R_CreateTexture("textures/Wanderer.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
-    Mix_Music *Music;
-    Mix_Chunk *Effect;
-    { // Black Mesa audio test chamber brackets
-        if(Mix_Init(MIX_INIT_MP3) != MIX_INIT_MP3)
-        {
-            printf("Error Initializing Mixer: %s\n", Mix_GetError());
-        }
+    sound_effect *Test = S_CreateSoundEffect("audio/shoot-01.wav");
+    sound_music *TestMusic = S_CreateMusic("audio/Music.mp3");
+    S_PlayMusic(TestMusic);
 
-        //Initialize SDL_mixer
-        if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
-        {
-            printf( "SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError() );
-        }
+    Entity.Physics.Position = glm::vec3(-4.0f, 4.0f, 0.0f);
+    Enemy.Physics.Position = glm::vec3(0.0f);
 
-        // load the MP3 file "music.mp3" to play as music
-        Music = Mix_LoadMUS("audio/Music.mp3");
-        if(!Music)
-        {
-            printf("Mix_LoadMUS(\"music.mp3\"): %s\n", Mix_GetError());
-            // this might be a critical error...
-        }
-        Mix_VolumeMusic(0); // 0-128
-        // Mix_Music *music; // I assume this has been loaded already
-        if(Mix_PlayMusic(Music, -1) == -1)
-        {
-            printf("Mix_PlayMusic: %s\n", Mix_GetError());
-            // well, there's no music, but most games don't break without music...
-        }
-
-        Effect = Mix_LoadWAV("audio/shoot-02.wav");
-        // Volume is 0 to MIX_MAX_VOLUME (128), this only applies to sound effects
-        Mix_Volume(-1, 1);
-    }
-
-    glm::vec3 PlayerPosition = glm::vec3(0);
     f32 Angle = 0.0f;
     SDL_Event Event;
     while(IsRunning)
@@ -179,9 +187,10 @@ int main(i32 Argc, char **Argv)
                     Camera->Front = glm::normalize(Front);
                 }
 
+                // Debug Text
                 if(I_IsReleased(SDL_SCANCODE_F1))
                 {
-                    DebugText = !DebugText;
+                    ShowDebugText = !ShowDebugText;
                 }
 
                 // Handle Window input stuff
@@ -219,27 +228,28 @@ int main(i32 Argc, char **Argv)
                 }
 
                 // Handle Player Input
-                f32 PlayerSpeed = 0.05f;
+                f32 PlayerSpeed = 600.0f;
+                // f32 PlayerSpeed = 3500.0f;
                 if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    PlayerPosition.y += PlayerSpeed;
+                    Entity.Physics.Acceleration.y += PlayerSpeed;
                 }
                 if(I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    PlayerPosition.y -= PlayerSpeed;
+                    Entity.Physics.Acceleration.y -= PlayerSpeed;
                 }
                 if(I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    PlayerPosition.x -= PlayerSpeed;
+                    Entity.Physics.Acceleration.x -= PlayerSpeed;
                 }
                 if(I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
-                    PlayerPosition.x += PlayerSpeed;
+                    Entity.Physics.Acceleration.x += PlayerSpeed;
                 }
                 if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                 {
                     // Jump?!?!?
-                    Mix_PlayChannel( -1, Effect, 0 );
+                    S_PlaySoundEffect(Test);
                 }
 
                 if(I_IsPressed(SDL_SCANCODE_UP))
@@ -255,36 +265,98 @@ int main(i32 Argc, char **Argv)
                 {
                     SDL_SetRelativeMouseMode(SDL_TRUE);
                 }
+
+
+                if(I_IsPressed(SDL_SCANCODE_P))
+                {
+                    S_SetMusicVolume(SoundSystem, ++SoundSystem->MusicVolume);
+                    S_SetEffectsVolume(SoundSystem, ++SoundSystem->EffectsVolume);
+                }
+                if(I_IsPressed(SDL_SCANCODE_N))
+                {
+                    S_SetMusicVolume(SoundSystem, --SoundSystem->MusicVolume);
+                    S_SetEffectsVolume(SoundSystem, --SoundSystem->EffectsVolume);
+                }
             }
 
             // Update Camera Matrices
             Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
             Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
             Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+
+            ComputeNewtonMotion(&Entity.Physics, (f32)Clock->DeltaTime);
+
+            if(Entity.Physics.Position.x < -40.0f)
+            {
+                Entity.Physics.Position.x = -40.0f;
+            }
+            else if(Entity.Physics.Position.x > 40.0f)
+            {
+                Entity.Physics.Position.x = 40.0f;
+            }
+
+            if(Entity.Physics.Position.y < -20.0f)
+            {
+                Entity.Physics.Position.y = -20.0f;
+            }
+            else if(Entity.Physics.Position.y > 20.0f)
+            {
+                Entity.Physics.Position.y = 20.0f;
+            }
+
+
+            rectangle PlayerRect;
+            PlayerRect.Origin.x = Entity.Physics.Position.x;
+            PlayerRect.Origin.y = Entity.Physics.Position.y;
+            PlayerRect.Size = glm::vec2(1.0f);
+
+            rectangle EnemyRect;
+            EnemyRect.Origin.x = Enemy.Physics.Position.x;
+            EnemyRect.Origin.y = Enemy.Physics.Position.y;
+            EnemyRect.Size = glm::vec2(1.0f);
+
+            b32 Result = RectanglesCollide(PlayerRect, EnemyRect);
+            if(Result) printf("Collision!\n"); else printf("\n");
+
         } // END: Update
 
         { // SECTION: Render
-
             // TODO: Camera Values should go into UBO
             R_BeginFrame(MainRenderer);
 
-            R_DrawTexture(MainRenderer, Camera, Wanderer, PlayerPosition, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, Player, glm::vec3(10, 10, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, Pointer, glm::vec3(20, 10, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, BlackHole, glm::vec3(20, 20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, Bullet, glm::vec3(-20, -20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, Laser, glm::vec3(20, -20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
-            R_DrawTexture(MainRenderer, Camera, Seeker, glm::vec3(-20, 20, 0), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), Angle);
+            R_DrawTexture(MainRenderer, Camera, Player, Entity.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
+            R_DrawTexture(MainRenderer, Camera, EnemyTexture, Enemy.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
 
-            if(DebugText)
+            if(ShowDebugText)
             {
-                char FPSText[20] = {};
-                sprintf_s(FPSText, sizeof(FPSText),"FPS: %2.2f", AverageFPS);
-                R_DrawText2D(MainRenderer, Camera, FPSText, NovaSquare, glm::vec2(0, WindowHeight - 30), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                char TextBuffer[60];
+                // FPS
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"FPS: %2.2f", AverageFPS);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 30), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-                char ExposureText[20] = {};
-                sprintf_s(ExposureText, sizeof(ExposureText),"Exposure: %2.2f", MainRenderer->Exposure);
-                R_DrawText2D(MainRenderer, Camera, ExposureText, NovaSquare, glm::vec2(0, WindowHeight - 60), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                // Exposure
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"Renderer->Exposure: %2.2f", MainRenderer->Exposure);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 60), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                // OpenGL Thingys
+                R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareVendor, NovaSquare, glm::vec2(0, WindowHeight - 90), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareModel, NovaSquare, glm::vec2(0, WindowHeight - 120), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->OpenGLVersion, NovaSquare, glm::vec2(0, WindowHeight - 150), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->GLSLVersion, NovaSquare, glm::vec2(0, WindowHeight - 180), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                // Player Position
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"Player->Position: %2.2f,%2.2f", Entity.Physics.Position.x, Entity.Physics.Position.y);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 210), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                // Camera Position
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"Camera->Position: %2.2f,%2.2f,%2.2f", Camera->Position.x, Camera->Position.y, Camera->Position.z);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 240), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                // Sound System
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"MusicVolume: %d", SoundSystem->MusicVolume);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 270), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                sprintf_s(TextBuffer, sizeof(TextBuffer),"EffectsVolume: %d", SoundSystem->EffectsVolume);
+                R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 300), glm::vec2(0.5f), glm::vec3(1.0f, 1.0f, 1.0f));
             }
 
             R_EndFrame(MainRenderer);

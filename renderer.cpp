@@ -157,7 +157,6 @@ void R_EndFrame(renderer *Renderer)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, Renderer->PingPongFBO[Horizontal]);
         R_SetUniform(Renderer->Shaders.Blur, "Horizontal", Horizontal);
-        // R_SetUniform(Renderer->BlurShader, "Test", Angle);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, FirstIteration ? Renderer->BrightnessBuffer : Renderer->PingPongBuffer[!Horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
         R_DrawQuad(Renderer);
@@ -311,8 +310,6 @@ renderer *R_CreateRenderer(window *Window)
         R_SetUniform(Result->Shaders.Bloom, "Scene", 0);
         R_SetUniform(Result->Shaders.Bloom, "BloomBlur", 1);
 
-        // Result->Shaders.Cube = R_CreateShader("shaders/cube_shader.glsl"); // IMPORTANT: This shader also outputs to the brightness texture
-
         Result->Shaders.Hdr = R_CreateShader("shaders/HDR.glsl");
         R_SetUniform(Result->Shaders.Hdr, "HDRBuffer", 0);
 
@@ -321,7 +318,6 @@ renderer *R_CreateRenderer(window *Window)
 
         Result->Shaders.Text = R_CreateShader("shaders/text.glsl");
         R_SetUniform(Result->Shaders.Text, "Text", 0);
-        R_SetUniform(Result->Shaders.Text, "TextColor", glm::vec3(1.0f, 0.0f, 1.0f));
     }
 
     { // SUBSECTION: Upload vertex data to GPU
@@ -641,8 +637,8 @@ texture *R_CreateTexture(char *Filename)
     {
         glGenTextures(1, &Result->Handle);
         glBindTexture(GL_TEXTURE_2D, Result->Handle);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         if(Result->ChannelCount == 3)
@@ -668,8 +664,8 @@ texture *R_CreateTexture(char *Filename)
         // NOTE: InternalFormat is the format we want to store the data, Format is the input format
         glTexImage2D(GL_TEXTURE_2D, MipMapDetailLevel, Result->InternalFormat, Result->Width, Result->Height, 0, Result->Format, GL_UNSIGNED_BYTE, Data);
         // NOTE(Jorge): Set custom MipMaps filtering values here!
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glGenerateMipmap(GL_TEXTURE_2D);
 
         stbi_image_free(Data);
@@ -711,8 +707,7 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
     glm::mat4 Identity = glm::mat4(1.0f);
     R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
     R_SetUniform(Renderer->Shaders.Text, "View", Identity);
-    // TODO(Jorge): We are using the camera global, fix this shit
-    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
+    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho); // TODO(Jorge): We are using the camera global, fix this shit
     R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
 
     glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913

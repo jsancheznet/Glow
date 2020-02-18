@@ -2,7 +2,7 @@
 
 #include "game.h"
 
-global glm::vec3 InitialCameraPosition = glm::vec3(0.0f, 0.0f, 20.0f);
+global glm::vec3 InitialCameraPosition = glm::vec3(0.0f, 0.0f, 23.0f);
 
 camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
 {
@@ -36,4 +36,13 @@ void G_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight)
     Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
     Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
     Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+}
+
+void ComputeNewtonMotion(physics_data *Data, f32 TimeStep)
+{
+    Data->Position = (0.5f * Data->Acceleration) * (TimeStep * TimeStep) + Data->Velocity * TimeStep + Data->Position;
+    Data->Velocity = Data->Acceleration * TimeStep + Data->Velocity;
+    Data->Acceleration = {};
+    f32 DragCoefficient = 0.8f;
+    Data->Velocity *= DragCoefficient; // Drag
 }

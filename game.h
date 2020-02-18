@@ -1,5 +1,19 @@
 #pragma once
 
+#include "shared.h"
+
+struct physics_data
+{
+    glm::vec3 Acceleration;
+    glm::vec3 Velocity;
+    glm::vec3 Position;
+};
+
+struct entity
+{
+    physics_data Physics;
+};
+
 struct camera // TODO: This might need to be in something like entities.cpp
 {
     // Camera implemented using: https://learnopengl.com/Getting-started/Camera
