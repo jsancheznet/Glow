@@ -213,6 +213,13 @@ int main(i32 Argc, char **Argv)
                     {
                         CurrentState = State_Game;
                     }
+
+                    // Handle Window input stuff
+                    if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
+                    {
+                        P_ToggleFullscreen(Window);
+                        R_ResizeRenderer(MainRenderer, Window->Width, Window->Height);
+                    }
                     break;
                 }
                 case State_Game:
@@ -348,6 +355,13 @@ int main(i32 Argc, char **Argv)
                     {
                         CurrentState = State_Game;
                     }
+
+                    // Handle Window input stuff
+                    if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
+                    {
+                        P_ToggleFullscreen(Window);
+                        R_ResizeRenderer(MainRenderer, Window->Width, Window->Height);
+                    }
                     break;
                 }
                 default:
@@ -413,7 +427,13 @@ int main(i32 Argc, char **Argv)
             Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
             Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
 
-        } // END: Update
+
+            char WindowTitle[60];
+            // FPS
+            sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", AverageFPS);
+            SDL_SetWindowTitle(Window->Handle, WindowTitle);
+
+         } // END: Update
 
         { // SECTION: Render
             R_BeginFrame(MainRenderer);
@@ -422,18 +442,12 @@ int main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    glClearColor(1.0f, 0.0f, 1.0f, 1.0f);
-                    glClear(GL_COLOR_BUFFER_BIT);
+                    R_DrawText2D(MainRenderer, Camera, "Untitled", NovaSquare, glm::vec2( (1366 / 2) - 240, 768 - 140), glm::vec2(2.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    R_DrawText2D(MainRenderer, Camera, "Press Space to Begin", NovaSquare, glm::vec2( (1366 / 2) - 300, 768 - 430), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     break;
                 }
                 case State_Game:
                 {
-
-                    char WindowTitle[60];
-                    // FPS
-                    sprintf_s(WindowTitle, sizeof(WindowTitle),"FPS: %2.2f", AverageFPS);
-                    SDL_SetWindowTitle(Window->Handle, WindowTitle);
-
                     R_DrawTexture(MainRenderer, Camera, Player, Entity.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
                     R_DrawTexture(MainRenderer, Camera, EnemyTexture, Enemy.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
 
@@ -476,8 +490,9 @@ int main(i32 Argc, char **Argv)
                 }
                 case State_Pause:
                 {
-                    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
-                    glClear(GL_COLOR_BUFFER_BIT);
+                    R_DrawText2D(MainRenderer, Camera, "Untitled", NovaSquare, glm::vec2( (1366 / 2) - 240, 768 - 140), glm::vec2(2.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    R_DrawText2D(MainRenderer, Camera, "Press Space to Continue", NovaSquare, glm::vec2( (1366 / 2) - 360, 768 - 430), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    R_DrawText2D(MainRenderer, Camera, "Press Escape to Quit", NovaSquare, glm::vec2( (1366 / 2) - 300, 768 - 600), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     break;
                 }
                 default:
