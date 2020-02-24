@@ -19,16 +19,28 @@ void main()
 
 #ifdef FRAGMENT_SHADER
 
-in vec2 UV;
-out vec4 Color;
+layout (location = 0) out vec4 FragmentColor;
+layout (location = 1) out vec4 BrightnessColor;
 
+in vec2 UV;
 uniform sampler2D Text;
 uniform vec3 TextColor;
+uniform float BrightnessThreshold;
 
 void main()
 {
     vec4 Sampled = vec4(1.0, 1.0, 1.0, texture(Text, UV).r);
-    Color = vec4(TextColor, 1.0) * Sampled;
+    FragmentColor = vec4(TextColor, 1.0) * Sampled;
+
+    float Brightness = dot(FragmentColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    if(Brightness > BrightnessThreshold)
+    {
+        BrightnessColor = FragmentColor;
+    }
+    else
+    {
+        BrightnessColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
 }
 
 #endif

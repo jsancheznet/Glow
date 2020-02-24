@@ -68,6 +68,11 @@ b32 I_IsNotPressed(SDL_Scancode Scancode)
     return !__Keyboard->State[Scancode];
 }
 
+b32 I_WasNotPressed(SDL_Scancode Scancode)
+{
+    return !__Keyboard->PrevState[Scancode];
+}
+
 b32 I_IsReleased(SDL_Scancode Scancode)
 {
     return (!__Keyboard->State[Scancode] && __Keyboard->PrevState[Scancode]);

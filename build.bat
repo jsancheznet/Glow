@@ -16,7 +16,7 @@ set SDLMIXER_LIB="..\external\SDL2_mixer-2.0.4\lib\x64"
 set IncludeDirectories=-I%SDLINCLUDE% -I%GLADINCLUDE% -I%GLM% -I%FREETYPEINCLUDE% -I%SDLMIXER_INCLUDE%
 set LibDirectories=-LIBPATH:%SDLLIB64% -LIBPATH:%FREETYPELIB% -LIBPATH:%SDLMIXER_LIB%
 
-set CompilerFlags= -DDEBUG -nologo -W4 -WX -Od %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
+set CompilerFlags= -DDEBUG -nologo -W4 -WX -Od -FS %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
 set LinkerFlags=-nologo -DEBUG %LibDirectories%
 
 cl ..\main.cpp %CompilerFlags% /link %LinkerFlags% -SUBSYSTEM:CONSOLE SDL2.lib SDL2main.lib SDL2_mixer.lib freetype.lib

@@ -40,7 +40,7 @@ void G_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight)
 
 void ComputeNewtonMotion(physics_data *Data, f32 TimeStep)
 {
-    Data->Position = (0.5f * Data->Acceleration) * (TimeStep * TimeStep) + Data->Velocity * TimeStep + Data->Position;
+    Data->Position = 0.5f * Data->Acceleration * (TimeStep * TimeStep) + Data->Velocity + Data->Position;
     Data->Velocity = Data->Acceleration * TimeStep + Data->Velocity;
     Data->Acceleration = {};
     f32 DragCoefficient = 0.8f;

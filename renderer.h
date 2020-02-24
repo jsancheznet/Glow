@@ -64,22 +64,12 @@ struct character
     glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
     u32 Advance; // Offset to advance to next glyph
 };
-
 struct font
 {
     char *Filename;
     i32 CharacterWidth;
     i32 CharacterHeight;
     character Characters[256];
-
-#if 0
-    // TODO(Joreg): Delete this!
-    //
-    u32 Shader;
-    u32 VAO;
-    u32 VertexBuffer;
-    u32 TexCoordsBuffer;
-#endif
 };
 
 //

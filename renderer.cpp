@@ -26,7 +26,7 @@
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
 global i32 EnableBloom = 1;
-global u32 BlurPassCount = 10; // How many times should we blurr the image
+global u32 BlurPassCount = 15; // How many times should we blurr the image
 
 void R_DrawQuad(renderer *Renderer)
 { // TODO: This function is suspiciously too short, wtf?
@@ -305,18 +305,21 @@ renderer *R_CreateRenderer(window *Window)
         glUseProgram(Result->Shaders.Blur);
         R_SetUniform(Result->Shaders.Blur, "Image", 0);
 
-        Result->Shaders.Bloom = R_CreateShader("shaders/bloom_final.glsl");
+        Result->Shaders.Bloom = R_CreateShader("shaders/bloom.glsl");
         glUseProgram(Result->Shaders.Bloom);
         R_SetUniform(Result->Shaders.Bloom, "Scene", 0);
         R_SetUniform(Result->Shaders.Bloom, "BloomBlur", 1);
 
-        Result->Shaders.Hdr = R_CreateShader("shaders/HDR.glsl");
+        Result->Shaders.Hdr = R_CreateShader("shaders/hdr.glsl");
+        glUseProgram(Result->Shaders.Hdr);
         R_SetUniform(Result->Shaders.Hdr, "HDRBuffer", 0);
 
-        Result->Shaders.Texture = R_CreateShader("shaders/draw_texture.glsl");
+        Result->Shaders.Texture = R_CreateShader("shaders/texture.glsl");
+        glUseProgram(Result->Shaders.Texture);
         R_SetUniform(Result->Shaders.Texture, "Image", 0);
 
         Result->Shaders.Text = R_CreateShader("shaders/text.glsl");
+        glUseProgram(Result->Shaders.Text);
         R_SetUniform(Result->Shaders.Text, "Text", 0);
     }
 
@@ -689,6 +692,8 @@ void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::ve
     R_SetUniform(Renderer->Shaders.Texture, "Model", Model);
     R_SetUniform(Renderer->Shaders.Texture, "View", Camera->View);
     R_SetUniform(Renderer->Shaders.Texture, "Projection", Camera->Projection);
+    f32 BrightnessThreshold = 0.25f;
+    R_SetUniform(Renderer->Shaders.Texture, "BrightnessThreshold", BrightnessThreshold);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture->Handle);
     glBindVertexArray(Renderer->QuadVAO);
@@ -709,6 +714,8 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
     R_SetUniform(Renderer->Shaders.Text, "View", Identity);
     R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho); // TODO(Jorge): We are using the camera global, fix this shit
     R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
+    f32 BrightnessThreshold = 1.0f;
+    R_SetUniform(Renderer->Shaders.Text, "BrightnessThreshold", BrightnessThreshold);
 
     glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913
     glBindVertexArray(Renderer->TextVAO);

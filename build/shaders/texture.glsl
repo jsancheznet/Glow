@@ -24,6 +24,7 @@ layout (location = 1) out vec4 BrightnessColor;
 
 in vec2 TextureCoordinates;
 uniform sampler2D Image;
+uniform float BrightnessThreshold;
 
 void main()
 {
@@ -32,7 +33,7 @@ void main()
     // check whether fragment output is higher than threshold, if so output as brightness color
     float Brightness = dot(FragmentColor.rgb, vec3(0.2126, 0.7152, 0.0722));
 
-    if(Brightness > 0.25)
+    if(Brightness > BrightnessThreshold)
     {
         BrightnessColor = vec4(FragmentColor.rgb, 1.0);
     }
