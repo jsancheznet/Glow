@@ -3,7 +3,7 @@
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <jsanchez@monoinfinito.net> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Jorge S�nchez
+ * this stuff is worth it, you can buy me a beer in return.   Jorge Sï¿½nchez
  * ----------------------------------------------------------------------------
  */
 
@@ -62,7 +62,6 @@ void Free__(void *Ptr)
     free(Ptr);
 }
 
-
 char *ReadTextFile(char *Filename)
 {
     // IMPORTANT(Jorge): The caller of this function needs to free the allocated pointer!
@@ -98,6 +97,15 @@ char *ReadTextFile(char *Filename)
     return Result;
 }
 
+f32 Normalize(f32 Input, f32 Minimum, f32 Maximum)
+{
+    return (Input - Minimum) / (Maximum - Minimum);
+}
+
+f32 MapRange(f32 Input, f32 InputStart, f32 InputEnd, f32 OutputStart, f32 OutputEnd)
+{
+    return (Input - InputStart) / (InputEnd - InputStart) * (OutputEnd - OutputStart) + OutputStart;
+}
 
 //
 // Error Checking Macro's

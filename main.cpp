@@ -24,11 +24,14 @@ extern "C"
 #include "sound.cpp"
 #include "game.cpp"
 
+
 // TODO(Jorge): AABB vs Circle Collision
 // TODO(Jorge): Make the player look at the current mouse position
 // TODO(Jorge): After player looks at mouse, do we need SAT collision?
 // TODO(Jorge): Create a bullet, Test it!, Create a Whole lotta bullets
 // TODO(Jorge): Make the player fire bullets
+// TODO(Jorge): Sound system should be able to play two sound effects atop of each other!
+// TODO(Jorge): Delete the game.h/cpp files, and put everything in main for the time being, game.cpp/h makes no sense, at least yet.
 
 // TODO(Jorge): Performance is horrible on intel graphics card, WTF is going on!
 // TODO: Test Tweening Functions!
@@ -71,6 +74,7 @@ enum state
     State_Initial,
     State_Game,
     State_Pause,
+    State_Debug,
     State_Gameover,
 };
 
@@ -91,7 +95,6 @@ global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
 
-
 // These variables correspond to the FPS counter, TODO: make them not global
 global f32 AverageFPS;
 global f32 AverageMillisecondsPerFrame;
@@ -106,6 +109,14 @@ struct rectangle
     glm::vec2 Center;
     f32 HalfWidth;
     f32 HalfHeight;
+};
+
+struct bullet
+{
+    rectangle Rect;
+    glm::vec3 Position;
+    glm::vec3 Velocity;
+    glm::vec3 Acceleration;
 };
 
 b32 Overlapping(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
@@ -133,6 +144,7 @@ b32 RectanglesCollide(rectangle A, rectangle B)
 }
 
 
+
 int main(i32 Argc, char **Argv)
 {
     Argc; Argv;
@@ -147,7 +159,7 @@ int main(i32 Argc, char **Argv)
     SoundSystem = S_CreateSoundSystem();
     Camera = G_CreateCamera(WindowWidth, WindowHeight);
 
-    texture *Player = R_CreateTexture("textures/Seeker.png");
+    texture *PlayerTexture = R_CreateTexture("textures/Seeker.png");
     texture *EnemyTexture = R_CreateTexture("textures/Black Hole.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
@@ -292,9 +304,7 @@ int main(i32 Argc, char **Argv)
                         I_ResetMouse(Mouse);
                     }
 
-                    // Handle Player Input
-                    f32 PlayerSpeed = 7.0f;
-                    // f32 PlayerSpeed = 3500.0f;
+                    f32 PlayerSpeed = 8.0f;
                     if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                     {
                         Entity.Physics.Acceleration.y += PlayerSpeed;
@@ -326,12 +336,6 @@ int main(i32 Argc, char **Argv)
                         MainRenderer->Exposure -= 0.01f;
                     }
 
-                    if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        SDL_SetRelativeMouseMode(SDL_TRUE);
-                    }
-
-
                     if(I_IsPressed(SDL_SCANCODE_P))
                     {
                         S_SetMusicVolume(SoundSystem, ++SoundSystem->MusicVolume);
@@ -342,6 +346,17 @@ int main(i32 Argc, char **Argv)
                         S_SetMusicVolume(SoundSystem, --SoundSystem->MusicVolume);
                         S_SetEffectsVolume(SoundSystem, --SoundSystem->EffectsVolume);
                     }
+
+                    if(Mouse->ButtonState & SDL_BUTTON(SDL_BUTTON_LEFT))
+                    {
+                        // Fire Bullet
+                        ILeftHere;
+                    }
+
+                    break;
+                }
+                case State_Debug:
+                {
                     break;
                 }
                 case State_Pause:
@@ -387,24 +402,32 @@ int main(i32 Argc, char **Argv)
                         if(Entity.Physics.Position.x < -40.0f)
                         {
                             Entity.Physics.Position.x = -40.0f;
+                            Entity.Physics.Velocity.x = 0.0f;
                         }
                         else if(Entity.Physics.Position.x > 40.0f)
                         {
                             Entity.Physics.Position.x = 40.0f;
+                            Entity.Physics.Velocity.x = 0.0f;
                         }
 
                         if(Entity.Physics.Position.y < -22.0f)
                         {
                             Entity.Physics.Position.y = -22.0f;
+                            Entity.Physics.Velocity.y = 0.0f;
                         }
                         else if(Entity.Physics.Position.y > 22.0f)
                         {
                             Entity.Physics.Position.y = 22.0f;
+                            Entity.Physics.Velocity.y = 0.0f;
                         }
 
                         rectangle RectA = { {Entity.Physics.Position.x, Entity.Physics.Position.y}, 1.0f, 1.0};
                         rectangle RectB = { {0.0f, 0.0f}, 1.0f, 1.0f };
 
+                        break;
+                    }
+                    case State_Debug:
+                    {
                         break;
                     }
                     case State_Pause:
@@ -442,13 +465,13 @@ int main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    R_DrawText2D(MainRenderer, Camera, "Untitled", NovaSquare, glm::vec2( (1366 / 2) - 240, 768 - 140), glm::vec2(2.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    R_DrawText2D(MainRenderer, Camera, "Untitled", NovaSquare, glm::vec2( (1366 / 2) - 240, 768 - 140), glm::vec2(2.0f), glm::vec3(2.0f, 2.0f, 2.0f));
                     R_DrawText2D(MainRenderer, Camera, "Press Space to Begin", NovaSquare, glm::vec2( (1366 / 2) - 300, 768 - 430), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     break;
                 }
                 case State_Game:
                 {
-                    R_DrawTexture(MainRenderer, Camera, Player, Entity.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
+                    R_DrawTexture(MainRenderer, Camera, PlayerTexture, Entity.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
                     R_DrawTexture(MainRenderer, Camera, EnemyTexture, Enemy.Physics.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
 
                     if(ShowDebugText)
@@ -484,8 +507,21 @@ int main(i32 Argc, char **Argv)
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 145), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"EffectsVolume: %d", SoundSystem->EffectsVolume);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 160), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, 1366.0f, Camera->Position.x - 40.0f, Camera->Position.x + 40.0f);
+                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0, 768.0f, Camera->Position.y - 22.0f, Camera->Position.y + 22.0f);
+
+                        sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MappedX, MappedY);
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
 
+                    break;
+                }
+                case State_Debug:
+                {
                     break;
                 }
                 case State_Pause:

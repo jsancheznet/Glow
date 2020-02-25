@@ -48,6 +48,7 @@ void I_ResetMouse(mouse *Mouse)
 void I_UpdateMouse(mouse *Mouse)
 {
     Mouse->ButtonState = SDL_GetRelativeMouseState(&Mouse->RelX, &Mouse->RelY);
+    SDL_GetMouseState(&Mouse->X, &Mouse->Y);
 }
 
 void I_UpdateKeyboard(keyboard *Keyboard)

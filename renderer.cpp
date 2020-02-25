@@ -26,7 +26,7 @@
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
 global i32 EnableBloom = 1;
-global u32 BlurPassCount = 15; // How many times should we blurr the image
+global u32 BlurPassCount = 10; // How many times should we blurr the image
 
 void R_DrawQuad(renderer *Renderer)
 { // TODO: This function is suspiciously too short, wtf?

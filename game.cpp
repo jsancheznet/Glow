@@ -3,6 +3,8 @@
 #include "game.h"
 
 global glm::vec3 InitialCameraPosition = glm::vec3(0.0f, 0.0f, 23.0f);
+global glm::vec3 InitialCameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+global glm::vec3 InitialCameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
 {
@@ -11,8 +13,8 @@ camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
     Assert(Result);
 
     Result->Position = InitialCameraPosition;
-    Result->Front = glm::vec3(0.0f, 0.0f, -1.0f);
-    Result->Up = glm::vec3(0.0f, 1.0f, 0.0f);
+    Result->Front = InitialCameraFront;
+    Result->Up = InitialCameraUp;
     Result->Speed = 1.5f;
     Result->FoV = 90.0f;
     Result->Near = 0.1f;
@@ -26,9 +28,9 @@ camera *G_CreateCamera(i32 WindowWidth, i32 WindowHeight)
 
 void G_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight)
 {
-    Camera->Position = glm::vec3(0.0f, 0.0f, 6.0f);
-    Camera->Front = glm::vec3(0.0f, 0.0f, -1.0f);
-    Camera->Up = glm::vec3(0.0f, 1.0f, 0.0f);
+    Camera->Position = InitialCameraPosition;
+    Camera->Front = InitialCameraFront;
+    Camera->Up = InitialCameraUp;
     Camera->Speed = 1.5f;
     Camera->FoV = 90.0f;
     Camera->Near = 0.1f;
