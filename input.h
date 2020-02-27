@@ -3,6 +3,8 @@
 struct mouse
 {
     u32 ButtonState;
+    u32 PrevButtonState;
+
     // Use by the camera system, relative to last mouse position
     i32 RelX;
     i32 RelY;

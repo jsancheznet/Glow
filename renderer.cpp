@@ -19,7 +19,6 @@
 
 #include "shared.h"
 #include "renderer.h"
-#include "game.h"
 
 // TODO: Step through renderer and set global configuration variables
 // Global renderer settings
@@ -756,4 +755,57 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void R_CalculateFPS(renderer *Renderer, clock *Clock)
+{
+    f32 FramesPerSecondToShow = 2; // How many times per second to calculate fps
+    if(Renderer->SecondsElapsed > (1.0f / FramesPerSecondToShow))
+    {
+        Renderer->FPS = Renderer->FrameCounter / Renderer->SecondsElapsed;
+        Renderer->AverageMsPerFrame = (Renderer->SecondsElapsed / Renderer->FrameCounter) * 1000.0f;
+        Renderer->FrameCounter = 0;
+        Renderer->SecondsElapsed = 0.0f;
+    }
+    else
+    {
+        Renderer->FrameCounter += 1.0f;
+        Renderer->SecondsElapsed += (f32)Clock->DeltaTime;
+    }
+}
+
+
+camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
+{
+    camera *Result;
+    Result = (camera*)Malloc(sizeof(camera));
+    Assert(Result);
+
+    Result->Position = Position;
+    Result->Front = Front;
+    Result->Up = Up;
+    Result->Speed = 1.5f;
+    Result->FoV = 90.0f;
+    Result->Near = 0.1f;
+    Result->Far = 1500.0f;
+    Result->View = glm::lookAt(Result->Position, Result->Position + Result->Front, Result->Up);
+    Result->Projection = glm::perspective(glm::radians(Result->FoV), (f32)WindowWidth / (f32)WindowHeight, Result->Near, Result->Far);
+    Result->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+
+    return (Result);
+}
+
+
+void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
+{
+    Camera->Position = Position;
+    Camera->Front = Front;
+    Camera->Up = Up;
+    Camera->Speed = 1.5f;
+    Camera->FoV = 90.0f;
+    Camera->Near = 0.1f;
+    Camera->Far = 1500.0f;
+    Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
+    Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
+    Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
 }

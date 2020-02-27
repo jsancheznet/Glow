@@ -32,6 +32,8 @@ mouse *I_CreateMouse()
     Result->RelY = 0;
     // SDL_SetRelativeMouseMode(SDL_TRUE);
 
+    __Mouse = Result;
+
     return Result;
 }
 
@@ -47,8 +49,9 @@ void I_ResetMouse(mouse *Mouse)
 
 void I_UpdateMouse(mouse *Mouse)
 {
+    Mouse->PrevButtonState = Mouse->ButtonState;
     Mouse->ButtonState = SDL_GetRelativeMouseState(&Mouse->RelX, &Mouse->RelY);
-    SDL_GetMouseState(&Mouse->X, &Mouse->Y);
+    Mouse->ButtonState = SDL_GetMouseState(&Mouse->X, &Mouse->Y);
 }
 
 void I_UpdateKeyboard(keyboard *Keyboard)
@@ -77,4 +80,21 @@ b32 I_WasNotPressed(SDL_Scancode Scancode)
 b32 I_IsReleased(SDL_Scancode Scancode)
 {
     return (!__Keyboard->State[Scancode] && __Keyboard->PrevState[Scancode]);
+}
+
+b32 I_IsMouseButtonPressed(i32 Input)
+{
+    return __Mouse->ButtonState & SDL_BUTTON(Input);
+}
+
+b32 I_IsMouseButtonNotPressed(i32 Input)
+{
+    return !__Mouse->ButtonState & SDL_BUTTON(Input);
+}
+
+glm::vec2 I_ScreenToWorld(f32 InputX, f32 InputY)
+{
+    glm::vec2 Result = {};
+
+    return Result;
 }

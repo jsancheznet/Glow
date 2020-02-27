@@ -45,6 +45,32 @@ struct renderer
     u32 Attachments[2];
     u32 PingPongFBO[2];
     u32 PingPongBuffer[2];
+
+    // These variables correspond to the FPS counter
+    f32 FPS; // AverageFPS
+    f32 AverageMsPerFrame;
+    f32 SecondsElapsed = 0.0f; // Timer, seconds elapsed since last FPS calculation, by default it computes FPS twice a second.
+    f32 FrameCounter = 0.0f; // Counts the number of frames rendered, resetted every half_second by default.
+};
+
+struct camera // TODO: This might need to be in something like entities.cpp
+{
+    // Camera implemented using: https://learnopengl.com/Getting-started/Camera
+    glm::vec3 Position;
+    glm::vec3 Front;
+    glm::vec3 Up;
+
+    f32 Speed;
+    f32 Yaw;
+    f32 Pitch;
+
+    f32 FoV;
+    f32 Near;
+    f32 Far;
+
+    glm::mat4 View;
+    glm::mat4 Projection;
+    glm::mat4 Ortho;
 };
 
 struct texture
