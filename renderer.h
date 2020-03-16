@@ -16,6 +16,8 @@ struct renderer
     const u8 *OpenGLVersion = NULL;
     const u8 *GLSLVersion = NULL;
 
+    glm::vec4 BackgroundColor;
+
     u32 DrawableWidth;
     u32 DrawableHeight;
 
@@ -26,6 +28,8 @@ struct renderer
     u32 TextVAO;
     u32 TextVertexBuffer;
     u32 TextTexCoordsBuffer;
+    u32 UnitQuadVAO;
+    u32 UnitQuadVBO;
 
     struct Shaders
     {
@@ -51,6 +55,9 @@ struct renderer
     f32 AverageMsPerFrame;
     f32 SecondsElapsed = 0.0f; // Timer, seconds elapsed since last FPS calculation, by default it computes FPS twice a second.
     f32 FrameCounter = 0.0f; // Counts the number of frames rendered, resetted every half_second by default.
+
+    u32 PreviousDrawCallsPerFrame;
+    u32 CurrentDrawCallsPerFrame;
 };
 
 struct camera // TODO: This might need to be in something like entities.cpp
@@ -90,6 +97,7 @@ struct character
     glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
     u32 Advance; // Offset to advance to next glyph
 };
+
 struct font
 {
     char *Filename;
@@ -101,7 +109,6 @@ struct font
 //
 // Model data for the renderer
 //
-
 f32 CubeVertices__[] =
 {
     // layout (location = 0) in vec3 aPos;
@@ -151,13 +158,22 @@ f32 CubeVertices__[] =
     -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
 };
 
-f32 QuadVertices__[] =
+f32 UnitQuadVertices__[] =
 {
     // positions        // texture Coords
     -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
     -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
     1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+};
+
+f32 QuadVertices__[] =
+{
+    // positions        // texture Coords
+    -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+    -0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
+    0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+    0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
 };
 
 f32 TextTexCoords__[6][2] =

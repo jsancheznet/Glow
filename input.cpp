@@ -91,10 +91,3 @@ b32 I_IsMouseButtonNotPressed(i32 Input)
 {
     return !__Mouse->ButtonState & SDL_BUTTON(Input);
 }
-
-glm::vec2 I_ScreenToWorld(f32 InputX, f32 InputY)
-{
-    glm::vec2 Result = {};
-
-    return Result;
-}

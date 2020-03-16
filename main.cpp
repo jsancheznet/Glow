@@ -10,6 +10,7 @@ extern "C"
 
 #include <windows.h>
 #include <stdio.h>
+#include <vector>
 
 #include "external/glad.c"
 #include <SDL.h>
@@ -23,7 +24,6 @@ extern "C"
 #include "renderer.cpp"
 #include "sound.cpp"
 #include "entity.cpp"
-
 
 // TODO(Jorge): AABB vs Circle Collision
 // TODO(Jorge): Make the player look at the current mouse position
@@ -99,10 +99,12 @@ global i32 WindowWidth = 1366;
 global i32 WindowHeight = 768;
 global b32 ShowDebugText = 0;
 global b32 IsRunning = 1;
-global f32 WorldBottom = -22.0f;
-global f32 WorldTop = 22.0f;
-global f32 WorldLeft = -40.0f;
-global f32 WorldRight = 40.0f;
+global f32 WorldBottom = -11.0f;
+global f32 WorldTop = 11.0f;
+global f32 WorldLeft = -20.0f;
+global f32 WorldRight = 20.0f;
+global f32 HalfWorldWidth = WorldRight;
+global f32 HalfWorldHeight = WorldTop;
 global keyboard *Keyboard;
 global mouse *Mouse;
 global clock *Clock;
@@ -111,6 +113,8 @@ global renderer *MainRenderer;
 global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
+
+entity *Bullet;
 
 b32 Overlapping(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
 {
@@ -136,7 +140,9 @@ b32 RectanglesCollide(rectangle A, rectangle B)
     return Overlapping(ALeft, ARight, BLeft, BRight) && Overlapping(ABottom, ATop, BBottom, BTop);
 }
 
-int main(i32 Argc, char **Argv)
+global std::vector<entity*> Bullets; // TODO: Delete me!
+
+i32 main(i32 Argc, char **Argv)
 {
     Argc; Argv;
 
@@ -150,12 +156,13 @@ int main(i32 Argc, char **Argv)
     SoundSystem = S_CreateSoundSystem();
 
     Camera = R_CreateCamera(WindowWidth, WindowHeight,
-                            glm::vec3(0.0f, 0.0f, 23.0f),
+                            glm::vec3(0.0f, 0.0f, 11.5f),
                             glm::vec3(0.0f, 0.0f, -1.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
 
     texture *PlayerTexture = R_CreateTexture("textures/Seeker.png");
     texture *EnemyTexture = R_CreateTexture("textures/Black Hole.png");
+    texture *BulletTexture = R_CreateTexture("textures/MyOwnBullet.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
@@ -165,15 +172,19 @@ int main(i32 Argc, char **Argv)
     S_PlayMusic(TestMusic);
 
     entity Player = {};
+    Player.Texture = PlayerTexture;
     Player.Position = glm::vec3(0.0f, 0.0f, 0.0f);
     Player.DragCoefficient = 0.8f;
     Player.RotationAngle = 0.0f;
     Player.Speed = 8.0f;
+    Player.Size = glm::vec3(1.0f);
     entity Enemy = {};
+    Enemy.Texture = EnemyTexture;
     Enemy.Position = glm::vec3(0.0f, 0.0f, 0.0f);
     Enemy.DragCoefficient = 0.8f;
     Enemy.RotationAngle = 0.0f;
     Enemy.Speed = 8.0f;
+    Enemy.Size = glm::vec3(1.0f);
 
     SDL_Event Event;
     while(IsRunning)
@@ -336,6 +347,28 @@ int main(i32 Argc, char **Argv)
 
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT))
                     {
+                        f32 BulletSizeX = 1.0f;
+                        f32 BulletSizeY = 1.0f;
+                        f32 BulletSizeZ = 1.0f;
+                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+                        f32 DeltaX = MappedX - Player.Position.x;
+                        f32 DeltaY = MappedY - Player.Position.y;
+                        f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f);
+                        f32 BulletSpeed = 10.0f;
+                        f32 BulletDragCoefficient =  1.0f;
+                        Bullet = E_CreateEntity(BulletTexture,
+                                                Player.Position,
+                                                glm::vec3(BulletSizeX, BulletSizeY, BulletSizeZ),
+                                                glm::normalize(glm::vec3(MappedX, MappedY, 0.0f) - Player.Position),
+                                                RotationAngle,
+                                                BulletSpeed,
+                                                BulletDragCoefficient);
+                        Bullets.push_back(Bullet);
+                    }
+
+                    if(I_IsMouseButtonPressed(SDL_BUTTON_RIGHT))
+                    {
 
                     }
 
@@ -383,7 +416,25 @@ int main(i32 Argc, char **Argv)
                     }
                     case State_Game:
                     {
-                        E_NewtonMotion(&Player, (f32)Clock->DeltaTime);
+                        E_CalculateMotion(&Player, (f32)Clock->DeltaTime);
+
+                        { // SECTION: Update Bullets
+                            for(u32 i = 0;
+                                i < Bullets.size();
+                                i++)
+                            {
+                                entity *BulletA = Bullets[i];
+                                BulletA->Direction = glm::normalize(BulletA->Direction);
+                                BulletA->Acceleration = BulletA->Direction * BulletA->Speed;
+                                E_CalculateMotion(BulletA, (f32)Clock->DeltaTime);
+                            }
+                        }
+                        // if(Bullet)
+                        // {
+                        //     Bullet->Direction = glm::normalize(Bullet->Direction);
+                        //     Bullet->Acceleration = Bullet->Direction * Bullet->Speed;
+                        //     E_CalculateMotion(Bullet, (f32)Clock->DeltaTime);
+                        // }
 
                         if(Player.Position.x < WorldLeft)
                         {
@@ -407,14 +458,19 @@ int main(i32 Argc, char **Argv)
                             Player.Velocity.y = 0.0f;
                         }
 
-                        rectangle RectA = { {Player.Position.x, Player.Position.y}, 1.0f, 1.0};
-                        rectangle RectB = { {0.0f, 0.0f}, 1.0f, 1.0f };
+                        rectangle RectA = { {Player.Position.x, Player.Position.y}, 0.5f, 0.5f};
+                        rectangle RectB = { {0.0f, 0.0f}, 0.5f, 0.5f };
 
-                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - 40.0f, Camera->Position.x + 40.0f);
-                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + 22.0f, Camera->Position.y - 22.0f);
-                        f32 DeltaX = Player.Position.x - MappedX;
-                        f32 DeltaY = Player.Position.y - MappedY;
-                        Player.RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) - 180.0f;
+                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+                        f32 DeltaX = MappedX - Player.Position.x;
+                        f32 DeltaY = MappedY - Player.Position.y;
+                        Player.RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f);
+
+                        if(RectanglesCollide(RectA, RectB))
+                        {
+                            printf("Collision!\n");
+                        }
 
                         break;
                     }
@@ -442,13 +498,10 @@ int main(i32 Argc, char **Argv)
             Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
             Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
 
-
-            char WindowTitle[60];
             // FPS
+            char WindowTitle[60];
             sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", MainRenderer->FPS);
             SDL_SetWindowTitle(Window->Handle, WindowTitle);
-
-
 
          } // END: Update
 
@@ -465,8 +518,17 @@ int main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
-                    R_DrawTexture(MainRenderer, Camera, PlayerTexture, Player.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::radians(Player.RotationAngle));
-                    R_DrawTexture(MainRenderer, Camera, EnemyTexture, Enemy.Position, glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0);
+                    R_DrawEntity(MainRenderer, Camera, &Player);
+                    R_DrawEntity(MainRenderer, Camera, &Enemy);
+
+                    { // SECTION: Render Bullets
+                        for(u32  i = 0;
+                            i < Bullets.size();
+                            i++)
+                        {
+                            R_DrawEntity(MainRenderer, Camera, Bullets[i]);
+                        }
+                    }
 
                     if(ShowDebugText)
                     {
@@ -505,10 +567,14 @@ int main(i32 Argc, char **Argv)
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, 1366.0f, Camera->Position.x - 40.0f, Camera->Position.x + 40.0f);
-                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0, 768.0f, Camera->Position.y + 22.0f, Camera->Position.y - 22.0f);
+                        f32 MappedX = MapRange((f32)(Mouse->X), 0.0f, 1366.0f, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+                        f32 MappedY = MapRange((f32)(Mouse->Y), 0.0, 768.0f, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MappedX, MappedY);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player.RotationAngle);
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+
                     }
 
                     break;
@@ -530,7 +596,7 @@ int main(i32 Argc, char **Argv)
                 }
             }
             R_EndFrame(MainRenderer);
-
+            printf("DrawCallsPerFrame: %d\n", MainRenderer->PreviousDrawCallsPerFrame);
 
         } // SECTION END: Render
     }

@@ -19,6 +19,7 @@
 
 #include "shared.h"
 #include "renderer.h"
+#include "entity.h"
 
 // TODO: Step through renderer and set global configuration variables
 // Global renderer settings
@@ -26,11 +27,12 @@ global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
 global i32 EnableBloom = 1;
 global u32 BlurPassCount = 10; // How many times should we blurr the image
+global glm::vec4 BackgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
-void R_DrawQuad(renderer *Renderer)
+void R_DrawUnitQuad(renderer *Renderer)
 { // TODO: This function is suspiciously too short, wtf?
-    glBindVertexArray(Renderer->QuadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(Renderer->UnitQuadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); Renderer->CurrentDrawCallsPerFrame++;
     glBindVertexArray(0);
 }
 
@@ -140,7 +142,7 @@ void R_BeginFrame(renderer *Renderer)
     // the extracted brightness texture has another color
     // besides black, making the whole background glow
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(Renderer->BackgroundColor.r, Renderer->BackgroundColor.g, Renderer->BackgroundColor.b, Renderer->BackgroundColor.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, Renderer->Framebuffer);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -158,7 +160,7 @@ void R_EndFrame(renderer *Renderer)
         R_SetUniform(Renderer->Shaders.Blur, "Horizontal", Horizontal);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, FirstIteration ? Renderer->BrightnessBuffer : Renderer->PingPongBuffer[!Horizontal]);  // bind texture of other framebuffer (or scene if first iteration)
-        R_DrawQuad(Renderer);
+        R_DrawUnitQuad(Renderer);
         Horizontal = !Horizontal;
         if (FirstIteration)
         {
@@ -176,9 +178,12 @@ void R_EndFrame(renderer *Renderer)
     glBindTexture(GL_TEXTURE_2D, Renderer->PingPongBuffer[!Horizontal]);
     R_SetUniform(Renderer->Shaders.Bloom, "Bloom", EnableBloom);
     R_SetUniform(Renderer->Shaders.Bloom, "Exposure", Renderer->Exposure);
-    R_DrawQuad(Renderer);
+    R_DrawUnitQuad(Renderer);
 
     SDL_GL_SwapWindow(Renderer->Window);
+
+    Renderer->PreviousDrawCallsPerFrame = Renderer->CurrentDrawCallsPerFrame;
+    Renderer->CurrentDrawCallsPerFrame = 0;
 }
 
 void R_ResizeRenderer(renderer *Renderer, i32 Width, i32 Height)
@@ -271,6 +276,9 @@ renderer *R_CreateRenderer(window *Window)
 {
     renderer *Result = (renderer*)Malloc(sizeof(renderer));
     Result->Window = Window->Handle;
+    Result->CurrentDrawCallsPerFrame = 0;
+    Result->PreviousDrawCallsPerFrame = 0;
+    Result->BackgroundColor = BackgroundColor;
 
     { // SECTION: OpenGL "Configuration"
 
@@ -334,6 +342,19 @@ renderer *R_CreateRenderer(window *Window)
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
+        // Unit Quad, it's needed to render the final image, if
+        // regular quad is used, then half the renderable screen/space
+        // is used
+        glGenVertexArrays(1, &Result->UnitQuadVAO);
+        glGenBuffers(1, &Result->UnitQuadVBO);
+        glBindVertexArray(Result->UnitQuadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, Result->UnitQuadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(UnitQuadVertices__), &UnitQuadVertices__, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+
         // Upload Cube data to the gpu
         glGenVertexArrays(1, &Result->CubeVAO);
         glGenBuffers(1, &Result->CubeVBO);
@@ -359,7 +380,7 @@ renderer *R_CreateRenderer(window *Window)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(f32), 0);
         glGenBuffers(1, &Result->TextTexCoordsBuffer);
         glBindBuffer(GL_ARRAY_BUFFER, Result->TextTexCoordsBuffer);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TextTexCoords__, GL_DYNAMIC_DRAW); // 6 Vertices, 2 floats(UV) each
+        glBufferData(GL_ARRAY_BUFFER, sizeof(f32) * 6 * 2, TextTexCoords__, GL_STATIC_DRAW); // 6 Vertices, 2 floats(UV) each
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -696,7 +717,7 @@ void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::ve
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture->Handle);
     glBindVertexArray(Renderer->QuadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); Renderer->CurrentDrawCallsPerFrame++;
     glBindVertexArray(0);
 }
 
@@ -731,6 +752,7 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
         f32 H = Ch.Size.y * Scale.y;
 
         // Update VBO for each character
+        // TODO: Move QuadVertices to the bottom of renderer.h
         f32 QuadVertices[6][3] =
         {
             { XPos,     YPos + H, 0.0f},
@@ -748,7 +770,7 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         // Render  Quad
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glDrawArrays(GL_TRIANGLES, 0, 6); Renderer->CurrentDrawCallsPerFrame++;
         // Now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         Position.x += (Ch.Advance >> 6) * Scale.x; // Bitshift by 6 to get value in pixels (2^6 = 64)
     }
@@ -795,7 +817,6 @@ camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, gl
     return (Result);
 }
 
-
 void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
 {
     Camera->Position = Position;
@@ -808,4 +829,14 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
     Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
     Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
     Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+}
+
+void R_DrawEntity(renderer *Renderer, camera *Camera, entity *Entity)
+{
+    R_DrawTexture(Renderer, Camera,
+                  Entity->Texture,
+                  Entity->Position,
+                  Entity->Size,
+                  glm::vec3(0.0f, 0.0f, 1.0f),
+                  glm::radians(Entity->RotationAngle));
 }
