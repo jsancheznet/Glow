@@ -3,6 +3,13 @@
 #include "shared.h"
 #include "renderer.h"
 
+struct rectangle
+{
+    glm::vec2 Center;
+    f32 HalfWidth;
+    f32 HalfHeight;
+};
+
 struct entity
 {
     texture *Texture;
@@ -12,6 +19,8 @@ struct entity
     glm::vec3 Position;
     glm::vec3 Size;
     glm::vec3 Direction;
+
+    rectangle Rect;
 
     f32 Speed;
     f32 RotationAngle; // NOTE: Degrees!

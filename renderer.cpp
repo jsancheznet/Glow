@@ -25,9 +25,9 @@
 // Global renderer settings
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
-global i32 EnableBloom = 1;
+global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
 global u32 BlurPassCount = 10; // How many times should we blurr the image
-global glm::vec4 BackgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+global glm::vec4 BackgroundColor = glm::vec4(0.0f);
 
 void R_DrawUnitQuad(renderer *Renderer)
 { // TODO: This function is suspiciously too short, wtf?
@@ -717,7 +717,8 @@ void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::ve
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture->Handle);
     glBindVertexArray(Renderer->QuadVAO);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); Renderer->CurrentDrawCallsPerFrame++;
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    Renderer->CurrentDrawCallsPerFrame++;
     glBindVertexArray(0);
 }
 

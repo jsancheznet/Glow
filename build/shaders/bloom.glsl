@@ -26,6 +26,7 @@ void main()
     const float Gamma = 2.2;
     vec3 HDRColor = texture(Scene, TexCoords).rgb;
     vec3 BloomColor = texture(BloomBlur, TexCoords).rgb;
+
     if(Bloom)
     {
         HDRColor += BloomColor; // additive blending

@@ -2,6 +2,34 @@
 
 #include "entity.h"
 
+b32 E_Overlapping1D(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
+{
+    return MinB <= MaxA && MinA <= MaxB;
+}
+
+b32 E_RectanglesCollide(rectangle A, rectangle B)
+{
+    // NOTE: AABB Collision
+
+    // Compute MinA, MaxA, MinB, MaxB for horizontal plane
+    f32 ALeft = A.Center.x - A.HalfWidth;
+    f32 ARight = A.Center.x + A.HalfWidth;
+    f32 BLeft = B.Center.x - B.HalfWidth;
+    f32 BRight = B.Center.x + B.HalfWidth;
+
+    // Compute MinA, MaxA, MinB, MaxB for vertical plane
+    f32 ABottom = A.Center.y - A.HalfHeight;
+    f32 ATop = A.Center.y + A.HalfHeight;
+    f32 BBottom = B.Center.y - B.HalfHeight;
+    f32 BTop = B.Center.y + B.HalfHeight;
+
+    return E_Overlapping1D(ALeft, ARight, BLeft, BRight) && E_Overlapping1D(ABottom, ATop, BBottom, BTop);
+}
+
+b32 E_EntitiesCollide(entity *A, entity *B)
+{
+    return E_RectanglesCollide(A->Rect, B->Rect);
+}
 
 entity *E_CreateEntity(texture *Texture,
                        glm::vec3 Position,

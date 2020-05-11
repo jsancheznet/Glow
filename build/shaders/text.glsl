@@ -27,6 +27,9 @@ uniform sampler2D Text;
 uniform vec3 TextColor;
 uniform float BrightnessThreshold;
 
+// IMPORTANT: The shaders _needs_ to write to Brightness color in
+// order to show anything on the screen. Wasted a lot of time on this.
+
 void main()
 {
     vec4 Sampled = vec4(1.0, 1.0, 1.0, texture(Text, UV).r);

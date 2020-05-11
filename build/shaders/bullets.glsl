@@ -2,8 +2,8 @@
 
 layout (location = 0) in vec3 Vertices;
 layout (location = 1) in vec2 TexCoords;
+layout (location = 3) in mat4 InstanceMatrix;
 
-uniform mat4 Model;
 uniform mat4 View;
 uniform mat4 Projection;
 
@@ -12,7 +12,7 @@ out vec2 TextureCoordinates;
 void main()
 {
     TextureCoordinates = TexCoords;
-    gl_Position = Projection * View * Model * vec4(Vertices, 1.0);
+    gl_Position = Projection * View * InstanceMatrix * vec4(Vertices, 1.0);
 }
 
 #endif

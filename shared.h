@@ -108,6 +108,11 @@ f32 MapRange(f32 Input, f32 InputStart, f32 InputEnd, f32 OutputStart, f32 Outpu
     return (Input - InputStart) / (InputEnd - InputStart) * (OutputEnd - OutputStart) + OutputStart;
 }
 
+f32 Abs(f32 Input)
+{
+    return fabs(Input);
+}
+
 //
 // Error Checking Macro's
 //
