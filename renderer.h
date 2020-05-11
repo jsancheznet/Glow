@@ -35,13 +35,11 @@ struct renderer
     {
         u32 Blur;
         u32 Bloom;
-        u32 Cube; // TODO(Jorge): Are we using this? delete if anwser is no
         u32 Hdr;
         u32 Texture;
         u32 Text;
     } Shaders;
 
-    // TODO:(Jorge): Rename and comment what each buffer/variable is for
     u32 Framebuffer;
     u32 ColorBuffer;
     u32 BrightnessBuffer;
@@ -60,7 +58,7 @@ struct renderer
     u32 CurrentDrawCallsPerFrame;
 };
 
-struct camera // TODO: This might need to be in something like entities.cpp
+struct camera
 {
     // Camera implemented using: https://learnopengl.com/Getting-started/Camera
     glm::vec3 Position;

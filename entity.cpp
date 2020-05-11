@@ -2,6 +2,10 @@
 
 #include "entity.h"
 
+// Globals
+global f32 EntityHalfWidth = 0.5f;
+global f32 EntityHalfHeight = 0.5f;
+
 b32 E_Overlapping1D(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
 {
     return MinB <= MaxA && MinA <= MaxB;
@@ -49,6 +53,11 @@ entity *E_CreateEntity(texture *Texture,
     Result->Speed = Speed;
     Result->DragCoefficient = DragCoefficient;
 
+    // Collision Data
+    Result->Rect.Center = Position;
+    Result->Rect.HalfWidth = EntityHalfWidth;
+    Result->Rect.HalfHeight = EntityHalfHeight;
+
     return (Result);
 }
 
@@ -59,4 +68,7 @@ void E_CalculateMotion(entity *Entity, f32 TimeStep)
     Entity->Acceleration = {};
     f32 DragCoefficient = 0.8f;
     Entity->Velocity *= DragCoefficient; // Drag
+
+    // Update Collision Data
+    Entity->Rect.Center = Entity->Position;
 }

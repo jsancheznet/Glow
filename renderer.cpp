@@ -1,11 +1,10 @@
 #pragma once
 
 /*
-  TODO: Explain rendering method
   1- Render to offscreen framebuffer
   2- Extract pixels that are higher than 1.0f to secondary color buffer
   3- Blurr that secondary color buffer
-  4- Merge secondary color buffer into regulat buffer
+  4- Merge secondary color buffer into regular buffer
   5- Display merged colorbuffer to screen
 */
 
@@ -21,7 +20,6 @@
 #include "renderer.h"
 #include "entity.h"
 
-// TODO: Step through renderer and set global configuration variables
 // Global renderer settings
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
@@ -30,7 +28,7 @@ global u32 BlurPassCount = 10; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.0f);
 
 void R_DrawUnitQuad(renderer *Renderer)
-{ // TODO: This function is suspiciously too short, wtf?
+{
     glBindVertexArray(Renderer->UnitQuadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); Renderer->CurrentDrawCallsPerFrame++;
     glBindVertexArray(0);
@@ -733,7 +731,7 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
     glm::mat4 Identity = glm::mat4(1.0f);
     R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
     R_SetUniform(Renderer->Shaders.Text, "View", Identity);
-    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho); // TODO(Jorge): We are using the camera global, fix this shit
+    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
     R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
     f32 BrightnessThreshold = 1.0f;
     R_SetUniform(Renderer->Shaders.Text, "BrightnessThreshold", BrightnessThreshold);

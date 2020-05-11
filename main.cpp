@@ -40,13 +40,8 @@ enum state
     State_Gameover,
 };
 
-//
-// Globals
-//
-global i32 WindowWidth = 1366;
-global i32 WindowHeight = 768;
+// Game Variables
 global b32 ShowDebugText = 0;
-global b32 IsRunning = 1;
 global f32 WorldBottom = -11.0f;
 global f32 WorldTop = 11.0f;
 global f32 WorldLeft = -20.0f;
@@ -54,10 +49,23 @@ global f32 WorldRight = 20.0f;
 global f32 HalfWorldWidth = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
 global glm::vec2 MouseWorldPosition;
+
+// Entity Variables
+global f32 PlayerSpeed = 8.0f;
+global f32 PlayerDrag = 0.8f;
+global f32 EnemySpeed = 8.0f;
+global f32 EnemyDrag = 0.8f;
+global f32 BulletSpeed = 10.0f;
+global f32 BulletDragCoefficient =  1.0f;
 global f32 BulletSizeX = 1.0f;
 global f32 BulletSizeY = 1.0f;
 global f32 BulletSizeZ = 1.0f;
 global i32 MaxBullets = 100;
+
+// Platform Variables
+global i32 WindowWidth = 1366;
+global i32 WindowHeight = 768;
+global b32 IsRunning = 1;
 global keyboard *Keyboard;
 global mouse *Mouse;
 global clock *Clock;
@@ -67,9 +75,12 @@ global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
 
-entity *Bullet;
-
 global std::vector<entity*> Bullets; // TODO: Delete me!
+
+f32 GetRotationAngle(f32 x, f32 y)
+{
+    return (( (f32)atan2(y, x) * (f32)180.0f) / 3.14159265359f);
+}
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -91,7 +102,6 @@ i32 main(i32 Argc, char **Argv)
 
     texture *PlayerTexture = R_CreateTexture("textures/Seeker.png");
     texture *EnemyTexture =  R_CreateTexture("textures/Black Hole.png");
-    // texture *BulletTexture = R_CreateTexture("textures/MyOwnBullet.png");
     texture *BulletTexture = R_CreateTexture("textures/Bullet1.png");
     texture *BackgroundTexture = R_CreateTexture("textures/background.jpg");
 
@@ -102,19 +112,22 @@ i32 main(i32 Argc, char **Argv)
     S_SetMusicVolume(SoundSystem, 0);
     S_PlayMusic(TestMusic);
 
-    // TODO: Refactor
-    f32 PlayerSpeed = 8.0f;
-    f32 PlayerDrag = 0.8f;
     entity *Player = E_CreateEntity(PlayerTexture,
                                     glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                     glm::vec3(1.0f, 0.0f, 0.0f), 0.0f, // Direction, RotationAngle
                                     PlayerSpeed, PlayerDrag); // Speed, Drag
-    f32 EnemySpeed = 8.0f;
-    f32 EnemyDrag = 0.8f;
+    Player->Rect.Center = Player->Position;
+    Player->Rect.HalfWidth = 0.5f;
+    Player->Rect.HalfHeight = 0.5f;
+
     entity *Enemy = E_CreateEntity(EnemyTexture,
                                    glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
+    Enemy->Rect.Center = Enemy->Position;
+    Enemy->Rect.HalfWidth = 0.5f;
+    Enemy->Rect.HalfHeight = 0.5f;
+
 
     // TODO: Create a VBO that holds the Camera, View Uniforms. Update
     // it everyframe. Remove every camera *Camera Input in every
@@ -140,6 +153,8 @@ i32 main(i32 Argc, char **Argv)
             }
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
+
+            // Get Mouse World Position
             MouseWorldPosition.x = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
             MouseWorldPosition.y = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
 
@@ -257,7 +272,6 @@ i32 main(i32 Argc, char **Argv)
                     }
                     if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                     {
-                        // Jump?!?!?
                         S_PlaySoundEffect(Test);
                     }
 
@@ -285,19 +299,15 @@ i32 main(i32 Argc, char **Argv)
                     {
                         if(Bullets.size() < MaxBullets)
                         {
-                            // TODO: Refactor
-                            f32 DeltaX = MouseWorldPosition.x - Player->Position.x;
-                            f32 DeltaY = MouseWorldPosition.y - Player->Position.y;
-                            f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f);
-                            f32 BulletSpeed = 10.0f;
-                            f32 BulletDragCoefficient =  1.0f;
-                            Bullet = E_CreateEntity(BulletTexture,
-                                                    Player->Position,
-                                                    glm::vec3(BulletSizeX, BulletSizeY, BulletSizeZ),
-                                                    glm::normalize(glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f) - Player->Position),
-                                                    RotationAngle,
-                                                    BulletSpeed,
-                                                    BulletDragCoefficient);
+                            f32 RotationAngle = GetRotationAngle(MouseWorldPosition.x - Player->Position.x,
+                                                                 MouseWorldPosition.y - Player->Position.y);
+                            entity *Bullet = E_CreateEntity(BulletTexture,
+                                                            Player->Position,
+                                                            glm::vec3(BulletSizeX, BulletSizeY, BulletSizeZ),
+                                                            glm::normalize(glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f) - Player->Position),
+                                                            RotationAngle,
+                                                            BulletSpeed,
+                                                            BulletDragCoefficient);
                             Bullets.push_back(Bullet);
                         }
                     }
@@ -348,20 +358,10 @@ i32 main(i32 Argc, char **Argv)
                     case State_Game:
                     {
                         E_CalculateMotion(Player, (f32)Clock->DeltaTime);
+                        Player->RotationAngle = GetRotationAngle(MouseWorldPosition.x - Player->Position.x,
+                                                                 MouseWorldPosition.y - Player->Position.y);
 
-                        { // SECTION: Update Bullets
-                            for(u32 i = 0;
-                                i < Bullets.size();
-                                i++)
-                            {
-                                entity *BulletA = Bullets[i];
-                                BulletA->Direction = glm::normalize(BulletA->Direction);
-                                BulletA->Acceleration = BulletA->Direction * BulletA->Speed;
-                                // TODO: Update Entity.Rect;
-                                E_CalculateMotion(BulletA, (f32)Clock->DeltaTime);
-                            }
-                        }
-
+                        // Player Collision against walls
                         if(Player->Position.x < WorldLeft)
                         {
                             Player->Position.x = WorldLeft;
@@ -384,10 +384,30 @@ i32 main(i32 Argc, char **Argv)
                             Player->Velocity.y = 0.0f;
                         }
 
-                        // Update Player Rotation Angle
-                        f32 DeltaX = MouseWorldPosition.x - Player->Position.x;
-                        f32 DeltaY = MouseWorldPosition.y - Player->Position.y;
-                        Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f);
+                        if(E_EntitiesCollide(Player, Enemy))
+                        {
+                            printf("Palayer/Enemy Collision!\n");
+                        }
+                        else
+                        {
+                            printf("\n");
+                        }
+
+                        { // SECTION: Update Bullets
+                            for(u32 i = 0;
+                                i < Bullets.size();
+                                i++)
+                            {
+                                entity *BulletA = Bullets[i];
+                                BulletA->Direction = glm::normalize(BulletA->Direction);
+                                BulletA->Acceleration = BulletA->Direction * BulletA->Speed;
+                                E_CalculateMotion(BulletA, (f32)Clock->DeltaTime);
+                                // TODO: Something here is not working!
+                                BulletA->Rect.Center = BulletA->Position;
+                                BulletA->Rect.HalfWidth = 0.5f;
+                                BulletA->Rect.HalfWidth = 0.5f;
+                            }
+                        }
 
                         // Remove Bullets that are far away
                         for(i32 i = 0;
@@ -438,7 +458,7 @@ i32 main(i32 Argc, char **Argv)
             SDL_SetWindowTitle(Window->Handle, WindowTitle);
 
             // TODO: Remove
-            printf("Number of items in Bullets vector: %zd\n", Bullets.size());
+            // printf("Number of items in Bullets vector: %zd\n", Bullets.size());
 
          } // END: Update
 
@@ -512,7 +532,6 @@ i32 main(i32 Argc, char **Argv)
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MouseWorldPosition.x, MouseWorldPosition.y);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
