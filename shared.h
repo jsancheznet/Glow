@@ -113,6 +113,11 @@ f32 Abs(f32 Input)
     return fabs(Input);
 }
 
+f32 GetRotationAngle(f32 x, f32 y)
+{
+    return (( (f32)atan2(y, x) * (f32)180.0f) / 3.14159265359f);
+}
+
 //
 // Error Checking Macro's
 //

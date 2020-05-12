@@ -51,36 +51,26 @@ global f32 HalfWorldHeight = WorldTop;
 global glm::vec2 MouseWorldPosition;
 
 // Entity Variables
-global f32 PlayerSpeed = 8.0f;
+global f32 PlayerSpeed = 4.0f;
 global f32 PlayerDrag = 0.8f;
 global f32 EnemySpeed = 8.0f;
 global f32 EnemyDrag = 0.8f;
-global f32 BulletSpeed = 10.0f;
-global f32 BulletDragCoefficient =  1.0f;
-global f32 BulletSizeX = 1.0f;
-global f32 BulletSizeY = 1.0f;
-global f32 BulletSizeZ = 1.0f;
 global i32 MaxBullets = 100;
+global f32 BulletSpeed = 10.0f;
+global f32 BulletDrag =  1.0f;
+global glm::vec3 BulletSize = glm::vec3(1.0);
+global std::vector<entity*> Bullets;
 
 // Platform Variables
-global i32 WindowWidth = 1366;
-global i32 WindowHeight = 768;
 global b32 IsRunning = 1;
 global keyboard *Keyboard;
 global mouse *Mouse;
 global clock *Clock;
 global window *Window;
-global renderer *MainRenderer; // TODO: Rename to "Renderer"
+global renderer *MainRenderer;
 global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
-
-global std::vector<entity*> Bullets; // TODO: Delete me!
-
-f32 GetRotationAngle(f32 x, f32 y)
-{
-    return (( (f32)atan2(y, x) * (f32)180.0f) / 3.14159265359f);
-}
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -88,14 +78,14 @@ i32 main(i32 Argc, char **Argv)
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS); // TODO: Init only the subsystems we need!
 
-    Window       = P_CreateOpenGLWindow("Glow", WindowWidth, WindowHeight);
+    Window       = P_CreateOpenGLWindow("Glow", 1366, 768);
     MainRenderer = R_CreateRenderer(Window);
     Keyboard     = I_CreateKeyboard();
     Mouse        = I_CreateMouse();
     Clock        = P_CreateClock();
     SoundSystem  = S_CreateSoundSystem();
 
-    Camera = R_CreateCamera(WindowWidth, WindowHeight,
+    Camera = R_CreateCamera(Window->Width, Window->Height,
                             glm::vec3(0.0f, 0.0f, 11.5f),
                             glm::vec3(0.0f, 0.0f, -1.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
@@ -116,18 +106,10 @@ i32 main(i32 Argc, char **Argv)
                                     glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                     glm::vec3(1.0f, 0.0f, 0.0f), 0.0f, // Direction, RotationAngle
                                     PlayerSpeed, PlayerDrag); // Speed, Drag
-    Player->Rect.Center = Player->Position;
-    Player->Rect.HalfWidth = 0.5f;
-    Player->Rect.HalfHeight = 0.5f;
-
     entity *Enemy = E_CreateEntity(EnemyTexture,
                                    glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
-    Enemy->Rect.Center = Enemy->Position;
-    Enemy->Rect.HalfWidth = 0.5f;
-    Enemy->Rect.HalfHeight = 0.5f;
-
 
     // TODO: Create a VBO that holds the Camera, View Uniforms. Update
     // it everyframe. Remove every camera *Camera Input in every
@@ -247,7 +229,7 @@ i32 main(i32 Argc, char **Argv)
                     }
                     if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                     {
-                        R_ResetCamera(Camera, WindowWidth, WindowHeight,
+                        R_ResetCamera(Camera, Window->Width, Window->Height,
                                       glm::vec3(0.0f, 0.0f, 23.0f),
                                       glm::vec3(0.0f, 0.0f, -1.0f),
                                       glm::vec3(0.0f, 1.0f, 0.0f));
@@ -303,11 +285,11 @@ i32 main(i32 Argc, char **Argv)
                                                                  MouseWorldPosition.y - Player->Position.y);
                             entity *Bullet = E_CreateEntity(BulletTexture,
                                                             Player->Position,
-                                                            glm::vec3(BulletSizeX, BulletSizeY, BulletSizeZ),
+                                                            glm::vec3(BulletSize.x, BulletSize.y, BulletSize.z),
                                                             glm::normalize(glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f) - Player->Position),
                                                             RotationAngle,
                                                             BulletSpeed,
-                                                            BulletDragCoefficient);
+                                                            BulletDrag);
                             Bullets.push_back(Bullet);
                         }
                     }
@@ -402,10 +384,6 @@ i32 main(i32 Argc, char **Argv)
                                 BulletA->Direction = glm::normalize(BulletA->Direction);
                                 BulletA->Acceleration = BulletA->Direction * BulletA->Speed;
                                 E_CalculateMotion(BulletA, (f32)Clock->DeltaTime);
-                                // TODO: Something here is not working!
-                                BulletA->Rect.Center = BulletA->Position;
-                                BulletA->Rect.HalfWidth = 0.5f;
-                                BulletA->Rect.HalfWidth = 0.5f;
                             }
                         }
 
@@ -449,16 +427,13 @@ i32 main(i32 Argc, char **Argv)
             // TODO: Camera Values should go into UBO
             // TODO: Update Camera UBO Right here!
             Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
-            Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
-            Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+            Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Window->Width / (f32)Window->Height, Camera->Near, Camera->Far);
+            Camera->Ortho = glm::ortho(0.0f, (f32)Window->Width, 0.0f, (f32)Window->Height);
 
             // FPS
             char WindowTitle[60];
             sprintf_s(WindowTitle, sizeof(WindowTitle),"Glow - FPS: %2.2f", MainRenderer->FPS);
             SDL_SetWindowTitle(Window->Handle, WindowTitle);
-
-            // TODO: Remove
-            // printf("Number of items in Bullets vector: %zd\n", Bullets.size());
 
          } // END: Update
 
@@ -478,8 +453,10 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawText2D(MainRenderer, Camera, "Glow", NovaSquare,
                                  glm::vec2( (1366 / 2) - 120, 768 - 140), // Position
                                  glm::vec2(2.0f), glm::vec3(2.0f, 2.0f, 2.0f)); // Scale, Color
+
                     R_DrawText2D(MainRenderer, Camera, "Press Space to Begin", NovaSquare,
-                                 glm::vec2( (1366 / 2) - 300, 768 - 430), // Position
+                                 // glm::vec2( (1366 / 2) - 300, 768 - 430), // Position
+                                 glm::vec2( (1366 / 2) - 300, 768 - 580), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     break;
                 }
@@ -504,40 +481,40 @@ i32 main(i32 Argc, char **Argv)
 
                         // FPS
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"FPS: %2.2f", MainRenderer->FPS);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 15), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 15), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Renderer Exposure
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Renderer->Exposure: %2.2f", MainRenderer->Exposure);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 30), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 30), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // OpenGL variables
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareVendor, NovaSquare, glm::vec2(0, WindowHeight - 45), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareModel, NovaSquare, glm::vec2(0, WindowHeight - 60), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->OpenGLVersion, NovaSquare, glm::vec2(0, WindowHeight - 75), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->GLSLVersion, NovaSquare, glm::vec2(0, WindowHeight - 100), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareVendor, NovaSquare, glm::vec2(0, Window->Height - 45), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareModel, NovaSquare, glm::vec2(0, Window->Height - 60), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->OpenGLVersion, NovaSquare, glm::vec2(0, Window->Height - 75), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->GLSLVersion, NovaSquare, glm::vec2(0, Window->Height - 100), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Player Position
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Player->Position: %2.2f,%2.2f", Player->Position.x, Player->Position.y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 115), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 115), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Camera Position
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Camera->Position: %2.2f,%2.2f,%2.2f", Camera->Position.x, Camera->Position.y, Camera->Position.z);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 130), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 130), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Sound System
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"MusicVolume: %d", SoundSystem->MusicVolume);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 145), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 145), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"EffectsVolume: %d", SoundSystem->EffectsVolume);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 160), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 160), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MouseWorldPosition.x, MouseWorldPosition.y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player->RotationAngle);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, WindowHeight - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                     }
 
