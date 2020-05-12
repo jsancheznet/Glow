@@ -285,7 +285,7 @@ i32 main(i32 Argc, char **Argv)
                                                                  MouseWorldPosition.y - Player->Position.y);
                             entity *Bullet = E_CreateEntity(BulletTexture,
                                                             Player->Position,
-                                                            glm::vec3(BulletSize.x, BulletSize.y, BulletSize.z),
+                                                            BulletSize,
                                                             glm::normalize(glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f) - Player->Position),
                                                             RotationAngle,
                                                             BulletSpeed,
@@ -451,12 +451,11 @@ i32 main(i32 Argc, char **Argv)
                 case State_Initial:
                 {
                     R_DrawText2D(MainRenderer, Camera, "Glow", NovaSquare,
-                                 glm::vec2( (1366 / 2) - 120, 768 - 140), // Position
+                                 glm::vec2( (Window->Width / 2) - 120, Window->Height - 140), // Position
                                  glm::vec2(2.0f), glm::vec3(2.0f, 2.0f, 2.0f)); // Scale, Color
 
                     R_DrawText2D(MainRenderer, Camera, "Press Space to Begin", NovaSquare,
-                                 // glm::vec2( (1366 / 2) - 300, 768 - 430), // Position
-                                 glm::vec2( (1366 / 2) - 300, 768 - 580), // Position
+                                 glm::vec2( (Window->Width / 2) - 300, Window->Height - 580), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     break;
                 }
@@ -515,7 +514,6 @@ i32 main(i32 Argc, char **Argv)
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player->RotationAngle);
                         R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-
                     }
 
                     break;
@@ -523,13 +521,13 @@ i32 main(i32 Argc, char **Argv)
                 case State_Pause:
                 {
                     R_DrawText2D(MainRenderer, Camera, "Glow", NovaSquare,
-                                 glm::vec2( (1366 / 2) - 120, 768 - 140), // Position
+                                 glm::vec2( (Window->Width / 2) - 120, Window->Height - 140), // Position
                                  glm::vec2(2.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     R_DrawText2D(MainRenderer, Camera, "Press Space to Continue", NovaSquare,
-                                 glm::vec2( (1366 / 2) - 360, 768 - 430), // Position
+                                 glm::vec2( (Window->Width / 2) - 360, Window->Height - 430), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     R_DrawText2D(MainRenderer, Camera, "Press Escape to Quit", NovaSquare,
-                                 glm::vec2( (1366 / 2) - 300, 768 - 600), // Position
+                                 glm::vec2( (Window->Width / 2) - 300, Window->Height - 600), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     break;
                 }
