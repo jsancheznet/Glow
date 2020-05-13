@@ -449,11 +449,11 @@ i32 main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    R_DrawText2D(MainRenderer, Camera, "Glow", NovaSquare,
+                    R_DrawText2D(MainRenderer, "Glow", NovaSquare,
                                  glm::vec2( (Window->Width / 2) - 120, Window->Height - 140), // Position
                                  glm::vec2(2.0f), glm::vec3(2.0f, 2.0f, 2.0f)); // Scale, Color
 
-                    R_DrawText2D(MainRenderer, Camera, "Press Space to Begin", NovaSquare,
+                    R_DrawText2D(MainRenderer, "Press Space to Begin", NovaSquare,
                                  glm::vec2( (Window->Width / 2) - 300, Window->Height - 580), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     break;
@@ -479,53 +479,53 @@ i32 main(i32 Argc, char **Argv)
 
                         // FPS
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"FPS: %2.2f", MainRenderer->FPS);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 15), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 15), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Renderer Exposure
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Renderer->Exposure: %2.2f", MainRenderer->Exposure);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 30), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 30), glm::vec2(0.25f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // OpenGL variables
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareVendor, NovaSquare, glm::vec2(0, Window->Height - 45), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->HardwareModel, NovaSquare, glm::vec2(0, Window->Height - 60), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->OpenGLVersion, NovaSquare, glm::vec2(0, Window->Height - 75), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
-                        R_DrawText2D(MainRenderer, Camera, (char*)MainRenderer->GLSLVersion, NovaSquare, glm::vec2(0, Window->Height - 100), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, (char*)MainRenderer->HardwareVendor, NovaSquare, glm::vec2(0, Window->Height - 45), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, (char*)MainRenderer->HardwareModel, NovaSquare, glm::vec2(0, Window->Height - 60), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, (char*)MainRenderer->OpenGLVersion, NovaSquare, glm::vec2(0, Window->Height - 75), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, (char*)MainRenderer->GLSLVersion, NovaSquare, glm::vec2(0, Window->Height - 100), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Player Position
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Player->Position: %2.2f,%2.2f", Player->Position.x, Player->Position.y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 115), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 115), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Camera Position
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Camera->Position: %2.2f,%2.2f,%2.2f", Camera->Position.x, Camera->Position.y, Camera->Position.z);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 130), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 130), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Sound System
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"MusicVolume: %d", SoundSystem->MusicVolume);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 145), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 145), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"EffectsVolume: %d", SoundSystem->EffectsVolume);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 160), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 160), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MouseWorldPosition.x, MouseWorldPosition.y);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player->RotationAngle);
-                        R_DrawText2D(MainRenderer, Camera, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
 
                     break;
                 }
                 case State_Pause:
                 {
-                    R_DrawText2D(MainRenderer, Camera, "Glow", NovaSquare,
+                    R_DrawText2D(MainRenderer, "Glow", NovaSquare,
                                  glm::vec2( (Window->Width / 2) - 120, Window->Height - 140), // Position
                                  glm::vec2(2.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
-                    R_DrawText2D(MainRenderer, Camera, "Press Space to Continue", NovaSquare,
+                    R_DrawText2D(MainRenderer, "Press Space to Continue", NovaSquare,
                                  glm::vec2( (Window->Width / 2) - 360, Window->Height - 430), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
-                    R_DrawText2D(MainRenderer, Camera, "Press Escape to Quit", NovaSquare,
+                    R_DrawText2D(MainRenderer, "Press Escape to Quit", NovaSquare,
                                  glm::vec2( (Window->Width / 2) - 300, Window->Height - 600), // Position
                                  glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f)); // Scale, Color
                     break;

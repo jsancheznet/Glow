@@ -406,7 +406,6 @@ renderer *R_CreateRenderer(window *Window)
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, Result->UniformCameraBuffer);
-
     }
 
     { // SECTION: HDR+Bloom setup
@@ -742,7 +741,7 @@ void R_DrawTexture(renderer *Renderer, texture *Texture, glm::vec3 Position, glm
 }
 
 void
-R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
+R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
 {
     Assert(Renderer);
     Assert(Text);
@@ -751,8 +750,6 @@ R_DrawText2D(renderer *Renderer, camera *Camera, char *Text, font *Font, glm::ve
     glUseProgram(Renderer->Shaders.Text);
     glm::mat4 Identity = glm::mat4(1.0f);
     R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
-    R_SetUniform(Renderer->Shaders.Text, "View", Identity);
-    R_SetUniform(Renderer->Shaders.Text, "Projection", Camera->Ortho);
     R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
     f32 BrightnessThreshold = 1.0f;
     R_SetUniform(Renderer->Shaders.Text, "BrightnessThreshold", BrightnessThreshold);
@@ -815,7 +812,6 @@ void R_CalculateFPS(renderer *Renderer, clock *Clock)
         Renderer->SecondsElapsed += (f32)Clock->DeltaTime;
     }
 }
-
 
 camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
 {
