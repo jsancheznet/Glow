@@ -33,9 +33,9 @@ struct renderer
 
     struct Shaders
     {
-        u32 Blur;
-        u32 Bloom;
-        u32 Hdr;
+        u32 Blur; // Does not use Uniform Buffer object for Camera
+        u32 Bloom; // Does not use Uniform Buffer object for Camera
+        u32 Hdr; // Does not use Uniform Buffer object for Camera
         u32 Texture;
         u32 Text;
     } Shaders;
@@ -44,6 +44,7 @@ struct renderer
     u32 ColorBuffer;
     u32 BrightnessBuffer;
     u32 DepthStencilRenderbuffer;
+    u32 UniformCameraBuffer;
     u32 Attachments[2];
     u32 PingPongFBO[2];
     u32 PingPongBuffer[2];

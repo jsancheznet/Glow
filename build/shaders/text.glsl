@@ -3,14 +3,24 @@
 layout(location = 0) in vec3 Vertices;
 layout(location = 1) in vec2 TexCoords;
 
-out vec2 UV;
+//  Variables in a uniform block can be directly accessed without the
+//  block name as a prefix.
+layout (std140) uniform CameraMatrices
+{
+    mat4 CameraProjection;
+    mat4 CameraOrthographic;
+    mat4 CameraView;
+};
 
 uniform mat4 Model;
-uniform mat4 View;
-uniform mat4 Projection;
+uniform mat4 View; // TODO: Delete me
+uniform mat4 Projection; // TODO: Delete me
+
+out vec2 UV;
 
 void main()
 {
+    // gl_Position = Projection * View * Model * vec4(Vertices, 1.0);
     gl_Position = Projection * View * Model * vec4(Vertices, 1.0);
     UV = TexCoords;
 }

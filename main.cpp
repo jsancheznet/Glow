@@ -111,29 +111,6 @@ i32 main(i32 Argc, char **Argv)
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
 
-    // TODO: Create a VBO that holds the Camera, View Uniforms. Update
-    // it everyframe. Remove every camera *Camera Input in every
-    // function.
-        u32 UniformCameraBuffer;
-        u32 UniformBlockIndexTextureShader;
-    {
-        // glGetUniformBlockIndex gets the index of the uniform
-        // buffer. With newer version of opengl you can set the index
-        // in the glsl uniform declaration. Since we are using 3.3
-        // sadly we cannot use this feature.
-        UniformBlockIndexTextureShader = glGetUniformBlockIndex(MainRenderer->Shaders.Texture, "CameraMatrices");
-        // Sets a uniform block to a specific binding point
-        glUniformBlockBinding(MainRenderer->Shaders.Texture, UniformBlockIndexTextureShader, 0);
-
-        glGenBuffers(1,&UniformCameraBuffer);
-        glBindBuffer(GL_UNIFORM_BUFFER, UniformCameraBuffer);
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * 3, NULL, GL_STATIC_DRAW);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-        glBindBufferBase(GL_UNIFORM_BUFFER, 0, UniformCameraBuffer);
-
-    }
-
     SDL_Event Event;
     while(IsRunning)
     {
@@ -434,22 +411,22 @@ i32 main(i32 Argc, char **Argv)
                 }
             }
 
-            // Update Camera Matrices
-            // TODO: Camera Values should go into UBO
-            // TODO: Update Camera UBO Right here!
-            Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Window->Width / (f32)Window->Height, Camera->Near, Camera->Far);
-            Camera->Ortho = glm::ortho(0.0f, (f32)Window->Width, 0.0f, (f32)Window->Height);
-            Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
+            { // SECTION: Update Camera Matrices
+                // Update Camera Matrices
+                Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Window->Width / (f32)Window->Height, Camera->Near, Camera->Far);
+                Camera->Ortho = glm::ortho(0.0f, (f32)Window->Width, 0.0f, (f32)Window->Height);
+                Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
 
-            {
-                glBindBuffer(GL_UNIFORM_BUFFER, UniformCameraBuffer);
-                // Projection
-                glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection));
-                // Orthographic
-                glBufferSubData(GL_UNIFORM_BUFFER, 64, sizeof(glm::mat4), glm::value_ptr(Camera->Ortho));
-                // View
-                glBufferSubData(GL_UNIFORM_BUFFER, 128, sizeof(glm::mat4), glm::value_ptr(Camera->View));
-                glBindBuffer(GL_UNIFORM_BUFFER, 0);
+                { // Upload new camera matrices to uniform buffer object
+                    glBindBuffer(GL_UNIFORM_BUFFER, MainRenderer->UniformCameraBuffer);
+                    // Projection
+                    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection)); // NOTE: As long as we dont change the FoV or Width/Height of windows, the projection remains the same.
+                    // Orthographic
+                    glBufferSubData(GL_UNIFORM_BUFFER, 64, sizeof(glm::mat4), glm::value_ptr(Camera->Ortho));
+                    // View
+                    glBufferSubData(GL_UNIFORM_BUFFER, 128, sizeof(glm::mat4), glm::value_ptr(Camera->View));
+                    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+                }
             }
 
             // FPS
@@ -464,7 +441,7 @@ i32 main(i32 Argc, char **Argv)
             R_BeginFrame(MainRenderer);
 
             // Draw Background
-            R_DrawTexture(MainRenderer, Camera,
+            R_DrawTexture(MainRenderer,
                           BackgroundTexture, glm::vec3(0.0f, 0.0f, -10.0f),
                           glm::vec3(100.0f, 50.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0.0f);
 
@@ -484,15 +461,15 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
 
-                    R_DrawEntity(MainRenderer, Camera, Player);
-                    R_DrawEntity(MainRenderer, Camera, Enemy);
+                    R_DrawEntity(MainRenderer, Player);
+                    R_DrawEntity(MainRenderer, Enemy);
 
                     { // SECTION: Render Bullets
                         for(u32  i = 0;
                             i < Bullets.size();
                             i++)
                         {
-                            R_DrawEntity(MainRenderer, Camera, Bullets[i]);
+                            R_DrawEntity(MainRenderer, Bullets[i]);
                         }
                     }
 

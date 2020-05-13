@@ -385,6 +385,30 @@ renderer *R_CreateRenderer(window *Window)
         glBindVertexArray(0);
     }
 
+    { // SECTION: Uniform Buffer Object for the Camera Matrices
+
+        u32 UniformBlockIndexTextureShader;
+        u32 UniformBlockIndexTextShader;
+
+        // glGetUniformBlockIndex gets the index of the uniform
+        // buffer. With newer version of opengl you can set the index
+        // in the glsl uniform declaration. Since we are using 3.3
+        // sadly we cannot use this feature.
+        UniformBlockIndexTextureShader = glGetUniformBlockIndex(Result->Shaders.Texture, "CameraMatrices");
+        UniformBlockIndexTextShader = glGetUniformBlockIndex(Result->Shaders.Text, "CameraMatrices");
+        // Sets a uniform block to a specific binding point
+        glUniformBlockBinding(Result->Shaders.Texture, UniformBlockIndexTextureShader, 0);
+        glUniformBlockBinding(Result->Shaders.Text, UniformBlockIndexTextShader, 0);
+
+        glGenBuffers(1,&Result->UniformCameraBuffer);
+        glBindBuffer(GL_UNIFORM_BUFFER, Result->UniformCameraBuffer);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * 3, NULL, GL_STATIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, Result->UniformCameraBuffer);
+
+    }
+
     { // SECTION: HDR+Bloom setup
         // Main Framebuffer
         glGenFramebuffers(1, &Result->Framebuffer);
@@ -699,8 +723,7 @@ texture *R_CreateTexture(char *Filename)
     return Result;
 }
 
-// TODO(Jorge): Remove the camera from functions parameters, maybe pass them in UBO? Or set the uniform to all shaders in R_BeginFrame();
-void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::vec3 Position, glm::vec3 Size, glm::vec3 RotationAxis, f32 RotationAngle)
+void R_DrawTexture(renderer *Renderer, texture *Texture, glm::vec3 Position, glm::vec3 Size, glm::vec3 RotationAxis, f32 RotationAngle)
 {
     glUseProgram(Renderer->Shaders.Texture);
     glm::mat4 Model = glm::mat4(1.0f);
@@ -708,8 +731,6 @@ void R_DrawTexture(renderer *Renderer, camera *Camera, texture *Texture, glm::ve
     Model = glm::scale(Model, Size);
     Model = glm::rotate(Model, RotationAngle, RotationAxis);
     R_SetUniform(Renderer->Shaders.Texture, "Model", Model);
-    R_SetUniform(Renderer->Shaders.Texture, "View", Camera->View);
-    R_SetUniform(Renderer->Shaders.Texture, "Projection", Camera->Projection);
     f32 BrightnessThreshold = 0.25f;
     R_SetUniform(Renderer->Shaders.Texture, "BrightnessThreshold", BrightnessThreshold);
     glActiveTexture(GL_TEXTURE0);
@@ -830,9 +851,9 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
     Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
 }
 
-void R_DrawEntity(renderer *Renderer, camera *Camera, entity *Entity)
+void R_DrawEntity(renderer *Renderer, entity *Entity)
 {
-    R_DrawTexture(Renderer, Camera,
+    R_DrawTexture(Renderer,
                   Entity->Texture,
                   Entity->Position,
                   Entity->Size,
