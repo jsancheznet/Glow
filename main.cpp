@@ -61,7 +61,7 @@ global f32 BulletDrag =  1.0f;
 global glm::vec3 BulletSize = glm::vec3(1.0);
 global std::vector<entity*> Bullets;
 
-// Platform Variables
+// Variables
 global b32 IsRunning = 1;
 global keyboard *Keyboard;
 global mouse *Mouse;
@@ -144,7 +144,6 @@ i32 main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    // Do initial input handling here
                     if(I_IsPressed(SDL_SCANCODE_ESCAPE))
                     {
                         IsRunning = 0;
@@ -155,7 +154,6 @@ i32 main(i32 Argc, char **Argv)
                         CurrentState = State_Game;
                     }
 
-                    // Handle Window input stuff
                     if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                     {
                         P_ToggleFullscreen(Window);
@@ -380,34 +378,27 @@ i32 main(i32 Argc, char **Argv)
                                 i < Bullets.size();
                                 i++)
                             {
-                                entity *BulletA = Bullets[i];
-                                BulletA->Direction = glm::normalize(BulletA->Direction);
-                                BulletA->Acceleration = BulletA->Direction * BulletA->Speed;
-                                E_CalculateMotion(BulletA, (f32)Clock->DeltaTime);
+                                // Delete Bullets that are outside of vision
+                                if( Abs(Bullets[i]->Position.x) > WorldRight ||
+                                    Abs(Bullets[i]->Position.y) > WorldTop)
+                                {
+                                    Bullets.erase( Bullets.begin() + i ); // Deleting the fourth element
+                                    continue;
+                                }
+
+                                // Update Motion
+                                Bullets[i]->Acceleration = Bullets[i]->Direction * Bullets[i]->Speed;
+                                E_CalculateMotion(Bullets[i], (f32)Clock->DeltaTime);
+
+                                // Check for colliisions with all bullets
+                                if(E_EntitiesCollide(Bullets[i], Enemy))
+                                {
+                                    printf("Bullet Collision!\n");
+                                }
                             }
                         }
 
-                        // Remove Bullets that are far away
-                        for(i32 i = 0;
-                            i < Bullets.size();
-                            i++)
-                        {
-                            if( Abs(Bullets[i]->Position.x) > WorldRight ||
-                                Abs(Bullets[i]->Position.y) > WorldTop)
-                            {
-                                Bullets.erase( Bullets.begin() + i ); // Deleting the fourth element
-                            }
-                        }
 
-                        // Check for colliisions with all bullets
-                        for(i32 i = 0; i < Bullets.size(); i++)
-                        {
-                            if(E_EntitiesCollide(Bullets[i], Enemy))
-                            {
-                                printf("Bullet Collision!\n");
-                            }
-
-                        }
                     } break;
                     case State_Pause:
                     {
