@@ -114,6 +114,25 @@ i32 main(i32 Argc, char **Argv)
     // TODO: Create a VBO that holds the Camera, View Uniforms. Update
     // it everyframe. Remove every camera *Camera Input in every
     // function.
+        u32 UniformCameraBuffer;
+        u32 UniformBlockIndexTextureShader;
+    {
+        // glGetUniformBlockIndex gets the index of the uniform
+        // buffer. With newer version of opengl you can set the index
+        // in the glsl uniform declaration. Since we are using 3.3
+        // sadly we cannot use this feature.
+        UniformBlockIndexTextureShader = glGetUniformBlockIndex(MainRenderer->Shaders.Texture, "CameraMatrices");
+        // Sets a uniform block to a specific binding point
+        glUniformBlockBinding(MainRenderer->Shaders.Texture, UniformBlockIndexTextureShader, 0);
+
+        glGenBuffers(1,&UniformCameraBuffer);
+        glBindBuffer(GL_UNIFORM_BUFFER, UniformCameraBuffer);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4) * 3, NULL, GL_STATIC_DRAW);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, UniformCameraBuffer);
+
+    }
 
     SDL_Event Event;
     while(IsRunning)
@@ -277,6 +296,7 @@ i32 main(i32 Argc, char **Argv)
 
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT))
                     {
+
                         if(Bullets.size() < MaxBullets)
                         {
                             f32 RotationAngle = GetRotationAngle(MouseWorldPosition.x - Player->Position.x,
@@ -417,9 +437,20 @@ i32 main(i32 Argc, char **Argv)
             // Update Camera Matrices
             // TODO: Camera Values should go into UBO
             // TODO: Update Camera UBO Right here!
-            Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
             Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Window->Width / (f32)Window->Height, Camera->Near, Camera->Far);
             Camera->Ortho = glm::ortho(0.0f, (f32)Window->Width, 0.0f, (f32)Window->Height);
+            Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
+
+            {
+                glBindBuffer(GL_UNIFORM_BUFFER, UniformCameraBuffer);
+                // Projection
+                glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection));
+                // Orthographic
+                glBufferSubData(GL_UNIFORM_BUFFER, 64, sizeof(glm::mat4), glm::value_ptr(Camera->Ortho));
+                // View
+                glBufferSubData(GL_UNIFORM_BUFFER, 128, sizeof(glm::mat4), glm::value_ptr(Camera->View));
+                glBindBuffer(GL_UNIFORM_BUFFER, 0);
+            }
 
             // FPS
             char WindowTitle[60];
