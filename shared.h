@@ -128,8 +128,6 @@ glm::vec3 Normalize(glm::vec3 A)
     return glm::normalize(A);
 }
 
-#define ZeroVec3 glm::vec3(0.0f)
-
 //
 // Error Checking Macro's
 //

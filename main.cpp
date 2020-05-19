@@ -32,6 +32,10 @@ extern "C"
 // TODO(Jorge): Remove unused functions from final version
 // TODO(Jorge): Delele all unused data files
 
+glm::vec3 ZeroVec3 = glm::vec3(0.0f);
+
+entity *Point = NULL;
+
 enum state
 {
     State_Initial,
@@ -112,10 +116,46 @@ i32 main(i32 Argc, char **Argv)
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
 
-    entity *PurpleCircle = E_CreateEntity(PurpleCircleTexture,
-                                          glm::vec3(0.0f), glm::vec3(0.4f),
-                                          glm::vec3(0.0f), 0.0f,
-                                          PlayerSpeed, PlayerDrag);
+    Point = E_CreateEntity(PurpleCircleTexture,
+                           glm::vec3(0.0f), glm::vec3(0.4f),
+                           glm::vec3(0.0f), 0.0f,
+                           PlayerSpeed, PlayerDrag);
+
+#if 1
+    entity BackgroundPoints[4] = {};
+
+    BackgroundPoints[0] = E_CreateEntityA(PurpleCircleTexture,
+                                          glm::vec3(-10.0f, 6.0f, 0.0f), // Pos
+                                          glm::vec3(0.4f), // Size
+                                          glm::vec3(0.0f), // Dir
+                                          0.0f,            // Angle
+                                          5.0f,            // Speed
+                                          0.8f);           // Draw
+
+    BackgroundPoints[1] = E_CreateEntityA(PurpleCircleTexture,
+                                          glm::vec3(10.0f, 6.0f, 0.0f), // Pos
+                                          glm::vec3(0.4f), // Size
+                                          glm::vec3(0.0f), // Dir
+                                          0.0f,            // Angle
+                                          5.0f,            // Speed
+                                          0.8f);           // Draw
+
+    BackgroundPoints[2] = E_CreateEntityA(PurpleCircleTexture,
+                                          glm::vec3(-10.0f, -6.0f, 0.0f), // Pos
+                                          glm::vec3(0.4f), // Size
+                                          glm::vec3(0.0f), // Dir
+                                          0.0f,            // Angle
+                                          5.0f,            // Speed
+                                          0.8f);           // Draw
+
+    BackgroundPoints[3] = E_CreateEntityA(PurpleCircleTexture,
+                                          glm::vec3(10.0f, -6.0f, 0.0f), // Pos
+                                          glm::vec3(0.4f), // Size
+                                          glm::vec3(0.0f), // Dir
+                                          0.0f,            // Angle
+                                          5.0f,            // Speed
+                                          0.8f);           // Draw
+#endif
 
     SDL_Event Event;
     while(IsRunning)
@@ -340,43 +380,63 @@ i32 main(i32 Argc, char **Argv)
                     case State_Game:
                     {
 
-
-
-
-                        { // SECTION: Dynamic background test
-                            f32 PurpleCircleSpeed = 5.0f;
-                            // glm::vec3 MWP = glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f);
-                            glm::vec3 WorldCenter = glm::vec3(0.0f);
-                            glm::vec3 InitialPosition = WorldCenter;
-
+                        for(int i = 0; i < 4; i++)
+                        {
                             // 1- Assign Acceleration
-                            if(Distance(Mouse->WorldPosition, PurpleCircle->Position) < 4.0f)
+                            if(Distance(Mouse->WorldPosition, BackgroundPoints[i].Position) < 4.0f)
                             {
                                 // Push Purple Circle Outside
-                                PurpleCircle->Acceleration += Normalize(PurpleCircle->Position - Mouse->WorldPosition) * PurpleCircleSpeed;
+                                BackgroundPoints[i].Acceleration += Normalize(BackgroundPoints[i].Position - Mouse->WorldPosition) * BackgroundPoints[i].Speed;
                             }
-                            else if(Distance(Mouse->WorldPosition, PurpleCircle->Position) >= 4.0f)
+                            else if(Distance(Mouse->WorldPosition, BackgroundPoints[i].Position) >= 4.0f)
                             {
-                                if(Distance(PurpleCircle->Position, InitialPosition) < 0.1f)
+                                if(Distance(BackgroundPoints[i].Position, BackgroundPoints[i].InitialPosition) < 0.1f)
                                 {
-                                    PurpleCircle->Position = InitialPosition;
+                                    BackgroundPoints[i].Position = BackgroundPoints[i].InitialPosition;
                                 }
                                 else
                                 {
-                                    PurpleCircle->Acceleration += Normalize(InitialPosition - PurpleCircle->Position) * PurpleCircleSpeed;
+                                    BackgroundPoints[i].Acceleration += Normalize(BackgroundPoints[i].InitialPosition - BackgroundPoints[i].Position) * BackgroundPoints[i].Speed;
                                 }
                             }
                             // 2- Compute Newton Motion
-                            E_CalculateMotion(PurpleCircle, (f32)Clock->DeltaTime);
+                            E_CalculateMotion(&BackgroundPoints[i], (f32)Clock->DeltaTime);
 
                             // 3- Check for collision
                             // 4- Move Acordingly
                         }
 
+#if 0
+                        f32 PurpleCircleSpeed = 5.0f;
+                        glm::vec3 WorldCenter = glm::vec3(0.0f);
+                        glm::vec3 InitialPosition = WorldCenter;
 
+                        { // SECTION: Dynamic background test
+                            // 1- Assign Acceleration
 
+                            if(Distance(Mouse->WorldPosition, Point->Position) < 4.0f)
+                            {
+                                // Push Purple Circle Outside
+                                Point->Acceleration += Normalize(Point->Position - Mouse->WorldPosition) * Point->Speed;
+                            }
+                            else if(Distance(Mouse->WorldPosition, Point->Position) >= 4.0f)
+                            {
+                                if(Distance(Point->Position, Point->InitialPosition) < 0.1f)
+                                {
+                                    Point->Position = Point->InitialPosition;
+                                }
+                                else
+                                {
+                                    Point->Acceleration += Normalize(Point->InitialPosition - Point->Position) * Point->Speed;
+                                }
+                            }
+                            // 2- Compute Newton Motion
+                            E_CalculateMotion(Point, (f32)Clock->DeltaTime);
 
-
+                            // 3- Check for collision
+                            // 4- Move Acordingly
+                        }
+#endif
 
                         E_CalculateMotion(Player, (f32)Clock->DeltaTime);
                         Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x,
@@ -406,7 +466,7 @@ i32 main(i32 Argc, char **Argv)
 
                         if(E_EntitiesCollide(Player, Enemy))
                         {
-                            printf("Palayer/Enemy Collision!\n");
+                            // printf("Palayer/Enemy Collision!\n");
                         }
                         else
                         {
@@ -433,7 +493,7 @@ i32 main(i32 Argc, char **Argv)
                                 // Check for colliisions with all bullets
                                 if(E_EntitiesCollide(Bullets[i], Enemy))
                                 {
-                                    printf("Bullet Collision!\n");
+                                    // printf("Bullet Collision!\n");
                                 }
                             }
                         }
@@ -500,7 +560,11 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
 
-                    R_DrawEntity(MainRenderer, PurpleCircle);
+
+                    R_DrawEntity(MainRenderer, &BackgroundPoints[0]);
+                    R_DrawEntity(MainRenderer, &BackgroundPoints[1]);
+                    R_DrawEntity(MainRenderer, &BackgroundPoints[2]);
+                    R_DrawEntity(MainRenderer, &BackgroundPoints[3]);
 #if 0
                     R_DrawEntity(MainRenderer, Player);
                     R_DrawEntity(MainRenderer, Enemy);
