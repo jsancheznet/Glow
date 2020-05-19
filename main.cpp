@@ -17,7 +17,6 @@ extern "C"
 #include <SDL_opengl.h>
 #include <SDL_mixer.h>
 
-
 #include "shared.h"
 #include "platform.cpp"
 #include "input.cpp"
@@ -25,7 +24,8 @@ extern "C"
 #include "sound.cpp"
 #include "entity.cpp"
 
-// TODO(Jorge): Rewrite rendering using spritebatch or instanced rendering.
+// TODO(Jorge): Textures transparent background is not bleding correctly
+// TODO(Jorge): Make Bullets little! everything will look better.
 // TODO(Jorge): Sound system should be able to play two sound effects atop of each other!
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
 // TODO(Jorge): Add License to all files
@@ -48,7 +48,7 @@ global f32 WorldLeft = -20.0f;
 global f32 WorldRight = 20.0f;
 global f32 HalfWorldWidth = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
-global glm::vec2 MouseWorldPosition;
+// global glm::vec2 MouseWorldPosition;
 
 // Entity Variables
 global f32 PlayerSpeed = 4.0f;
@@ -94,6 +94,7 @@ i32 main(i32 Argc, char **Argv)
     texture *EnemyTexture =  R_CreateTexture("textures/Black Hole.png");
     texture *BulletTexture = R_CreateTexture("textures/Bullet1.png");
     texture *BackgroundTexture = R_CreateTexture("textures/background.jpg");
+    texture *PurpleCircleTexture = R_CreateTexture("textures/PurpleCircle.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
@@ -110,6 +111,11 @@ i32 main(i32 Argc, char **Argv)
                                    glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
+
+    entity *PurpleCircle = E_CreateEntity(PurpleCircleTexture,
+                                          glm::vec3(0.0f), glm::vec3(0.4f),
+                                          glm::vec3(0.0f), 0.0f,
+                                          PlayerSpeed, PlayerDrag);
 
     SDL_Event Event;
     while(IsRunning)
@@ -131,10 +137,9 @@ i32 main(i32 Argc, char **Argv)
             }
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
-
             // Get Mouse World Position
-            MouseWorldPosition.x = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
-            MouseWorldPosition.y = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+            Mouse->WorldPosition.x = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+            Mouse->WorldPosition.y = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
 
             switch(CurrentState)
             {
@@ -276,12 +281,12 @@ i32 main(i32 Argc, char **Argv)
 
                         if(Bullets.size() < MaxBullets)
                         {
-                            f32 RotationAngle = GetRotationAngle(MouseWorldPosition.x - Player->Position.x,
-                                                                 MouseWorldPosition.y - Player->Position.y);
+                            f32 RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x,
+                                                                 Mouse->WorldPosition.y - Player->Position.y);
                             entity *Bullet = E_CreateEntity(BulletTexture,
-                                                            Player->Position,
+                                                           Player->Position,
                                                             BulletSize,
-                                                            glm::normalize(glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f) - Player->Position),
+                                                            glm::normalize(glm::vec3(Mouse->WorldPosition.x, Mouse->WorldPosition.y, 0.0f) - Player->Position),
                                                             RotationAngle,
                                                             BulletSpeed,
                                                             BulletDrag);
@@ -334,10 +339,48 @@ i32 main(i32 Argc, char **Argv)
                     } break;
                     case State_Game:
                     {
-                        E_CalculateMotion(Player, (f32)Clock->DeltaTime);
-                        Player->RotationAngle = GetRotationAngle(MouseWorldPosition.x - Player->Position.x,
-                                                                 MouseWorldPosition.y - Player->Position.y);
 
+
+
+
+                        { // SECTION: Dynamic background test
+                            f32 PurpleCircleSpeed = 5.0f;
+                            // glm::vec3 MWP = glm::vec3(MouseWorldPosition.x, MouseWorldPosition.y, 0.0f);
+                            glm::vec3 WorldCenter = glm::vec3(0.0f);
+                            glm::vec3 InitialPosition = WorldCenter;
+
+                            // 1- Assign Acceleration
+                            if(Distance(Mouse->WorldPosition, PurpleCircle->Position) < 4.0f)
+                            {
+                                // Push Purple Circle Outside
+                                PurpleCircle->Acceleration += Normalize(PurpleCircle->Position - Mouse->WorldPosition) * PurpleCircleSpeed;
+                            }
+                            else if(Distance(Mouse->WorldPosition, PurpleCircle->Position) >= 4.0f)
+                            {
+                                if(Distance(PurpleCircle->Position, InitialPosition) < 0.1f)
+                                {
+                                    PurpleCircle->Position = InitialPosition;
+                                }
+                                else
+                                {
+                                    PurpleCircle->Acceleration += Normalize(InitialPosition - PurpleCircle->Position) * PurpleCircleSpeed;
+                                }
+                            }
+                            // 2- Compute Newton Motion
+                            E_CalculateMotion(PurpleCircle, (f32)Clock->DeltaTime);
+
+                            // 3- Check for collision
+                            // 4- Move Acordingly
+                        }
+
+
+
+
+
+
+                        E_CalculateMotion(Player, (f32)Clock->DeltaTime);
+                        Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x,
+                                                                 Mouse->WorldPosition.y - Player->Position.y);
                         // Player Collision against walls
                         if(Player->Position.x < WorldLeft)
                         {
@@ -417,13 +460,10 @@ i32 main(i32 Argc, char **Argv)
                 Camera->Ortho = glm::ortho(0.0f, (f32)Window->Width, 0.0f, (f32)Window->Height);
                 Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
 
-                { // Upload new camera matrices to uniform buffer object
+                { // Upload new camera matrices to UBO
                     glBindBuffer(GL_UNIFORM_BUFFER, MainRenderer->UniformCameraBuffer);
-                    // Projection
-                    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection)); // NOTE: As long as we dont change the FoV or Width/Height of windows, the projection remains the same.
-                    // Orthographic
+                    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection)); // NOTE: As long as we dont change the FoV or Width/Height of windows, the projection remains the same. We could not update it every frame.
                     glBufferSubData(GL_UNIFORM_BUFFER, 64, sizeof(glm::mat4), glm::value_ptr(Camera->Ortho));
-                    // View
                     glBufferSubData(GL_UNIFORM_BUFFER, 128, sizeof(glm::mat4), glm::value_ptr(Camera->View));
                     glBindBuffer(GL_UNIFORM_BUFFER, 0);
                 }
@@ -440,10 +480,9 @@ i32 main(i32 Argc, char **Argv)
 
             R_BeginFrame(MainRenderer);
 
-            // Draw Background
-            R_DrawTexture(MainRenderer,
-                          BackgroundTexture, glm::vec3(0.0f, 0.0f, -10.0f),
-                          glm::vec3(100.0f, 50.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0.0f);
+            // R_DrawTexture(MainRenderer,
+            //               BackgroundTexture, glm::vec3(0.0f, 0.0f, -10.0f),
+            //               glm::vec3(100.0f, 50.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0.0f);
 
             switch(CurrentState)
             {
@@ -461,6 +500,8 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
 
+                    R_DrawEntity(MainRenderer, PurpleCircle);
+#if 0
                     R_DrawEntity(MainRenderer, Player);
                     R_DrawEntity(MainRenderer, Enemy);
 
@@ -514,7 +555,7 @@ i32 main(i32 Argc, char **Argv)
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player->RotationAngle);
                         R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
-
+#endif
                     break;
                 }
                 case State_Pause:

@@ -282,9 +282,10 @@ renderer *R_CreateRenderer(window *Window)
 
         glFrontFace(GL_CCW);
         glEnable(GL_MULTISAMPLE);
-        glEnable(GL_DEPTH_TEST); // NOTE: Disabling the depth test makes the red border cube look fine
+        glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_BLEND);
 
         // No V-Sync
         if(EnableVSync)
@@ -693,8 +694,12 @@ texture *R_CreateTexture(char *Filename)
         else if(Result->ChannelCount == 4)
         {
             Result->Format = GL_RGBA;
-            Result->InternalFormat = GL_SRGB;
-            // Result->InternalFormat = GL_SRGB_ALPHA;
+
+            // NOTE: If anything looks weird when drawing textures,
+            // maybe toggle between GL_SRGB and GL_SRGB_ALPHA. I'm to
+            // lazy to check opengl docs right now.
+            // Result->InternalFormat = GL_SRGB;
+            Result->InternalFormat = GL_SRGB_ALPHA;
         }
         else
         {

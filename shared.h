@@ -118,6 +118,18 @@ f32 GetRotationAngle(f32 x, f32 y)
     return (( (f32)atan2(y, x) * (f32)180.0f) / 3.14159265359f);
 }
 
+f32 Distance(glm::vec3 A, glm::vec3 B)
+{
+    return glm::distance(A, B);
+}
+
+glm::vec3 Normalize(glm::vec3 A)
+{
+    return glm::normalize(A);
+}
+
+#define ZeroVec3 glm::vec3(0.0f)
+
 //
 // Error Checking Macro's
 //
