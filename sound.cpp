@@ -45,12 +45,13 @@ sound_system *S_CreateSoundSystem()
 {
     sound_system *Result = (sound_system*)Malloc(sizeof(sound_system)); Assert(Result);
 
-    if(Mix_Init(MIX_INIT_MP3) != MIX_INIT_MP3)
-    {
-        printf("Error Initializing Mixer: %s\n", Mix_GetError());
-        Free(Result);
-        return NULL;
-    }
+    // if(Mix_Init(MIX_INIT_MP3) != MIX_INIT_MP3)
+    // {
+    //     printf("Error Initializing Mixer: %s\n", Mix_GetError());
+    //     Free(Result);
+    //     return NULL;
+    // }
+
     //Initialize SDL_mixer
     if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
     {

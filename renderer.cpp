@@ -694,7 +694,6 @@ texture *R_CreateTexture(char *Filename)
         else if(Result->ChannelCount == 4)
         {
             Result->Format = GL_RGBA;
-
             // NOTE: If anything looks weird when drawing textures,
             // maybe toggle between GL_SRGB and GL_SRGB_ALPHA. I'm to
             // lazy to check opengl docs right now.

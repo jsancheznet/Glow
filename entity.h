@@ -10,6 +10,14 @@ struct rectangle
     f32 HalfHeight;
 };
 
+struct oriented_rectangle
+{
+    glm::vec2 Center;
+    f32 HalfWidth;
+    f32 HalfHeight;
+    f32 Angle;
+};
+
 struct entity
 {
     texture *Texture;

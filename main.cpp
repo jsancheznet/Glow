@@ -8,7 +8,7 @@ extern "C"
 }
 #endif
 
-#include <windows.h>
+//#include <windows.h>
 #include <stdio.h>
 #include <vector>
 
@@ -31,8 +31,6 @@ extern "C"
 // TODO(Jorge): Add License to all files
 // TODO(Jorge): Remove unused functions from final version
 // TODO(Jorge): Delele all unused data files
-
-glm::vec3 ZeroVec3 = glm::vec3(0.0f);
 
 entity *Point = NULL;
 
@@ -99,6 +97,7 @@ i32 main(i32 Argc, char **Argv)
     texture *BulletTexture = R_CreateTexture("textures/Bullet1.png");
     texture *BackgroundTexture = R_CreateTexture("textures/background.jpg");
     texture *PurpleCircleTexture = R_CreateTexture("textures/PurpleCircle.png");
+    texture *Pacman = R_CreateTexture("textures/Test.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
@@ -121,6 +120,7 @@ i32 main(i32 Argc, char **Argv)
                            glm::vec3(0.0f), 0.0f,
                            PlayerSpeed, PlayerDrag);
 
+    // TODO: Probar 10x10
 #if 1
     entity BackgroundPoints[4] = {};
 
@@ -161,7 +161,7 @@ i32 main(i32 Argc, char **Argv)
     while(IsRunning)
     {
         P_UpdateClock(Clock);
-        R_CalculateFPS(MainRenderer, Clock);
+        R_CalculateFPS(MainRenderer, Clock); // TODO: this is platform code!
 
         { // SECTION: Input Handling
             while(SDL_PollEvent(&Event))
@@ -560,12 +560,12 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
 
-
-                    R_DrawEntity(MainRenderer, &BackgroundPoints[0]);
-                    R_DrawEntity(MainRenderer, &BackgroundPoints[1]);
-                    R_DrawEntity(MainRenderer, &BackgroundPoints[2]);
-                    R_DrawEntity(MainRenderer, &BackgroundPoints[3]);
-#if 0
+                    // R_DrawTexture(MainRenderer, Pacman, glm::vec3(0.0f), glm::vec3(1.0f), glm::vec3(0.0f, 0.0f, 1.0f), 0.0f);
+                    // R_DrawEntity(MainRenderer, &BackgroundPoints[0]);
+                    // R_DrawEntity(MainRenderer, &BackgroundPoints[1]);
+                    // R_DrawEntity(MainRenderer, &BackgroundPoints[2]);
+                    // R_DrawEntity(MainRenderer, &BackgroundPoints[3]);
+#if 1
                     R_DrawEntity(MainRenderer, Player);
                     R_DrawEntity(MainRenderer, Enemy);
 
@@ -613,8 +613,8 @@ i32 main(i32 Argc, char **Argv)
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Mouse Position: x:%d y:%d", Mouse->X, Mouse->Y);
                         R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 180), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-                        sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MouseWorldPosition.x, MouseWorldPosition.y);
-                        R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        // sprintf_s(TextBuffer, sizeof(TextBuffer),"World Mouse Position: x:%2.2f y:%2.2f", MouseWorldPosition.x, MouseWorldPosition.y);
+                        // R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 200), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                         sprintf_s(TextBuffer, sizeof(TextBuffer),"Rotation Angle: x:%2.2f", Player->RotationAngle);
                         R_DrawText2D(MainRenderer, TextBuffer, NovaSquare, glm::vec2(0, Window->Height - 220), glm::vec2(0.2f), glm::vec3(1.0f, 1.0f, 1.0f));
