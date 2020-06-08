@@ -77,9 +77,15 @@ global state CurrentState = State_Initial;
 
 i32 main(i32 Argc, char **Argv)
 {
+
+
+    /*
+      GAME IDEA:
+      Breakout, but the player paddle can be rotated using the mouse, and can shoot balls/bullets
+     */
     Argc; Argv; // This makes the compiler not throw a warning for unused variables.
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS); // TODO: Init only the subsystems we need!
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
 
     Window       = P_CreateOpenGLWindow("Glow", 1366, 768);
     MainRenderer = R_CreateRenderer(Window);
@@ -93,12 +99,10 @@ i32 main(i32 Argc, char **Argv)
                             glm::vec3(0.0f, 0.0f, -1.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
 
-    texture *PlayerTexture = R_CreateTexture("textures/Seeker.png");
-    texture *EnemyTexture =  R_CreateTexture("textures/Black Hole.png");
-    texture *BulletTexture = R_CreateTexture("textures/Bullet1.png");
-    texture *BackgroundTexture = R_CreateTexture("textures/background.jpg");
-    texture *PurpleCircleTexture = R_CreateTexture("textures/PurpleCircle.png");
-    texture *Pacman = R_CreateTexture("textures/Test.png");
+    texture *MidnightBlue = R_CreateTexture("textures/Bullet.png");
+    texture *Pink = R_CreateTexture("textures/Pink.png");
+    texture *Yellow =  R_CreateTexture("textures/Yellow.png");
+    texture *BulletTexture = R_CreateTexture("textures/Bullet.png");
 
     font *NovaSquare = R_CreateFont(MainRenderer, "fonts/NovaSquare-Regular.ttf", 60, 0);
 
@@ -107,22 +111,21 @@ i32 main(i32 Argc, char **Argv)
     S_SetMusicVolume(SoundSystem, 0);
     S_PlayMusic(TestMusic);
 
-    entity *Player = E_CreateEntity(PlayerTexture,
+    entity *Player = E_CreateEntity(Yellow,
                                     glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), // Position, Size
                                     glm::vec3(1.0f, 0.0f, 0.0f), 0.0f, // Direction, RotationAngle
                                     PlayerSpeed, PlayerDrag); // Speed, Drag
-    entity *Enemy = E_CreateEntity(EnemyTexture,
+    entity *Enemy = E_CreateEntity(Pink,
                                    glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
                                    glm::vec3(0.0f), 0.0f, // Direction, RotationAngle
                                    EnemySpeed, EnemyDrag); // Speed, Drag
+#if 0
 
     Point = E_CreateEntity(PurpleCircleTexture,
                            glm::vec3(0.0f), glm::vec3(0.4f),
                            glm::vec3(0.0f), 0.0f,
                            PlayerSpeed, PlayerDrag);
 
-    // TODO: Probar 10x10
-#if 1
     entity BackgroundPoints[4] = {};
 
     BackgroundPoints[0] = E_CreateEntityA(PurpleCircleTexture,
@@ -325,7 +328,7 @@ i32 main(i32 Argc, char **Argv)
                             f32 RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x,
                                                                  Mouse->WorldPosition.y - Player->Position.y);
                             entity *Bullet = E_CreateEntity(BulletTexture,
-                                                           Player->Position,
+                                                            Player->Position,
                                                             BulletSize,
                                                             glm::normalize(glm::vec3(Mouse->WorldPosition.x, Mouse->WorldPosition.y, 0.0f) - Player->Position),
                                                             RotationAngle,
@@ -381,6 +384,7 @@ i32 main(i32 Argc, char **Argv)
                     case State_Game:
                     {
 
+#if 0
                         for(int i = 0; i < 4; i++)
                         {
                             // 1- Assign Acceleration
@@ -407,7 +411,7 @@ i32 main(i32 Argc, char **Argv)
                             // 4- Move Acordingly
                         }
 
-#if 0
+
                         f32 PurpleCircleSpeed = 5.0f;
                         glm::vec3 WorldCenter = glm::vec3(0.0f);
                         glm::vec3 InitialPosition = WorldCenter;
