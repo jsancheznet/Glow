@@ -2,21 +2,7 @@
 
 #include "shared.h"
 #include "renderer.h"
-
-struct rectangle
-{
-    glm::vec2 Center;
-    f32 HalfWidth;
-    f32 HalfHeight;
-};
-
-struct oriented_rectangle
-{
-    glm::vec2 Center;
-    f32 HalfWidth;
-    f32 HalfHeight;
-    f32 Angle;
-};
+#include "collision.h"
 
 struct entity
 {
@@ -29,7 +15,7 @@ struct entity
     glm::vec3 Size;
     glm::vec3 Direction;
 
-    rectangle Rect;
+    oriented_rectangle Rect;
 
     f32 Speed;
     f32 RotationAngle; // NOTE: Degrees!

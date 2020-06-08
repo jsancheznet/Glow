@@ -22,6 +22,7 @@ extern "C"
 #include "input.cpp"
 #include "renderer.cpp"
 #include "sound.cpp"
+#include "collision.cpp"
 #include "entity.cpp"
 
 // TODO(Jorge): Textures transparent background is not bleding correctly
@@ -107,7 +108,7 @@ i32 main(i32 Argc, char **Argv)
     S_PlayMusic(TestMusic);
 
     entity *Player = E_CreateEntity(PlayerTexture,
-                                    glm::vec3(0.0f), glm::vec3(1.0f), // Position, Size
+                                    glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), // Position, Size
                                     glm::vec3(1.0f, 0.0f, 0.0f), 0.0f, // Direction, RotationAngle
                                     PlayerSpeed, PlayerDrag); // Speed, Drag
     entity *Enemy = E_CreateEntity(EnemyTexture,
@@ -466,7 +467,7 @@ i32 main(i32 Argc, char **Argv)
 
                         if(E_EntitiesCollide(Player, Enemy))
                         {
-                            // printf("Palayer/Enemy Collision!\n");
+                            printf("Palayer/Enemy Collision!\n");
                         }
                         else
                         {
@@ -493,7 +494,7 @@ i32 main(i32 Argc, char **Argv)
                                 // Check for colliisions with all bullets
                                 if(E_EntitiesCollide(Bullets[i], Enemy))
                                 {
-                                    // printf("Bullet Collision!\n");
+                                    printf("Bullet Collision!\n");
                                 }
                             }
                         }
@@ -565,6 +566,18 @@ i32 main(i32 Argc, char **Argv)
                     // R_DrawEntity(MainRenderer, &BackgroundPoints[1]);
                     // R_DrawEntity(MainRenderer, &BackgroundPoints[2]);
                     // R_DrawEntity(MainRenderer, &BackgroundPoints[3]);
+
+//                     R_DrawTexture(MainRenderer, PlayerTexture,
+//                                   glm::vec3(A.Center.x, A.Center.y, 0.0f), // Position
+//                                   glm::vec3(A.HalfWidth * 2, A.HalfHeight * 2, 1.0f), // Size
+//                                   glm::vec3(0.0f, 0.0f, 1.0f), //RotationAxis
+//                                   A.Angle);
+
+//                     R_DrawTexture(MainRenderer, EnemyTexture,
+//                                   glm::vec3(B.Center.x, B.Center.y, 0.0f), // Position
+//                                   glm::vec3(B.HalfWidth * 2, B.HalfHeight * 2, 1.0f), // Size
+//                                   glm::vec3(0.0f, 0.0f, 1.0f), //RotationAxis
+//                                   A.Angle);
 #if 1
                     R_DrawEntity(MainRenderer, Player);
                     R_DrawEntity(MainRenderer, Enemy);
