@@ -5,7 +5,7 @@
 
 struct renderer
 {
-    SDL_Window *Window;
+    window *Window;
 
     // Settings
     f32 Exposure;

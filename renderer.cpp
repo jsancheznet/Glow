@@ -27,6 +27,22 @@ global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl 
 global u32 BlurPassCount = 10; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.0f);
 
+void R_UpdateCamera(renderer *Renderer, camera *Camera)
+{
+    Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Renderer->Window->Width / (f32)Renderer->Window->Height, Camera->Near, Camera->Far);
+    Camera->Ortho = glm::ortho(0.0f, (f32)Renderer->Window->Width, 0.0f, (f32)Renderer->Window->Height);
+    Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
+
+    { // Upload new camera matrices to UBO
+        glBindBuffer(GL_UNIFORM_BUFFER, Renderer->UniformCameraBuffer);
+        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(Camera->Projection)); // NOTE: As long as we dont change the FoV or Width/Height of windows, the projection remains the same. We could not update it every frame.
+        glBufferSubData(GL_UNIFORM_BUFFER, 64, sizeof(glm::mat4), glm::value_ptr(Camera->Ortho));
+        glBufferSubData(GL_UNIFORM_BUFFER, 128, sizeof(glm::mat4), glm::value_ptr(Camera->View));
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    }
+
+}
+
 void R_DrawUnitQuad(renderer *Renderer)
 {
     glBindVertexArray(Renderer->UnitQuadVAO);
@@ -178,7 +194,7 @@ void R_EndFrame(renderer *Renderer)
     R_SetUniform(Renderer->Shaders.Bloom, "Exposure", Renderer->Exposure);
     R_DrawUnitQuad(Renderer);
 
-    SDL_GL_SwapWindow(Renderer->Window);
+    SDL_GL_SwapWindow(Renderer->Window->Handle);
 
     Renderer->PreviousDrawCallsPerFrame = Renderer->CurrentDrawCallsPerFrame;
     Renderer->CurrentDrawCallsPerFrame = 0;
@@ -273,7 +289,7 @@ void R_ResizeRenderer(renderer *Renderer, i32 Width, i32 Height)
 renderer *R_CreateRenderer(window *Window)
 {
     renderer *Result = (renderer*)Malloc(sizeof(renderer));
-    Result->Window = Window->Handle;
+    Result->Window = Window;
     Result->CurrentDrawCallsPerFrame = 0;
     Result->PreviousDrawCallsPerFrame = 0;
     Result->BackgroundColor = BackgroundColor;
