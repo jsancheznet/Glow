@@ -2,22 +2,6 @@
 
 #include "shared.h"
 
-// enum collision_shape
-// {
-//     Shape_AABB,
-//     Shape_OBB,
-// };
-
-// struct collision_data
-// {
-//     collision_shape Shape;
-//     union
-//     {
-//         rectangle AABB;
-//         oriented_rectangle OBB;
-//     };
-// };
-
 struct rectangle
 {
     glm::vec2 Center;

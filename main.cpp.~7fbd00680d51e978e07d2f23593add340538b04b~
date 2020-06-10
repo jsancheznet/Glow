@@ -50,6 +50,18 @@ global f32 WorldLeft = -20.0f;
 global f32 WorldRight = 20.0f;
 global f32 HalfWorldWidth = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
+// global glm::vec2 MouseWorldPosition;
+
+// Entity Variables
+global f32 PlayerSpeed = 4.0f;
+global f32 PlayerDrag = 0.8f;
+global f32 EnemySpeed = 8.0f;
+global f32 EnemyDrag = 0.8f;
+global i32 MaxBullets = 100;
+global f32 BulletSpeed = 10.0f;
+global f32 BulletDrag =  1.0f;
+global glm::vec3 BulletSize = glm::vec3(1.0);
+global std::vector<entity*> Bullets;
 
 // Variables
 global b32 IsRunning = 1;
@@ -81,31 +93,6 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
-
-    texture *PlayerTexture = R_CreateTexture("textures/Yellow.png");
-    texture *FireOpal = R_CreateTexture("textures/FireOpal.png");
-
-    f32 PlayerSpeed = 4.0f;
-    f32 PlayerDrag = 0.8f;
-    entity *Player = E_CreateEntity(PlayerTexture,
-                                    glm::vec3(0.0f, -9.0f, 0.0f),
-                                    glm::vec3(5.0f, 1.0f, 0.0f),
-                                    glm::vec3(0.0f),
-                                    0.0f,
-                                    PlayerSpeed,
-                                    PlayerDrag);
-
-    f32 EnemySpeed = 4.0f;
-    f32 EnemyDrag = 0.8f;
-    entity *Enemy = E_CreateEntity(FireOpal,
-                                   glm::vec3(0.0f),
-                                   glm::vec3(10.0, 1.0f, 0.0f),
-                                   glm::vec3(0.0f),
-                                   45.0f,
-                                   EnemySpeed,
-                                   EnemyDrag);
-
     SDL_Event Event;
     while(IsRunning)
     {
@@ -127,6 +114,7 @@ i32 main(i32 Argc, char **Argv)
 
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
+            // Get Mouse World Position
             Mouse->WorldPosition.x = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
             Mouse->WorldPosition.y = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
 
@@ -218,22 +206,21 @@ i32 main(i32 Argc, char **Argv)
                         I_ResetMouse(Mouse);
                     }
 
-                    // Player
-                    if(I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.x -= Player->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.x += Player->Speed;
-                    }
                     if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                     {
-                        Player->Acceleration.y += Player->Speed;
+
                     }
                     if(I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                     {
-                        Player->Acceleration.y -= Player->Speed;
+
+                    }
+                    if(I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
+                    {
+
+                    }
+                    if(I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
+                    {
+
                     }
                     if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
                     {
@@ -266,7 +253,7 @@ i32 main(i32 Argc, char **Argv)
                     }
                     if(I_IsMouseButtonPressed(SDL_BUTTON_RIGHT))
                     {
-                        E_EntitiesCollide(Player, Enemy);
+
                     }
 
                     break;
@@ -304,25 +291,12 @@ i32 main(i32 Argc, char **Argv)
                 {
                     case State_Initial:
                     {
-                        break;
-                    }
+
+                    } break;
                     case State_Game:
                     {
-                        E_Update(Player, (f32)Clock->DeltaTime);
-                        Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y) + 90.0f;
-                        // Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y);
 
-                        if(E_EntitiesCollide(Player, Enemy))
-                        {
-                            printf("Collision!\n");
-                        }
-                        else
-                        {
-                            printf("\n");
-                        }
-
-                        break;
-                    }
+                    } break;
                     case State_Pause:
                     {
                         break;
@@ -344,7 +318,7 @@ i32 main(i32 Argc, char **Argv)
             sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", Renderer->FPS);
             SDL_SetWindowTitle(Window->Handle, WindowTitle);
 
-         } // SECTION END: Update
+         } // END: Update
 
         { // SECTION: Render
 
@@ -358,90 +332,7 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
-                    Renderer->BackgroundColor = BackgroundColor;
-
-                    R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, Enemy);
-
-                    b32 RenderDebugText = true;
-                    if(RenderDebugText)
-                    {
-                        char String[80];
-
-                        // Player
-                        sprintf_s(String, "Player Collision Data:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, 768-DebugFont->Height),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Player->Rect.Center.x, Player->Rect.Center.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*2),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfWidth: %4.4f", Player->Rect.HalfWidth);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*3),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfHeight: %4.4f", Player->Rect.HalfHeight);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*4),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Angle: %4.4f", Player->Rect.Angle);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*5),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-
-                        // Enemy
-                        sprintf_s(String, "Enemy Collision Data:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, 768-DebugFont->Height*6),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*7),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*8),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*9),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*10),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-                        // Mouse
-                        sprintf_s(String, "Mouse:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, 768-DebugFont->Height*11),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Screen Space Position: X:%d Y:%d", Mouse->X, Mouse->Y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*12),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "World Position: X:%4.4f Y:%4.4f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, 768-DebugFont->Height*13),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    }
-
+                    Renderer->BackgroundColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
                     break;
                 }
                 case State_Pause:

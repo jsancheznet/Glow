@@ -370,21 +370,6 @@ renderer *R_CreateRenderer(window *Window)
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 
-        // Upload Cube data to the gpu
-        glGenVertexArrays(1, &Result->CubeVAO);
-        glGenBuffers(1, &Result->CubeVBO);
-        glBindBuffer(GL_ARRAY_BUFFER, Result->CubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(CubeVertices__), CubeVertices__, GL_STATIC_DRAW);
-        glBindVertexArray(Result->CubeVAO);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(3 * sizeof(f32)));
-        glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(f32), (void*)(6 * sizeof(f32)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-
         // Upload Text Data to GPU
         glGenVertexArrays(1, &Result->TextVAO);
         glBindVertexArray(Result->TextVAO);
@@ -504,8 +489,8 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
 
     font *Result = (font*)Malloc(sizeof(font));
     Result->Filename = Filename;
-    Result->CharacterWidth = Width;
-    Result->CharacterHeight = Height;
+    Result->Width = Width;
+    Result->Height = Height;
 
     FT_Library FT;
     FT_Face Face;
@@ -514,7 +499,7 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
         if(FT_New_Face(FT, Result->Filename, 0, &Face) == 0)
         {
             // Once we've loaded the face, we should define the font size we'd like to extract from this face
-            FT_Set_Pixel_Sizes(Face, Result->CharacterWidth, Result->CharacterHeight);
+            FT_Set_Pixel_Sizes(Face, Result->Width, Result->Height);
 
             // Disable byte-alignment restriction
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // NOTE: Do we need to set it back to default?
@@ -584,7 +569,6 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
 
     return Result;
 }
-
 
 u32 R_CompileShaderObject(const char *Source, GLenum ShaderType)
 {
@@ -747,8 +731,8 @@ void R_DrawTexture(renderer *Renderer, texture *Texture, glm::vec3 Position, glm
     glUseProgram(Renderer->Shaders.Texture);
     glm::mat4 Model = glm::mat4(1.0f);
     Model = glm::translate(Model, Position);
+    Model = glm::rotate(Model, glm::radians(RotationAngle), glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f)));
     Model = glm::scale(Model, Size);
-    Model = glm::rotate(Model, RotationAngle, RotationAxis);
     R_SetUniform(Renderer->Shaders.Texture, "Model", Model);
     f32 BrightnessThreshold = 0.25f;
     R_SetUniform(Renderer->Shaders.Texture, "BrightnessThreshold", BrightnessThreshold);
@@ -869,10 +853,5 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
 
 void R_DrawEntity(renderer *Renderer, entity *Entity)
 {
-    R_DrawTexture(Renderer,
-                  Entity->Texture,
-                  Entity->Position,
-                  Entity->Size,
-                  glm::vec3(0.0f, 0.0f, 1.0f),
-                  glm::radians(Entity->RotationAngle));
+    R_DrawTexture(Renderer, Entity->Texture, Entity->Position, Entity->Size, glm::vec3(0.0f, 0.0f, 1.0f), Entity->RotationAngle);
 }

@@ -59,14 +59,14 @@ rectangle_collision_data C_GenerateCollisionData(oriented_rectangle Input)
      */
     Result.Vertices[0] = {-Input.HalfWidth, Input.HalfHeight};
     Result.Vertices[1] = {+Input.HalfWidth, Input.HalfHeight};
-    Result.Vertices[2] = {-Input.HalfHeight, -Input.HalfHeight};
+    Result.Vertices[2] = {-Input.HalfWidth, -Input.HalfHeight};
     Result.Vertices[3] = {+Input.HalfWidth, -Input.HalfHeight};
 
     // Rotate the vertices and add the Input.Center, translating the vertices to the correct world position.
-    Result.Vertices[0] = Input.Center + glm::rotate(Result.Vertices[0], Input.Angle);
-    Result.Vertices[1] = Input.Center + glm::rotate(Result.Vertices[1], Input.Angle);
-    Result.Vertices[2] = Input.Center + glm::rotate(Result.Vertices[2], Input.Angle);
-    Result.Vertices[3] = Input.Center + glm::rotate(Result.Vertices[3], Input.Angle);
+    Result.Vertices[0] = Input.Center + glm::rotate(Result.Vertices[0], glm::radians(Input.Angle));
+    Result.Vertices[1] = Input.Center + glm::rotate(Result.Vertices[1], glm::radians(Input.Angle));
+    Result.Vertices[2] = Input.Center + glm::rotate(Result.Vertices[2], glm::radians(Input.Angle));
+    Result.Vertices[3] = Input.Center + glm::rotate(Result.Vertices[3], glm::radians(Input.Angle));
 
     // Get the separation Axes and Normalize them so we can project vectors onto them
     Result.SeparationAxes[0] = C_GetSeparationAxisFromSegment(Result.Vertices[2], Result.Vertices[0]);
@@ -92,7 +92,7 @@ b32 C_OBBCollision(oriented_rectangle A, oriented_rectangle B)
         OBBA.SeparationAxes[0],
         OBBA.SeparationAxes[1],
         OBBB.SeparationAxes[0],
-        OBBA.SeparationAxes[1],
+        OBBB.SeparationAxes[1],
     };
 
     // Loop over the Axes
