@@ -3,7 +3,7 @@
 #include "shared.h"
 #include "input.h"
 
-// TODO: Avoid the use of hacky shortcuts
+// TODO: Avoid the use of these hacky shortcuts
 global keyboard *__Keyboard = NULL; // Variable to be used as shortcut inside this file
 global mouse *__Mouse = NULL;
 

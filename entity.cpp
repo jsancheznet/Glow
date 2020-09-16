@@ -1,11 +1,11 @@
 #pragma once
 
 #include "entity.h"
-#include "collision.cpp"
+#include "collision.h"
 
-b32 E_EntitiesCollide(entity *A, entity *B)
+b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
 {
-    return C_OBBCollision(A->Rect, B->Rect);
+    return C_CheckCollision(A->Rect, B->Rect, CollisionResult);
 }
 
 entity *E_CreateEntity(texture *Texture,
@@ -45,6 +45,6 @@ void E_Update(entity *Entity, f32 TimeStep)
     // Collision Data
     Entity->Rect.Center = glm::vec2(Entity->Position.x, Entity->Position.y);
     Entity->Rect.Angle = Entity->RotationAngle;
-    // Entity->Rect.HalfWidth = Entity->Size.x * 0.5f;
-    // Entity->Rect.HalfHeight = Entity->Size.y * 0.5f;
+    Entity->Rect.HalfWidth = Entity->Size.x * 0.5f;
+    Entity->Rect.HalfHeight = Entity->Size.y * 0.5f;
 }

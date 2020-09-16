@@ -8,7 +8,6 @@ extern "C"
 }
 #endif
 
-//#include <windows.h>
 #include <stdio.h>
 #include <vector>
 
@@ -25,15 +24,14 @@ extern "C"
 #include "collision.cpp"
 #include "entity.cpp"
 
+// TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
 // TODO(Jorge): Textures transparent background is not bleding correctly
 // TODO(Jorge): Make Bullets little! everything will look better.
-// TODO(Jorge): Sound system should be able to play two sound effects atop of each other!
+// TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
-// TODO(Jorge): Add License to all files
+// TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
 // TODO(Jorge): Remove unused functions from final version
 // TODO(Jorge): Delele all unused data files
-
-entity *Point = NULL;
 
 enum state
 {
@@ -53,11 +51,11 @@ global f32 HalfWorldHeight = WorldTop;
 
 // Variables
 global b32 IsRunning = 1;
-global keyboard *Keyboard;
-global mouse *Mouse;
-global clock *Clock;
-global window *Window;
-global renderer *Renderer;
+global keyboard     *Keyboard;
+global mouse        *Mouse;
+global clock        *Clock;
+global window       *Window;
+global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
@@ -67,7 +65,10 @@ i32 main(i32 Argc, char **Argv)
     /*
       GAME IDEA:
       Breakout, but the player paddle can be rotated using the mouse, and can shoot balls/bullets
+
+      - Limited number of bullets to clear the whole screen!
      */
+
 
     Argc; Argv; // This makes the compiler not throw a warning for unused variables.
 
@@ -89,7 +90,7 @@ i32 main(i32 Argc, char **Argv)
     f32 PlayerSpeed = 4.0f;
     f32 PlayerDrag = 0.8f;
     entity *Player = E_CreateEntity(PlayerTexture,
-                                    glm::vec3(0.0f, -9.0f, 0.0f),
+                                    glm::vec3(0.0f, -10.0f, 0.0f),
                                     glm::vec3(5.0f, 1.0f, 0.0f),
                                     glm::vec3(0.0f),
                                     0.0f,
@@ -102,7 +103,7 @@ i32 main(i32 Argc, char **Argv)
                                    glm::vec3(0.0f),
                                    glm::vec3(10.0, 1.0f, 0.0f),
                                    glm::vec3(0.0f),
-                                   45.0f,
+                                   0.0f,
                                    EnemySpeed,
                                    EnemyDrag);
 
@@ -212,7 +213,7 @@ i32 main(i32 Argc, char **Argv)
                     if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                     {
                         R_ResetCamera(Camera, Window->Width, Window->Height,
-                                      glm::vec3(0.0f, 0.0f, 23.0f),
+                                      glm::vec3(0.0f, 0.0f, 11.5f),
                                       glm::vec3(0.0f, 0.0f, -1.0f),
                                       glm::vec3(0.0f, 1.0f, 0.0f));
                         I_ResetMouse(Mouse);
@@ -266,7 +267,7 @@ i32 main(i32 Argc, char **Argv)
                     }
                     if(I_IsMouseButtonPressed(SDL_BUTTON_RIGHT))
                     {
-                        E_EntitiesCollide(Player, Enemy);
+
                     }
 
                     break;
@@ -297,7 +298,7 @@ i32 main(i32 Argc, char **Argv)
                     exit(0);
                     break;
                 }
-            }
+            } // SECTION END: Input Handling
 
             {  // SECTION: Update
                 switch(CurrentState)
@@ -308,18 +309,35 @@ i32 main(i32 Argc, char **Argv)
                     }
                     case State_Game:
                     {
-                        E_Update(Player, (f32)Clock->DeltaTime);
-                        Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y) + 90.0f;
-                        // Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y);
+                        // Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y) + 90.0f;
+                        Enemy->RotationAngle += 0.1f;
+                        Player->RotationAngle -= 0.1f;
+                        // Enemy->RotationAngle = 47.0f;
+                        // Enemy->Size.y += 0.1f * T;
 
-                        if(E_EntitiesCollide(Player, Enemy))
+                        // Update Entities
+                        E_Update(Player, (f32)Clock->DeltaTime);
+                        E_Update(Enemy, (f32)Clock->DeltaTime);
+
+                        collision_result CollisionResult;
+                        if(E_EntitiesCollide(Player, Enemy, &CollisionResult))
                         {
-                            printf("Collision!\n");
+                            // printf("Collision!\n");
+                            glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                            Player->Position.x += I.x;
+                            Player->Position.y += I.y;
+
+                            printf("I.x: %2.2f\tI.y: %2.2f\n", I.x, I.y);
+
+							// TODO: A way to displace the entities is to displace them along the vector between the 2 center points.
+							// Normalize the vector
+
                         }
                         else
                         {
                             printf("\n");
                         }
+
 
                         break;
                     }
@@ -359,7 +377,6 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
                     Renderer->BackgroundColor = BackgroundColor;
-
                     R_DrawEntity(Renderer, Player);
                     R_DrawEntity(Renderer, Enemy);
 

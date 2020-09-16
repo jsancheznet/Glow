@@ -29,7 +29,7 @@ typedef uint8_t   u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-typedef int8_t   i8;
+typedef int8_t    i8;
 typedef int16_t  i16;
 typedef int32_t  i32;
 typedef int64_t  i64;
@@ -48,17 +48,15 @@ typedef i32      b32;
 #define Megabytes(Expr) (Kilobytes(Expr) * 1024)
 #define Gigabytes(Expr) (Megabytes(Expr) * 1024)
 
-#define Malloc(Expr) Malloc__((Expr))
-#define Free(Expr) Free__((Expr))
 global u32 AllocationCount = 0;
 global size_t AllocationSize = 0;
-void *Malloc__(size_t Size)
+void *Malloc(size_t Size)
 {
     AllocationCount += 1;
     return calloc(1, Size);
 }
 
-void Free__(void *Ptr)
+void Free(void *Ptr)
 {
     AllocationCount -= 1;
     free(Ptr);
@@ -132,14 +130,6 @@ glm::vec3 Normalize(glm::vec3 A)
 //
 // Error Checking Macro's
 //
-
-#define NULL_CHECK(Expr)                                                                                    \
-    if(!Expr)                                                                                               \
-    {                                                                                                       \
-        DWORD Err = GetLastError();                                                                         \
-        printf("NULL_CHECK TRIGGERED, MSDN ErrorCode: %ld, File: %s Line: %d \n", Err, __FILE__, __LINE__); \
-        return NULL;                                                                                        \
-    }
 
 #define GLERR                                                                                               \
     do {                                                                                                    \
