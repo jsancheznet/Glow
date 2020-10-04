@@ -1,6 +1,5 @@
 build/models/
 build/shaders/OLD/
-external/
 build/.vs/main/v16/.suo
 *.db
 build/.vs/main/v16/ipch/AutoPCH/7232343461d00f07/RENDERER.ipch
