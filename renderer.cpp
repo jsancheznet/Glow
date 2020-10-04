@@ -482,6 +482,7 @@ renderer *R_CreateRenderer(window *Window)
 
 font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
 {
+    // TODO(Jorge): Program freezes when Filename is incorrect, handle error graciously
     Assert(Renderer);
     Assert(Filename);
     Assert(Width >= 0);
@@ -524,7 +525,7 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
                                  Face->glyph->bitmap.buffer);
 
                     // Set Texture Options
-                    // NOTE: What's better? clamp to edge or clam to border?
+                    // NOTE: What's better? clamp to edge or clamp to border?
                     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -542,7 +543,6 @@ font *R_CreateFont(renderer *Renderer, char *Filename, i32 Width, i32 Height)
                     };
 
                     Result->Characters[CurrentChar] = Character;
-                    // Result->Characters.insert(std::pair<char, character>(CurrentChar, Character));
                 }
                 else
                 {
@@ -771,6 +771,8 @@ R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm
 
         f32 W = Ch.Size.x * Scale.x;
         f32 H = Ch.Size.y * Scale.y;
+
+        // printf("W: %2.2f\tH: %2.2f\n", W, H);
 
         // Update VBO for each character
         // TODO: Move QuadVertices to the bottom of renderer.h
