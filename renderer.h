@@ -112,7 +112,6 @@ f32 UnitQuadVertices__[] =
     1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 };
 
-#if 1
 f32 QuadVertices__[] =
 {
     // positions        // texture Coords
@@ -121,7 +120,6 @@ f32 QuadVertices__[] =
     0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
     0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
 };
-#endif
 
 f32 TextTexCoords__[6][2] =
 {

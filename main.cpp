@@ -24,6 +24,7 @@ extern "C"
 #include "collision.cpp"
 #include "entity.cpp"
 
+// TODO(Jorge): Remove GLM and implement my own math library
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Make Bullets little! everything will look better.
@@ -31,8 +32,9 @@ extern "C"
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
 // TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
 // TODO(Jorge): Remove unused functions from final version
-// TODO(Jorge): Delele all unused data files
+// TODO(Jorge): Delete all unused data files
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
+// TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
 
 enum state
 {
@@ -42,6 +44,7 @@ enum state
     State_Gameover,
 };
 
+// Platform
 global u32 WindowWidth = 1366;
 global u32 WindowHeight = 768;
 
@@ -140,11 +143,11 @@ i32 main(i32 Argc, char **Argv)
     f32 BallDrag = 0.8f;
     entity *Ball = E_CreateEntity(CircleTest,
                                   glm::vec3(0.0f, 10.0f, 0.0f),
-                                   glm::vec3(5.25f, 5.25f, 0.0f),
-                                   glm::vec3(0.0f),
-                                   0.0f,
-                                   BallSpeed,
-                                   BallDrag);
+                                  glm::vec3(5.25f, 5.25f, 0.0f),
+                                  glm::vec3(0.0f),
+                                  0.0f,
+                                  BallSpeed,
+                                  BallDrag);
 
     SDL_Event Event;
     while(IsRunning)
@@ -359,7 +362,6 @@ i32 main(i32 Argc, char **Argv)
 
                         // TODO: Animate Ball Size using an animation Curve!
                         f32 Test = EaseOutBounce((f32)Clock->SecondsElapsed / 5.0f);
-                        printf("Input: %2.2f\tTest: %2.2f\n", (f32)Clock->SecondsElapsed / 5.0f,Test);
                         Ball->Position.x = Test;
 
                         collision_result CollisionResult;
@@ -372,11 +374,6 @@ i32 main(i32 Argc, char **Argv)
                             Enemy->Position.x -= I.x / 2.0f;
                             Enemy->Position.y -= I.y / 2.0f;
                         }
-                        // else
-                        // {
-                        //     printf("\n");
-                        // }
-
 
                         break;
                     }
@@ -410,7 +407,7 @@ i32 main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    Renderer->BackgroundColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+                    Renderer->BackgroundColor = MenuBackgroundColor;
 
                     // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
                     f32 HardcodedFontWidth = 38.0f * 1.5f;
@@ -521,9 +518,8 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Pause:
                 {
-                    Renderer->BackgroundColor = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
+                    Renderer->BackgroundColor = MenuBackgroundColor;
 
-                    // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
                     f32 HardcodedFontWidth = 38.0f * 1.5f;
                     f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 2.5f;
                     R_DrawText2D(Renderer, "Pause", MenuFont,
