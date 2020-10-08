@@ -2,6 +2,46 @@
 
 #include "shared.h"
 
+// enum collider_type
+// {
+//     Collider_AABB,
+//     Collider_OBB,
+//     Collider_Circle,
+// };
+
+// struct collider_aabb
+// {
+//     glm::vec2 Center;
+//     f32 HalfWidth;
+//     f32 HalfHeight;
+// };
+
+// struct collider_obb
+// {
+//     glm::vec2 Center;
+//     f32 HalfWidth;
+//     f32 HalfHeight;
+//     f32 Angle;
+// };
+
+// struct collider_circle
+// {
+//     glm::vec2 Center;
+//     f32 Radius;
+// };
+
+// struct collider
+// {
+//     collider_type Type;
+
+//     union
+//     {
+//         collider_aabb Box;
+//         // collider_obb OrientedBox;
+//         // collider_circle Circle;
+//     };
+// };
+
 struct rectangle
 {
     glm::vec2 Center;

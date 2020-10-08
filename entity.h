@@ -15,6 +15,7 @@ struct entity
     glm::vec3 Size;
     glm::vec3 Direction;
 
+    // collider Collider;
     oriented_rectangle Rect;
 
     f32 Speed;

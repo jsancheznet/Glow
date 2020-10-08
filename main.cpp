@@ -9,7 +9,6 @@ extern "C"
 #endif
 
 #include <stdio.h>
-#include <vector>
 
 #include "external/glad.c"
 #include <SDL.h>
@@ -23,6 +22,10 @@ extern "C"
 #include "sound.cpp"
 #include "collision.cpp"
 #include "entity.cpp"
+
+// TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
+// TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
+
 
 // TODO(Jorge): Remove GLM and implement my own math library
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
@@ -49,11 +52,11 @@ global u32 WindowWidth = 1366;
 global u32 WindowHeight = 768;
 
 // Game Variables
-global f32 WorldBottom = -11.0f;
-global f32 WorldTop = 11.0f;
-global f32 WorldLeft = -20.0f;
-global f32 WorldRight = 20.0f;
-global f32 HalfWorldWidth = WorldRight;
+global f32 WorldBottom     = -11.0f;
+global f32 WorldTop        = 11.0f;
+global f32 WorldLeft       = -20.0f;
+global f32 WorldRight      = 20.0f;
+global f32 HalfWorldWidth  = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
 
 // Variables
@@ -66,29 +69,6 @@ global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera *Camera;
 global state CurrentState = State_Initial;
-
-f32 EaseOutBounce(float Input)
-{
-    const f32 n1 = 7.5625f;
-    const f32 d1 = 2.75f;
-
-    if (Input < 1 / d1)
-    {
-        return n1 * Input * Input;
-    }
-    else if (Input < 2.0f / d1)
-    {
-        return n1 * (Input -= 1.5f / d1) * Input + 0.75f;
-    }
-    else if (Input < 2.5f / d1)
-    {
-        return n1 * (Input -= 2.25f / d1) * Input + 0.9375f;
-    }
-    else
-    {
-        return n1 * (Input -= 2.625f / d1) * Input + 0.984375f;
-    }
-}
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -148,6 +128,16 @@ i32 main(i32 Argc, char **Argv)
                                   0.0f,
                                   BallSpeed,
                                   BallDrag);
+
+    f32 SquareSpeed = 4.0f;
+    f32 SquareDrag = 0.8f;
+    entity *Square = E_CreateEntity(FireOpal,
+                                    glm::vec3(0.0f, 0.0f, 0.0f),
+                                    glm::vec3(4.0f, 4.0f, 0.0f),
+                                    glm::vec3(0.0f),
+                                    0.0f,
+                                    SquareSpeed,
+                                    SquareDrag);
 
     SDL_Event Event;
     while(IsRunning)
@@ -434,6 +424,7 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawEntity(Renderer, Player);
                     R_DrawEntity(Renderer, Enemy);
                     R_DrawEntity(Renderer, Ball);
+                    R_DrawEntity(Renderer, Square);
 
                     b32 RenderDebugText = true;
                     if(RenderDebugText)

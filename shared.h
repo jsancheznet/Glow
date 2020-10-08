@@ -127,6 +127,30 @@ glm::vec3 Normalize(glm::vec3 A)
     return glm::normalize(A);
 }
 
+f32 EaseOutBounce(float Input)
+{
+    const f32 n1 = 7.5625f;
+    const f32 d1 = 2.75f;
+
+    if (Input < 1 / d1)
+    {
+        return n1 * Input * Input;
+    }
+    else if (Input < 2.0f / d1)
+    {
+        return n1 * (Input -= 1.5f / d1) * Input + 0.75f;
+    }
+    else if (Input < 2.5f / d1)
+    {
+        return n1 * (Input -= 2.25f / d1) * Input + 0.9375f;
+    }
+    else
+    {
+        return n1 * (Input -= 2.625f / d1) * Input + 0.984375f;
+    }
+}
+
+
 //
 // Error Checking Macro's
 //

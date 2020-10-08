@@ -38,6 +38,16 @@ uniform float BrightnessThreshold;
 
 void main()
 {
+    /*
+    if(TextureCoordinates.x > 0.1 &&
+       TextureCoordinates.x < 0.9 &&
+       TextureCoordinates.y > 0.1 &&
+       TextureCoordinates.y < 0.9)
+    {
+            discard;
+    }
+    */
+
     FragmentColor = texture(Image, TextureCoordinates);
 
     // check whether fragment output is higher than threshold, if so output as brightness color
