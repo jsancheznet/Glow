@@ -25,8 +25,9 @@ global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
 global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
 global u32 BlurPassCount = 10; // How many times should we blurr the image
-global glm::vec4 BackgroundColor = glm::vec4(0.00005f, 0.00005f, 0.00005f, 1.0f);
+global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
+global f32 BrightnessThreshold = 0.1f;
 
 void R_UpdateCamera(renderer *Renderer, camera *Camera)
 {
@@ -338,6 +339,10 @@ renderer *R_CreateRenderer(window *Window)
         R_SetUniform(Result->Shaders.Hdr, "HDRBuffer", 0);
 
         Result->Shaders.Texture = R_CreateShader("shaders/texture.glsl");
+        glUseProgram(Result->Shaders.Texture);
+        R_SetUniform(Result->Shaders.Texture, "Image", 0);
+
+        Result->Shaders.Ball = R_CreateShader("shaders/ball.glsl");
         glUseProgram(Result->Shaders.Texture);
         R_SetUniform(Result->Shaders.Texture, "Image", 0);
 
@@ -669,6 +674,11 @@ u32 R_CreateShader(char *VertexFile, char *FragmentFile)
     return (Result);
 }
 
+void R_SetActiveShader(u32 Shader)
+{
+    glUseProgram(Shader);
+}
+
 texture *R_CreateTexture(char *Filename)
 {
     Assert(Filename);
@@ -729,13 +739,13 @@ texture *R_CreateTexture(char *Filename)
 
 void R_DrawTexture(renderer *Renderer, texture *Texture, glm::vec3 Position, glm::vec3 Size, glm::vec3 RotationAxis, f32 RotationAngle)
 {
-    glUseProgram(Renderer->Shaders.Texture);
+    // glUseProgram(Renderer->Shaders.Texture);
     glm::mat4 Model = glm::mat4(1.0f);
     Model = glm::translate(Model, Position);
     Model = glm::rotate(Model, glm::radians(RotationAngle), glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f)));
     Model = glm::scale(Model, Size);
     R_SetUniform(Renderer->Shaders.Texture, "Model", Model);
-    f32 BrightnessThreshold = 0.25f;
+
     R_SetUniform(Renderer->Shaders.Texture, "BrightnessThreshold", BrightnessThreshold);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, Texture->Handle);
@@ -756,8 +766,8 @@ R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm
     glm::mat4 Identity = glm::mat4(1.0f);
     R_SetUniform(Renderer->Shaders.Text, "Model", Identity);
     R_SetUniform(Renderer->Shaders.Text, "TextColor", Color);
-    f32 BrightnessThreshold = 1.0f;
-    R_SetUniform(Renderer->Shaders.Text, "BrightnessThreshold", BrightnessThreshold);
+    f32 TextBrightnessThreshold = 1.0f;
+    R_SetUniform(Renderer->Shaders.Text, "BrightnessThreshold", TextBrightnessThreshold);
 
     glActiveTexture(GL_TEXTURE0); // TODO: Read why do we need to activate textures! NOTE: read this https://community.khronos.org/t/when-to-use-glactivetexture/64913
     glBindVertexArray(Renderer->TextVAO);

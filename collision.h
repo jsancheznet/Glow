@@ -57,6 +57,12 @@ struct oriented_rectangle
     f32 Angle;
 };
 
+struct circle
+{
+    glm::vec2 Center;
+    f32 Radius;
+};
+
 struct rectangle_collision_data
 {
     glm::vec2 Vertices[4];

@@ -39,6 +39,27 @@ extern "C"
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
 
+// NOTE: Textures used by the renderer 32 floating point srgb textures
+
+// Palette: https://colorpalettes.net/color-palette-1162/
+// #ffa300 // Yellow
+// #cf0060 // Redish
+// #ff00ff // Hot Pink
+// #13a8fe // Light Blue
+// #000117 // Background Color
+
+// Other Potential Palette: https://colorpalettes.net/color-palette-1661/
+
+/*
+  Other Potential color Palette
+  Red: FF092D
+  Yellow: FDF637
+  Green: 04F504
+  Purple: AE03FE
+  Blue: 1239FF
+*/
+
+
 enum state
 {
     State_Initial,
@@ -58,6 +79,8 @@ global f32 WorldLeft       = -20.0f;
 global f32 WorldRight      = 20.0f;
 global f32 HalfWorldWidth  = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
+global f32 WorldWidth = WorldRight * 2.0f;
+global f32 WorldHeight = WorldTop * 2.0f;
 
 // Variables
 global b32 IsRunning = 1;
@@ -96,48 +119,66 @@ i32 main(i32 Argc, char **Argv)
     font *MenuFont = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
 
     texture *PlayerTexture = R_CreateTexture("textures/Yellow.png");
-    texture *FireOpal = R_CreateTexture("textures/FireOpal.png");
-    texture *CircleTest = R_CreateTexture("textures/CircleTest.png");
+    texture *BackgroundTexture = R_CreateTexture("textures/DeepBlue.png");
+    texture *BallTexture = R_CreateTexture("textures/Redish.png");
+
+    f32 BackgroundWidth = WorldWidth + 5.0f;
+    f32 BackgroundHeight = WorldHeight + 5.0f;
+    entity *Background = E_CreateEntity(BackgroundTexture,
+                                        glm::vec3(0.0f, 0.0f, -1.0f),
+                                        glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f),
+                                        glm::vec3(0.0f),
+                                        0.0f, 0.0f, 0.0f);
 
     f32 PlayerSpeed = 4.0f;
     f32 PlayerDrag = 0.8f;
     entity *Player = E_CreateEntity(PlayerTexture,
-                                    glm::vec3(0.0f, -10.0f, 0.0f),
+                                    glm::vec3(0.0f, -8.0f, 0.0f),
                                     glm::vec3(5.0f, 1.0f, 0.0f),
                                     glm::vec3(0.0f),
                                     0.0f,
                                     PlayerSpeed,
                                     PlayerDrag);
 
-    f32 EnemySpeed = 4.0f;
-    f32 EnemyDrag = 0.8f;
-    entity *Enemy = E_CreateEntity(FireOpal,
-                                   glm::vec3(0.0f),
-                                   glm::vec3(10.0, 1.0f, 0.0f),
-                                   glm::vec3(0.0f),
-                                   0.0f,
-                                   EnemySpeed,
-                                   EnemyDrag);
-
-    f32 BallSpeed = 4.0f;
+    f32 BallSpeed = 2.1f;
     f32 BallDrag = 0.8f;
-    entity *Ball = E_CreateEntity(CircleTest,
-                                  glm::vec3(0.0f, 10.0f, 0.0f),
-                                  glm::vec3(5.25f, 5.25f, 0.0f),
-                                  glm::vec3(0.0f),
+    entity *Ball = E_CreateEntity(BallTexture,
+                                  glm::vec3(0.0f, 0.0f, 0.0f),
+                                  glm::vec3(0.5f, 0.5f, 0.0f),
+                                  glm::vec3(0.0f, 1.0f, 0.0f),
                                   0.0f,
                                   BallSpeed,
                                   BallDrag);
 
-    f32 SquareSpeed = 4.0f;
-    f32 SquareDrag = 0.8f;
-    entity *Square = E_CreateEntity(FireOpal,
-                                    glm::vec3(0.0f, 0.0f, 0.0f),
-                                    glm::vec3(4.0f, 4.0f, 0.0f),
-                                    glm::vec3(0.0f),
-                                    0.0f,
-                                    SquareSpeed,
-                                    SquareDrag);
+    // Walls
+    entity *LeftWall = E_CreateEntity(PlayerTexture,
+                                      glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f),
+                                      glm::vec3(1.0f, BackgroundHeight, 0.0f),
+                                      glm::vec3(0.0f),
+                                      0.0f,
+                                      0.0f,
+                                      0.0f);
+    entity *RightWall = E_CreateEntity(PlayerTexture,
+                                       glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f),
+                                       glm::vec3(1.0f, BackgroundHeight, 0.0f),
+                                       glm::vec3(0.0f),
+                                       0.0f,
+                                       0.0f,
+                                       0.0f);
+    entity *TopWall = E_CreateEntity(PlayerTexture,
+                                     glm::vec3(0.0f, WorldTop + 1.0f, 0.0f),
+                                     glm::vec3(BackgroundWidth, 1.0f, 0.0f),
+                                     glm::vec3(0.0f),
+                                     0.0f,
+                                     0.0f,
+                                     0.0f);
+    entity *BottomWall = E_CreateEntity(PlayerTexture,
+                                        glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f),
+                                        glm::vec3(BackgroundWidth, 1.0f, 0.0f),
+                                        glm::vec3(0.0f),
+                                        0.0f,
+                                        0.0f,
+                                        0.0f);
 
     SDL_Event Event;
     while(IsRunning)
@@ -260,47 +301,14 @@ i32 main(i32 Argc, char **Argv)
                     {
                         Player->Acceleration.x += Player->Speed;
                     }
-                    if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.y += Player->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.y -= Player->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_SPACE) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-
-                    }
-
-                    if(I_IsPressed(SDL_SCANCODE_UP))
-                    {
-                        Renderer->Exposure += 0.01f;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_DOWN))
-                    {
-                        Renderer->Exposure -= 0.01f;
-                    }
-
-                    if(I_IsPressed(SDL_SCANCODE_P))
-                    {
-                        S_SetMusicVolume(SoundSystem, ++SoundSystem->MusicVolume);
-                        S_SetEffectsVolume(SoundSystem, ++SoundSystem->EffectsVolume);
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_N))
-                    {
-                        S_SetMusicVolume(SoundSystem, --SoundSystem->MusicVolume);
-                        S_SetEffectsVolume(SoundSystem, --SoundSystem->EffectsVolume);
-                    }
-
-                    if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT))
-                    {
-
-                    }
-                    if(I_IsMouseButtonPressed(SDL_BUTTON_RIGHT))
-                    {
-
-                    }
+                    // if(I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
+                    // {
+                    //     Player->Acceleration.y += Player->Speed;
+                    // }
+                    // if(I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
+                    // {
+                    //     Player->Acceleration.y -= Player->Speed;
+                    // }
 
                     break;
                 }
@@ -341,19 +349,49 @@ i32 main(i32 Argc, char **Argv)
                     }
                     case State_Game:
                     {
-                        // Player->RotationAngle = GetRotationAngle(Mouse->WorldPosition.x - Player->Position.x, Mouse->WorldPosition.y - Player->Position.y) + 90.0f;
-                        Enemy->RotationAngle += 0.1f;
-                        Player->RotationAngle -= 0.1f * 2.0f;
+                        // Player->RotationAngle -= 200.0f * (f32)Clock->DeltaTime;
+                        Ball->RotationAngle += 100.0f * (f32)Clock->DeltaTime;
+
+                        { // Player Rotation according to mouse
+                            f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
+                            f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
+                            Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 90.0f;
+                        }
 
                         // Update Entities
                         E_Update(Player, (f32)Clock->DeltaTime);
-                        E_Update(Enemy, (f32)Clock->DeltaTime);
-                        // E_Update(Ball, (f32)Clock->DeltaTime);
+                        E_Update(Ball, (f32)Clock->DeltaTime);
 
-                        // TODO: Animate Ball Size using an animation Curve!
-                        f32 Test = EaseOutBounce((f32)Clock->SecondsElapsed / 5.0f);
-                        Ball->Position.x = Test;
+                        if(Ball->Position.y > WorldTop)
+                        {
+                            Ball->Position.y = WorldTop;
+                            Ball->Direction.y *= -1.0f;
+                        }
+                        else if(Ball->Position.y < -WorldTop)
+                        {
+                            Ball->Position.y = -WorldTop;
+                            Ball->Direction.y *= -1.0f;
+                        }
 
+
+                        { // Collide with walls
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(Player, LeftWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Player->Position.x += I.x;
+                                Player->Position.y += I.y;
+                            }
+
+                            if(E_EntitiesCollide(Player, RightWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Player->Position.x += I.x;
+                                Player->Position.y += I.y;
+                            }
+                        }
+
+#if 0
                         collision_result CollisionResult;
                         if(E_EntitiesCollide(Player, Enemy, &CollisionResult))
                         {
@@ -364,7 +402,7 @@ i32 main(i32 Argc, char **Argv)
                             Enemy->Position.x -= I.x / 2.0f;
                             Enemy->Position.y -= I.y / 2.0f;
                         }
-
+#endif
                         break;
                     }
                     case State_Pause:
@@ -398,6 +436,7 @@ i32 main(i32 Argc, char **Argv)
                 case State_Initial:
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
+                    R_SetActiveShader(Renderer->Shaders.Texture);
 
                     // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
                     f32 HardcodedFontWidth = 38.0f * 1.5f;
@@ -421,10 +460,16 @@ i32 main(i32 Argc, char **Argv)
                 case State_Game:
                 {
                     Renderer->BackgroundColor = BackgroundColor;
+                    R_SetActiveShader(Renderer->Shaders.Texture);
+                    R_DrawEntity(Renderer, Background); // Draw the background first
                     R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, Enemy);
+                    R_DrawEntity(Renderer, LeftWall);
+                    R_DrawEntity(Renderer, RightWall);
+                    R_DrawEntity(Renderer, TopWall);
+                    R_DrawEntity(Renderer, BottomWall);
+
+                    R_SetActiveShader(Renderer->Shaders.Ball);
                     R_DrawEntity(Renderer, Ball);
-                    R_DrawEntity(Renderer, Square);
 
                     b32 RenderDebugText = true;
                     if(RenderDebugText)
@@ -459,32 +504,32 @@ i32 main(i32 Argc, char **Argv)
                                      glm::vec3(1.0f, 1.0f, 1.0f));
 
 
-                        // Enemy
-                        sprintf_s(String, "Enemy Collision Data:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        // // Enemy
+                        // sprintf_s(String, "Enemy Collision Data:");
+                        // R_DrawText2D(Renderer, String, DebugFont,
+                        //              glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
+                        //              glm::vec2(1.0f, 1.0f),
+                        //              glm::vec3(1.0f, 1.0f, 1.0f));
+                        // sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
+                        // R_DrawText2D(Renderer, String, DebugFont,
+                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
+                        //              glm::vec2(1.0f, 1.0f),
+                        //              glm::vec3(1.0f, 1.0f, 1.0f));
+                        // sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
+                        // R_DrawText2D(Renderer, String, DebugFont,
+                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
+                        //              glm::vec2(1.0f, 1.0f),
+                        //              glm::vec3(1.0f, 1.0f, 1.0f));
+                        // sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
+                        // R_DrawText2D(Renderer, String, DebugFont,
+                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
+                        //              glm::vec2(1.0f, 1.0f),
+                        //              glm::vec3(1.0f, 1.0f, 1.0f));
+                        // sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
+                        // R_DrawText2D(Renderer, String, DebugFont,
+                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
+                        //              glm::vec2(1.0f, 1.0f),
+                        //              glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Mouse
                         sprintf_s(String, "Mouse:");
@@ -510,6 +555,7 @@ i32 main(i32 Argc, char **Argv)
                 case State_Pause:
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
+                    R_SetActiveShader(Renderer->Shaders.Texture);
 
                     f32 HardcodedFontWidth = 38.0f * 1.5f;
                     f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 2.5f;

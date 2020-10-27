@@ -36,6 +36,7 @@ struct renderer
         u32 Hdr; // Does not use Uniform Buffer object for Camera
         u32 Texture;
         u32 Text;
+        u32 Ball;
     } Shaders;
 
     u32 Framebuffer;

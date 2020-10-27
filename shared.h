@@ -48,6 +48,8 @@ typedef i32      b32;
 #define Megabytes(Expr) (Kilobytes(Expr) * 1024)
 #define Gigabytes(Expr) (Megabytes(Expr) * 1024)
 
+#define PI32 3.14159265358979323846
+
 global u32 AllocationCount = 0;
 global size_t AllocationSize = 0;
 void *Malloc(size_t Size)
@@ -125,6 +127,11 @@ f32 Distance(glm::vec3 A, glm::vec3 B)
 glm::vec3 Normalize(glm::vec3 A)
 {
     return glm::normalize(A);
+}
+
+f32 Atan2(f32 y, f32 x)
+{
+    return (f32)atan2(y, x);
 }
 
 f32 EaseOutBounce(float Input)
