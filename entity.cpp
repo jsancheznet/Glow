@@ -11,9 +11,9 @@ b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
 entity *E_CreateEntity(texture *Texture,
                        glm::vec3 Position,
                        glm::vec3 Size,
-                       glm::vec3 Direction,
                        f32 RotationAngle,
-                       f32 Speed, f32 DragCoefficient)
+                       f32 Speed,
+                       f32 Drag)
 {
     entity *Result = (entity*)Malloc(sizeof(entity)); Assert(Result);
 
@@ -21,10 +21,9 @@ entity *E_CreateEntity(texture *Texture,
     Result->Position = Position;
     Result->Size = Size;
     Result->Acceleration = glm::vec3(0.0f);
-    Result->Direction = Direction;
     Result->RotationAngle = RotationAngle;
     Result->Speed = Speed;
-    Result->DragCoefficient = DragCoefficient;
+    Result->Drag = Drag;
 
     // Collision Data
     Result->Rect.Center = glm::vec2(Position.x, Position.y);
@@ -40,7 +39,7 @@ void E_Update(entity *Entity, f32 TimeStep)
     Entity->Position = 0.5f * Entity->Acceleration * (TimeStep * TimeStep) + Entity->Velocity + Entity->Position;
     Entity->Velocity = Entity->Acceleration * TimeStep + Entity->Velocity;
     Entity->Acceleration = {};
-    Entity->Velocity *= Entity->DragCoefficient;
+    Entity->Velocity *= Entity->Drag;
 
     // Collision Data
     Entity->Rect.Center = glm::vec2(Entity->Position.x, Entity->Position.y);

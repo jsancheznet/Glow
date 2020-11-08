@@ -2,6 +2,20 @@
 
 #include "collision.h"
 
+
+/* TODO
+
+   OBB vs Circle
+
+   1 Testear en los ejes del obb
+   2 Calcular cual es el vertice mas cercano al centro del circulo
+   3 Testear en el eje paralelo a vertice_obb-centro_circulo
+
+   extra: usar voronoi regiones para encontrar el vertice mas
+   cercano. Esto lo hace mas rapido y supuestamente lo unico que
+   preciso son las pruebas hechas en los ejes del obb
+ */
+
 b32 C_Overlapping1D(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
 {
     return MinB <= MaxA && MinA <= MaxB;
@@ -209,6 +223,32 @@ b32 C_CheckCollision(oriented_rectangle A, oriented_rectangle B, collision_resul
 
     CollisionResult->Overlap = SmallestOverlap;
     CollisionResult->Direction = SmallestAxis;
+
+    return true;
+}
+
+b32 C_CheckCollision(oriented_rectangle OBB, circle Circle, collision_result *CollisionResult)
+{
+
+    /* TODO
+
+       OBB vs Circle
+
+       1 Testear en los ejes del obb
+       2 Calcular cual es el vertice mas cercano al centro del circulo
+       3 Testear en el eje paralelo a vertice_obb-centro_circulo
+
+       extra: usar voronoi regiones para encontrar el vertice mas
+       cercano. Esto lo hace mas rapido y supuestamente lo unico que
+       preciso son las pruebas hechas en los ejes del obb
+    */
+
+    // First do OBB vs Circle using only the OBB Axes
+    rectangle_collision_data Rect = C_GenerateCollisionData(OBB);
+
+    f32 HugeNumber = 999999999999.9f;
+    f32 SmallestOverlap = HugeNumber;
+    glm::vec2 SmallestAxis = {};
 
     return true;
 }

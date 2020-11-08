@@ -157,6 +157,16 @@ f32 EaseOutBounce(float Input)
     }
 }
 
+// This small code makes the program run on dedicated gpu's if there is one.
+#ifdef _WIN32
+extern "C"
+{
+    // http://developer.download.nvidia.com/devzone/devcenter/gamegraphics/files/OptimusRenderingPolicies.pdf
+    __declspec( dllexport ) unsigned long int NvOptimusEnablement = 0x00000001;
+    // https://gpuopen.com/amdpowerxpressrequesthighperformance/
+    __declspec( dllexport ) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
 
 //
 // Error Checking Macro's

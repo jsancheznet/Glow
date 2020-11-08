@@ -1,13 +1,3 @@
-#ifdef _WIN32
-extern "C"
-{
-    // http://developer.download.nvidia.com/devzone/devcenter/gamegraphics/files/OptimusRenderingPolicies.pdf
-    __declspec( dllexport ) unsigned long int NvOptimusEnablement = 0x00000001;
-    // https://gpuopen.com/amdpowerxpressrequesthighperformance/
-    __declspec( dllexport ) int AmdPowerXpressRequestHighPerformance = 1;
-}
-#endif
-
 #include <stdio.h>
 
 #include "external/glad.c"
@@ -26,8 +16,6 @@ extern "C"
 // TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
 // TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
 
-
-// TODO(Jorge): Remove GLM and implement my own math library
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Make Bullets little! everything will look better.
@@ -102,7 +90,6 @@ i32 main(i32 Argc, char **Argv)
       - Limited number of bullets to clear the whole screen!
      */
 
-
     Argc; Argv; // This makes the compiler not throw a warning for unused variables.
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
@@ -124,61 +111,24 @@ i32 main(i32 Argc, char **Argv)
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
-    entity *Background = E_CreateEntity(BackgroundTexture,
-                                        glm::vec3(0.0f, 0.0f, -1.0f),
-                                        glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f),
-                                        glm::vec3(0.0f),
-                                        0.0f, 0.0f, 0.0f);
+    entity *Background = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f);
 
     f32 PlayerSpeed = 4.0f;
     f32 PlayerDrag = 0.8f;
-    entity *Player = E_CreateEntity(PlayerTexture,
-                                    glm::vec3(0.0f, -8.0f, 0.0f),
-                                    glm::vec3(5.0f, 1.0f, 0.0f),
-                                    glm::vec3(0.0f),
-                                    0.0f,
-                                    PlayerSpeed,
-                                    PlayerDrag);
+    entity *Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag);
 
-    f32 BallSpeed = 2.1f;
-    f32 BallDrag = 0.8f;
-    entity *Ball = E_CreateEntity(BallTexture,
-                                  glm::vec3(0.0f, 0.0f, 0.0f),
-                                  glm::vec3(0.5f, 0.5f, 0.0f),
-                                  glm::vec3(0.0f, 1.0f, 0.0f),
-                                  0.0f,
-                                  BallSpeed,
-                                  BallDrag);
+    f32 BallSpeed = 30.0f;
+    f32 BallDrag = 1.0f;
+    entity *Ball = E_CreateEntity(BallTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f), 0.0f, BallSpeed, BallDrag);
+    Ball->Acceleration.x += Ball->Speed;
+    Ball->Acceleration.y += Ball->Speed;
+
 
     // Walls
-    entity *LeftWall = E_CreateEntity(PlayerTexture,
-                                      glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f),
-                                      glm::vec3(1.0f, BackgroundHeight, 0.0f),
-                                      glm::vec3(0.0f),
-                                      0.0f,
-                                      0.0f,
-                                      0.0f);
-    entity *RightWall = E_CreateEntity(PlayerTexture,
-                                       glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f),
-                                       glm::vec3(1.0f, BackgroundHeight, 0.0f),
-                                       glm::vec3(0.0f),
-                                       0.0f,
-                                       0.0f,
-                                       0.0f);
-    entity *TopWall = E_CreateEntity(PlayerTexture,
-                                     glm::vec3(0.0f, WorldTop + 1.0f, 0.0f),
-                                     glm::vec3(BackgroundWidth, 1.0f, 0.0f),
-                                     glm::vec3(0.0f),
-                                     0.0f,
-                                     0.0f,
-                                     0.0f);
-    entity *BottomWall = E_CreateEntity(PlayerTexture,
-                                        glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f),
-                                        glm::vec3(BackgroundWidth, 1.0f, 0.0f),
-                                        glm::vec3(0.0f),
-                                        0.0f,
-                                        0.0f,
-                                        0.0f);
+    entity *LeftWall   = E_CreateEntity(PlayerTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f);
+    entity *RightWall  = E_CreateEntity(PlayerTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f);
+    entity *TopWall    = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+    entity *BottomWall = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 
     SDL_Event Event;
     while(IsRunning)
@@ -196,6 +146,14 @@ i32 main(i32 Argc, char **Argv)
                         IsRunning = 0;
                         break;
                     }
+
+                    case SDL_WINDOWEVENT:
+                    {
+                        if(Event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+                        {
+                            CurrentState = State_Pause;
+                        }
+                    }
                 }
             }
 
@@ -212,12 +170,10 @@ i32 main(i32 Argc, char **Argv)
                     {
                         IsRunning = 0;
                     }
-
                     if(I_IsPressed(SDL_SCANCODE_SPACE))
                     {
                         CurrentState = State_Game;
                     }
-
                     if(I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                     {
                         P_ToggleFullscreen(Window);
@@ -349,8 +305,7 @@ i32 main(i32 Argc, char **Argv)
                     }
                     case State_Game:
                     {
-                        // Player->RotationAngle -= 200.0f * (f32)Clock->DeltaTime;
-                        Ball->RotationAngle += 100.0f * (f32)Clock->DeltaTime;
+                        // Ball->RotationAngle += 100.0f * (f32)Clock->DeltaTime;
 
                         { // Player Rotation according to mouse
                             f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
@@ -362,19 +317,7 @@ i32 main(i32 Argc, char **Argv)
                         E_Update(Player, (f32)Clock->DeltaTime);
                         E_Update(Ball, (f32)Clock->DeltaTime);
 
-                        if(Ball->Position.y > WorldTop)
-                        {
-                            Ball->Position.y = WorldTop;
-                            Ball->Direction.y *= -1.0f;
-                        }
-                        else if(Ball->Position.y < -WorldTop)
-                        {
-                            Ball->Position.y = -WorldTop;
-                            Ball->Direction.y *= -1.0f;
-                        }
-
-
-                        { // Collide with walls
+                        { // Collision Player/Walls
                             collision_result CollisionResult;
                             if(E_EntitiesCollide(Player, LeftWall, &CollisionResult))
                             {
@@ -389,6 +332,74 @@ i32 main(i32 Argc, char **Argv)
                                 Player->Position.x += I.x;
                                 Player->Position.y += I.y;
                             }
+                        }
+
+                        { // Ball Collision with walls
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(Ball, LeftWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x += I.x;
+                                Ball->Position.y += I.y;
+                                Ball->Velocity.x *= -1.0f;
+                            }
+
+                            if(E_EntitiesCollide(Ball, RightWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x += I.x;
+                                Ball->Position.y += I.y;
+                                Ball->Velocity.x *= -1.0f;
+                            }
+
+                            if(E_EntitiesCollide(Ball, TopWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x += I.x;
+                                Ball->Position.y += I.y;
+                                Ball->Velocity.y *= -1.0f;
+                            }
+
+                            if(E_EntitiesCollide(Ball, BottomWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x += I.x;
+                                Ball->Position.y += I.y;
+                                Ball->Velocity.y *= -1.0f;
+                            }
+                        }
+
+                        { // Ball vs Player
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(Ball, Player, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x += I.x;
+                                Ball->Position.y += I.y;
+
+                                // Ball->Velocity.x *= -1.0f;
+                                // Ball->Velocity.y *= -1.0f;
+
+                                /*
+                                  Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
+                                 */
+                                glm::vec3 BallVelocity = glm::normalize(Ball->Velocity);
+                                glm::vec3 MTV = {};
+                                MTV.x = CollisionResult.Direction.x;
+                                MTV.y = CollisionResult.Direction.y;
+                                MTV.z = 0.0f;
+                                MTV = glm::normalize(MTV);
+                                f32 Angle = (f32)(acosf(glm::dot(BallVelocity, MTV)) * 180.0f / PI32);
+                                // printf("Angle Between: %2.2f\n", Angle);
+                                glm::vec2 OldVel = glm::vec2(Ball->Velocity.x, Ball->Velocity.y);
+                                glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
+
+                                Ball->Velocity.x = NewVel.x;
+                                Ball->Velocity.y = NewVel.y;
+
+                                // TODO: Now rotate angle
+                            }
+                            // printf("Ball->Velocity: %2.2f\t %2.2f\t%2.2f\n", Ball->Velocity.x, Ball->Velocity.y, glm::length(Ball->Velocity));
                         }
 
 #if 0
