@@ -2,59 +2,18 @@
 
 #include "shared.h"
 
-// enum collider_type
-// {
-//     Collider_AABB,
-//     Collider_OBB,
-//     Collider_Circle,
-// };
-
-// struct collider_aabb
-// {
-//     glm::vec2 Center;
-//     f32 HalfWidth;
-//     f32 HalfHeight;
-// };
-
-// struct collider_obb
-// {
-//     glm::vec2 Center;
-//     f32 HalfWidth;
-//     f32 HalfHeight;
-//     f32 Angle;
-// };
-
-// struct collider_circle
-// {
-//     glm::vec2 Center;
-//     f32 Radius;
-// };
-
-// struct collider
-// {
-//     collider_type Type;
-
-//     union
-//     {
-//         collider_aabb Box;
-//         // collider_obb OrientedBox;
-//         // collider_circle Circle;
-//     };
-// };
+enum collider_type
+{
+    Collider_Rectangle = 1,
+    Collider_Circle = 2,
+};
 
 struct rectangle
 {
     glm::vec2 Center;
     f32 HalfWidth;
     f32 HalfHeight;
-};
-
-struct oriented_rectangle
-{
-    glm::vec2 Center;
-    f32 HalfWidth;
-    f32 HalfHeight;
-    f32 Angle;
+    f32 Angle; // TODO: Change to Rotation
 };
 
 struct circle
@@ -63,6 +22,17 @@ struct circle
     f32 Radius;
 };
 
+struct collider
+{
+    collider_type Type;
+    union
+    {
+        rectangle Rectangle;
+        circle Circle;
+    };
+};
+
+// TODO: Refactor these remaining structs, they dont make much sense
 struct rectangle_collision_data
 {
     glm::vec2 Vertices[4];

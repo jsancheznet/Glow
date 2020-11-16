@@ -16,5 +16,5 @@ struct entity
     f32 RotationAngle; // NOTE: Degrees!
     f32 Drag;
 
-    oriented_rectangle Rect;
+    collider Collider;
 };

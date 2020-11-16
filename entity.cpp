@@ -5,7 +5,7 @@
 
 b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
 {
-    return C_CheckCollision(A->Rect, B->Rect, CollisionResult);
+    return C_CheckCollision(A->Collider.Rectangle, B->Collider.Rectangle, CollisionResult);
 }
 
 entity *E_CreateEntity(texture *Texture,
@@ -13,7 +13,8 @@ entity *E_CreateEntity(texture *Texture,
                        glm::vec3 Size,
                        f32 RotationAngle,
                        f32 Speed,
-                       f32 Drag)
+                       f32 Drag,
+                       collider_type ColliderType)
 {
     entity *Result = (entity*)Malloc(sizeof(entity)); Assert(Result);
 
@@ -26,10 +27,29 @@ entity *E_CreateEntity(texture *Texture,
     Result->Drag = Drag;
 
     // Collision Data
-    Result->Rect.Center = glm::vec2(Position.x, Position.y);
-    Result->Rect.HalfWidth = Size.x * 0.5f;
-    Result->Rect.HalfHeight = Size.y * 0.5f;
-    Result->Rect.Angle = RotationAngle;
+    switch(ColliderType)
+    {
+        case Collider_Rectangle:
+        {
+            Result->Collider.Type = Collider_Rectangle;
+            Result->Collider.Rectangle.Center = glm::vec2(Position.x, Position.y);
+            Result->Collider.Rectangle.HalfWidth = Size.x * 0.5f;
+            Result->Collider.Rectangle.HalfHeight = Size.y * 0.5f;
+            Result->Collider.Rectangle.Angle = RotationAngle;
+            break;
+        }
+        case Collider_Circle:
+        {
+            Result->Collider.Type = Collider_Circle;
+            break;
+        }
+        default:
+        {
+            // Invalid code path
+            Assert(0);
+            break;
+        }
+    }
 
     return (Result);
 }
@@ -41,9 +61,27 @@ void E_Update(entity *Entity, f32 TimeStep)
     Entity->Acceleration = {};
     Entity->Velocity *= Entity->Drag;
 
+
     // Collision Data
-    Entity->Rect.Center = glm::vec2(Entity->Position.x, Entity->Position.y);
-    Entity->Rect.Angle = Entity->RotationAngle;
-    Entity->Rect.HalfWidth = Entity->Size.x * 0.5f;
-    Entity->Rect.HalfHeight = Entity->Size.y * 0.5f;
+    switch(Entity->Collider.Type)
+    {
+        case Collider_Rectangle:
+        {
+            Entity->Collider.Rectangle.Center = glm::vec2(Entity->Position.x, Entity->Position.y);
+            Entity->Collider.Rectangle.Angle = Entity->RotationAngle;
+            Entity->Collider.Rectangle.HalfWidth = Entity->Size.x * 0.5f;
+            Entity->Collider.Rectangle.HalfHeight = Entity->Size.y * 0.5f;
+            break;
+        }
+        case Collider_Circle:
+        {
+            break;
+        }
+        default:
+        {
+            // Invalid code path
+            Assert(0);
+            break;
+        }
+    }
 }
