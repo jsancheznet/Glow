@@ -43,6 +43,7 @@ typedef i32      b32;
 #define INLINE __forceinline
 #include <assert.h>
 #define Assert(Expr) assert(Expr)
+#define InvalidCodePath Assert(!"InvalidCodePath")
 
 #define Kilobytes(Expr) ((Expr) * 1024)
 #define Megabytes(Expr) (Kilobytes(Expr) * 1024)
@@ -132,6 +133,16 @@ glm::vec3 Normalize(glm::vec3 A)
 f32 Atan2(f32 y, f32 x)
 {
     return (f32)atan2(y, x);
+}
+
+#define EPSILON 0.00000011920928955078125f
+b32 EqFloats(f32 A, f32 B)
+{
+    b32 Result;
+
+    fabs(A - B) <= EPSILON ?  Result = true : Result = false;
+
+    return Result;
 }
 
 f32 EaseOutBounce(float Input)

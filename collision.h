@@ -4,6 +4,7 @@
 
 enum collider_type
 {
+    Collider_Null = 0,
     Collider_Rectangle = 1,
     Collider_Circle = 2,
 };
@@ -13,7 +14,7 @@ struct rectangle
     glm::vec2 Center;
     f32 HalfWidth;
     f32 HalfHeight;
-    f32 Angle; // TODO: Change to Rotation
+    f32 Angle;
 };
 
 struct circle

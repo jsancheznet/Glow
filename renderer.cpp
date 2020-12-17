@@ -28,6 +28,7 @@ global u32 BlurPassCount = 10; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
 global f32 BrightnessThreshold = 0.1f;
+global f32 CameraSpeed = 7.0f;
 
 void R_UpdateCamera(renderer *Renderer, camera *Camera)
 {
@@ -815,6 +816,9 @@ R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm
 
 void R_CalculateFPS(renderer *Renderer, clock *Clock)
 {
+    Assert(Renderer);
+    Assert(Clock);
+
     f32 FramesPerSecondToShow = 2; // How many times per second to calculate fps
     if(Renderer->SecondsElapsed > (1.0f / FramesPerSecondToShow))
     {
@@ -839,7 +843,7 @@ camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, gl
     Result->Position = Position;
     Result->Front = Front;
     Result->Up = Up;
-    Result->Speed = 1.5f;
+    Result->Speed = CameraSpeed;
     Result->FoV = 90.0f;
     Result->Near = 0.1f;
     Result->Far = 1500.0f;
@@ -855,7 +859,7 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
     Camera->Position = Position;
     Camera->Front = Front;
     Camera->Up = Up;
-    Camera->Speed = 1.5f;
+    Camera->Speed = CameraSpeed;
     Camera->FoV = 90.0f;
     Camera->Near = 0.1f;
     Camera->Far = 1500.0f;

@@ -5,7 +5,7 @@
 
 b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
 {
-    return C_CheckCollision(A->Collider.Rectangle, B->Collider.Rectangle, CollisionResult);
+    return C_CheckCollision(A->Collider, B->Collider, CollisionResult);
 }
 
 entity *E_CreateEntity(texture *Texture,
@@ -25,6 +25,9 @@ entity *E_CreateEntity(texture *Texture,
     Result->RotationAngle = RotationAngle;
     Result->Speed = Speed;
     Result->Drag = Drag;
+    Result->Collider = {};
+
+    // Initialize Collider with 0, Collider_Null
 
     // Collision Data
     switch(ColliderType)
@@ -41,6 +44,23 @@ entity *E_CreateEntity(texture *Texture,
         case Collider_Circle:
         {
             Result->Collider.Type = Collider_Circle;
+            Result->Collider.Circle.Center = glm::vec2(Position.x, Position.y);
+
+            // To avoid changing the code to properly support the
+            // radius of a circle we check if both Size.x and Size.y
+            // are the same and set the radius accordingly. If they
+            // are not the same it's not a valid size for a circle.
+            if(EqFloats(Size.x, Size.y))
+            {
+                // Size.x and Size.y are equal, it's a valid size for a circle!
+                Result->Collider.Circle.Radius = Size.x * 0.5f;
+            }
+            else
+            {
+                // Size.x and Size.y are not equal, it's not a valid size for a circle! Error!
+                InvalidCodePath;
+            }
+
             break;
         }
         default:
@@ -60,7 +80,6 @@ void E_Update(entity *Entity, f32 TimeStep)
     Entity->Velocity = Entity->Acceleration * TimeStep + Entity->Velocity;
     Entity->Acceleration = {};
     Entity->Velocity *= Entity->Drag;
-
 
     // Collision Data
     switch(Entity->Collider.Type)

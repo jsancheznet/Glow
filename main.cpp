@@ -48,7 +48,6 @@
   Blue: 1239FF
 */
 
-
 enum state
 {
     State_Initial,
@@ -56,8 +55,6 @@ enum state
     State_Pause,
     State_Gameover,
 };
-
-u32 BlackFrame = 0;
 
 // Platform
 global u32 WindowWidth = 1366;
@@ -73,7 +70,7 @@ global f32 HalfWorldHeight = WorldTop;
 global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
 
-// Variables
+// Application Variables
 global b32 IsRunning = 1;
 global keyboard     *Keyboard;
 global mouse        *Mouse;
@@ -94,7 +91,10 @@ i32 main(i32 Argc, char **Argv)
       - Limited number of bullets to clear the whole screen!
      */
 
-    Argc; Argv; // This makes the compiler not throw a warning for unused variables.
+    // The following makes the compiler not throw a warning for unused
+    // variables. I don't really want to turn that warning off, it
+    // will surely be useful
+    Argc; Argv;
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
 
@@ -107,11 +107,11 @@ i32 main(i32 Argc, char **Argv)
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
-    font *MenuFont = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
+    font *MenuFont  = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
 
-    texture *PlayerTexture = R_CreateTexture("textures/Yellow.png");
-    texture *BackgroundTexture = R_CreateTexture("textures/DeepBlue.png");
-    texture *BallTexture = R_CreateTexture("textures/Redish.png");
+    texture *PlayerTexture      = R_CreateTexture("textures/Yellow.png");
+    texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
+    texture *BallTexture        = R_CreateTexture("textures/Redish.png");
     texture *GreenCircleTexture = R_CreateTexture("textures/GreenCircle.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
@@ -123,25 +123,19 @@ i32 main(i32 Argc, char **Argv)
     f32 GreenCircleSpeed = 4.0f;
     f32 GreenCircleDrag = 0.8f;
 
-    // TODO(Jorge): E_CreateEntity should take a collider_type. Maybe you should first create the union collider first.
     entity *Background = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
     entity *GreenCircle = E_CreateEntity(GreenCircleTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, GreenCircleSpeed, GreenCircleDrag, Collider_Circle);
-    entity *Ball = E_CreateEntity(BallTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Rectangle);
+    entity *SquareBall = E_CreateEntity(BallTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Rectangle);
     // Set the acceleration so the ball starts moving once the game starts
-    Ball->Acceleration.x += Ball->Speed;
-    Ball->Acceleration.y += Ball->Speed;
+    SquareBall->Acceleration.x += SquareBall->Speed;
+    SquareBall->Acceleration.y += SquareBall->Speed;
 
     // Walls
     entity *LeftWall   = E_CreateEntity(PlayerTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *RightWall  = E_CreateEntity(PlayerTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *TopWall    = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *BottomWall = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-
-    collider MyCollider = {};
-    MyCollider.Type = Collider_Circle;
-    MyCollider.Circle.Center = glm::vec2(1.0f, 1.0f);
-    MyCollider.Circle.Radius = 45.0f;
 
     SDL_Event Event;
     while(IsRunning)
@@ -328,7 +322,7 @@ i32 main(i32 Argc, char **Argv)
 
                         // Update Entities
                         E_Update(Player, (f32)Clock->DeltaTime);
-                        E_Update(Ball, (f32)Clock->DeltaTime);
+                        E_Update(SquareBall, (f32)Clock->DeltaTime);
 
                         { // Collision Player/Walls
                             collision_result CollisionResult;
@@ -360,70 +354,73 @@ i32 main(i32 Argc, char **Argv)
 
                         { // Ball Collision with walls
                             collision_result CollisionResult;
-                            if(E_EntitiesCollide(Ball, LeftWall, &CollisionResult))
+                            if(E_EntitiesCollide(SquareBall, LeftWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x += I.x;
-                                Ball->Position.y += I.y;
-                                Ball->Velocity.x *= -1.0f;
+                                SquareBall->Position.x += I.x;
+                                SquareBall->Position.y += I.y;
+                                SquareBall->Velocity.x *= -1.0f;
                             }
 
-                            if(E_EntitiesCollide(Ball, RightWall, &CollisionResult))
+                            if(E_EntitiesCollide(SquareBall, RightWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x += I.x;
-                                Ball->Position.y += I.y;
-                                Ball->Velocity.x *= -1.0f;
+                                SquareBall->Position.x += I.x;
+                                SquareBall->Position.y += I.y;
+                                SquareBall->Velocity.x *= -1.0f;
                             }
 
-                            if(E_EntitiesCollide(Ball, TopWall, &CollisionResult))
+                            if(E_EntitiesCollide(SquareBall, TopWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x += I.x;
-                                Ball->Position.y += I.y;
-                                Ball->Velocity.y *= -1.0f;
+                                SquareBall->Position.x += I.x;
+                                SquareBall->Position.y += I.y;
+                                SquareBall->Velocity.y *= -1.0f;
                             }
 
-                            if(E_EntitiesCollide(Ball, BottomWall, &CollisionResult))
+                            if(E_EntitiesCollide(SquareBall, BottomWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x += I.x;
-                                Ball->Position.y += I.y;
-                                Ball->Velocity.y *= -1.0f;
+                                SquareBall->Position.x += I.x;
+                                SquareBall->Position.y += I.y;
+                                SquareBall->Velocity.y *= -1.0f;
                             }
                         }
 
-                        { // Ball vs Player
+                        { // SquareBall vs Player
                             collision_result CollisionResult;
-                            if(E_EntitiesCollide(Ball, Player, &CollisionResult))
+                            if(E_EntitiesCollide(SquareBall, Player, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x += I.x;
-                                Ball->Position.y += I.y;
+                                SquareBall->Position.x += I.x;
+                                SquareBall->Position.y += I.y;
 
-                                // Ball->Velocity.x *= -1.0f;
-                                // Ball->Velocity.y *= -1.0f;
+                                // SquareBall->Velocity.x *= -1.0f;
+                                // SquareBall->Velocity.y *= -1.0f;
 
                                 /*
                                   Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
                                  */
-                                glm::vec3 BallVelocity = glm::normalize(Ball->Velocity);
+                                glm::vec3 SquareBallVelocity = glm::normalize(SquareBall->Velocity);
                                 glm::vec3 MTV = {};
                                 MTV.x = CollisionResult.Direction.x;
                                 MTV.y = CollisionResult.Direction.y;
                                 MTV.z = 0.0f;
                                 MTV = glm::normalize(MTV);
-                                f32 Angle = (f32)(acosf(glm::dot(BallVelocity, MTV)) * 180.0f / PI32);
+                                f32 Angle = (f32)(acosf(glm::dot(SquareBallVelocity, MTV)) * 180.0f / PI32);
                                 // printf("Angle Between: %2.2f\n", Angle);
-                                glm::vec2 OldVel = glm::vec2(Ball->Velocity.x, Ball->Velocity.y);
+                                glm::vec2 OldVel = glm::vec2(SquareBall->Velocity.x, SquareBall->Velocity.y);
                                 glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
 
-                                Ball->Velocity.x = NewVel.x;
-                                Ball->Velocity.y = NewVel.y;
+                                SquareBall->Velocity.x = NewVel.x;
+                                SquareBall->Velocity.y = NewVel.y;
 
                                 // TODO: Now rotate angle
                             }
-                            // printf("Ball->Velocity: %2.2f\t %2.2f\t%2.2f\n", Ball->Velocity.x, Ball->Velocity.y, glm::length(Ball->Velocity));
+                            // printf("SquareBall->Velocity: %2.2f\t %2.2f\t%2.2f\n", SquareBall->Velocity.x, SquareBall->Velocity.y, glm::length(SquareBall->Velocity));
+                        }
+
+                        { // GreenCircle vs Player
                         }
 
 #if 0
@@ -504,7 +501,7 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawEntity(Renderer, TopWall);
                     R_DrawEntity(Renderer, BottomWall);
                     R_SetActiveShader(Renderer->Shaders.Ball);
-                    R_DrawEntity(Renderer, Ball);
+                    R_DrawEntity(Renderer, SquareBall);
 
 
                     if(RenderDebugText)
