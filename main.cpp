@@ -28,18 +28,16 @@
 // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
 
-// NOTE: Textures used by the renderer 32 floating point srgb textures
-
-// Palette: https://colorpalettes.net/color-palette-1162/
-// #ffa300 // Yellow
-// #cf0060 // Redish
-// #ff00ff // Hot Pink
-// #13a8fe // Light Blue
-// #000117 // Background Color
-
-// Other Potential Palette: https://colorpalettes.net/color-palette-1661/
-
 /*
+  Palette: https://colorpalettes.net/color-palette-1162/
+  #ffa300 // Yellow
+  #cf0060 // Redish
+  #ff00ff // Hot Pink
+  #13a8fe // Light Blue
+  #000117 // Background Color
+
+  Other Potential Palette: https://colorpalettes.net/color-palette-1661/
+
   Other Potential color Palette
   Red: FF092D
   Yellow: FDF637
@@ -113,6 +111,7 @@ i32 main(i32 Argc, char **Argv)
     texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
     texture *BallTexture        = R_CreateTexture("textures/Redish.png");
     texture *GreenCircleTexture = R_CreateTexture("textures/GreenCircle.png");
+    texture *PurpleCircleTexture = R_CreateTexture("textures/PurpleCircle.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
@@ -122,10 +121,14 @@ i32 main(i32 Argc, char **Argv)
     f32 BallDrag = 1.0f;
     f32 GreenCircleSpeed = 4.0f;
     f32 GreenCircleDrag = 0.8f;
+    f32 PurpleCircleSpeed = 5.0f;
+    f32 PurpleCircleDrag = 0.8f;
+
+    entity *GreenCircle =  E_CreateEntity(GreenCircleTexture,  glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, GreenCircleSpeed, GreenCircleDrag, Collider_Circle);
+    entity *PurpleCircle = E_CreateEntity(PurpleCircleTexture, glm::vec3(-0.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PurpleCircleSpeed, PurpleCircleDrag, Collider_Circle);
 
     entity *Background = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
-    entity *GreenCircle = E_CreateEntity(GreenCircleTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, GreenCircleSpeed, GreenCircleDrag, Collider_Circle);
     entity *SquareBall = E_CreateEntity(BallTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Rectangle);
     // Set the acceleration so the ball starts moving once the game starts
     SquareBall->Acceleration.x += SquareBall->Speed;
@@ -273,6 +276,24 @@ i32 main(i32 Argc, char **Argv)
                         Player->Acceleration.y -= Player->Speed;
                     }
 
+                    // Purple Circle
+                    if(I_IsPressed(SDL_SCANCODE_LEFT))
+                    {
+                        PurpleCircle->Acceleration.x -= PurpleCircle->Speed;
+                    }
+                    if(I_IsPressed(SDL_SCANCODE_RIGHT))
+                    {
+                        PurpleCircle->Acceleration.x += PurpleCircle->Speed;
+                    }
+                    if(I_IsPressed(SDL_SCANCODE_UP))
+                    {
+                        PurpleCircle->Acceleration.y += PurpleCircle->Speed;
+                    }
+                    if(I_IsPressed(SDL_SCANCODE_DOWN))
+                    {
+                        PurpleCircle->Acceleration.y -= PurpleCircle->Speed;
+                    }
+
                     break;
                 }
                 case State_Pause:
@@ -321,8 +342,23 @@ i32 main(i32 Argc, char **Argv)
                         }
 
                         // Update Entities
+                        // TODO(Jorge): Have a single array of entities and update them all on a loop
                         E_Update(Player, (f32)Clock->DeltaTime);
                         E_Update(SquareBall, (f32)Clock->DeltaTime);
+                        E_Update(PurpleCircle, (f32)Clock->DeltaTime);
+                        E_Update(GreenCircle, (f32)Clock->DeltaTime);
+
+
+                        { // Circle vs Circle collision testing
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(PurpleCircle, GreenCircle, &CollisionResult))
+                            {
+                                // TODO: Move the object back!
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                GreenCircle->Position.x += I.x;
+                                GreenCircle->Position.y += I.y;
+                            }
+                        }
 
                         { // Collision Player/Walls
                             collision_result CollisionResult;
@@ -421,6 +457,11 @@ i32 main(i32 Argc, char **Argv)
                         }
 
                         { // GreenCircle vs Player
+                            collision_result Result = {};
+                            if(E_EntitiesCollide(Player, GreenCircle, &Result))
+                            {
+                                // TODO(Jorge): Set a breakpoint right here and see what happens and what i need to do
+                            }
                         }
 
 #if 0
@@ -435,6 +476,7 @@ i32 main(i32 Argc, char **Argv)
                             Enemy->Position.y -= I.y / 2.0f;
                         }
 #endif
+
                         break;
                     }
                     case State_Pause:
@@ -496,6 +538,7 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawEntity(Renderer, Background); // Draw the background first
                     R_DrawEntity(Renderer, Player);
                     R_DrawEntity(Renderer, GreenCircle);
+                    R_DrawEntity(Renderer, PurpleCircle);
                     R_DrawEntity(Renderer, LeftWall);
                     R_DrawEntity(Renderer, RightWall);
                     R_DrawEntity(Renderer, TopWall);

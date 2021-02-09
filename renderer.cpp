@@ -20,6 +20,8 @@
 #include "renderer.h"
 #include "entity.h"
 
+// NOTE: Textures used by the renderer 32 floating point srgb textures
+
 // Global renderer settings
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;

@@ -135,7 +135,31 @@ void C_ProjectOBBVertices(rectangle_collision_data Rectangle, glm::vec2 Axis, f3
     }
 }
 
-b32 C_CheckCollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Result)
+b32 C_CollisionCircleCircle(circle A, circle B, collision_result *Result)
+{
+    Assert(Result);
+
+    *Result = {};
+    f32 RadiiSum = A.Radius + B.Radius;
+    f32 DistanceBetween = Distance(A.Center, B.Center);
+
+    if(DistanceBetween < RadiiSum)
+    {
+        // Collision
+        Result->Overlap = Abs(RadiiSum - DistanceBetween);
+        Result->Direction  = Normalize(A.Center - B.Center);
+
+        return true;
+    }
+    else
+    {
+        // No Collision
+        return false;
+    }
+}
+
+
+b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Result)
 {
     Assert(Result);
 
@@ -194,7 +218,7 @@ b32 C_CheckCollisionRectangleRectangle(rectangle A, rectangle B, collision_resul
     return true;
 }
 
-b32 C_CheckCollisionRectangleCircle(rectangle Rectangle, circle Circle, collision_result *CollisionResult)
+b32 C_CollisionRectangleCircle(rectangle Rectangle, circle Circle, collision_result *CollisionResult)
 {
     /* TODO
 
@@ -277,19 +301,21 @@ b32 C_CheckCollisionRectangleCircle(rectangle Rectangle, circle Circle, collisio
     return true;
 }
 
-b32 C_CheckCollision(collider A, collider B, collision_result *CollisionResult)
+b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
 {
     Assert(CollisionResult);
 
-    collision_result Result = {};
-
     if(A.Type == Collider_Rectangle && B.Type == Collider_Rectangle)
     {
-        return C_CheckCollisionRectangleRectangle(A.Rectangle, B.Rectangle, &Result);
+        return C_CollisionRectangleRectangle(A.Rectangle, B.Rectangle, CollisionResult);
     }
     else if(A.Type == Collider_Rectangle && B.Type == Collider_Circle)
     {
-        return C_CheckCollisionRectangleCircle(A.Rectangle, B.Circle, &Result);
+        return C_CollisionRectangleCircle(A.Rectangle, B.Circle, CollisionResult);
+    }
+    else if(A.Type == Collider_Circle && B.Type == Collider_Circle)
+    {
+        return C_CollisionCircleCircle(A.Circle, B.Circle, CollisionResult);
     }
     else
     {

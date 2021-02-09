@@ -5,7 +5,7 @@
 
 b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
 {
-    return C_CheckCollision(A->Collider, B->Collider, CollisionResult);
+    return C_Collision(A->Collider, B->Collider, CollisionResult);
 }
 
 entity *E_CreateEntity(texture *Texture,
@@ -94,6 +94,13 @@ void E_Update(entity *Entity, f32 TimeStep)
         }
         case Collider_Circle:
         {
+            // Entity->Collider.Circle.Center.x = Entity->Position.x;
+            // Entity->Collider.Circle.Center.y = Entity->Position.y;
+
+            // NOTE(Jorge): Entity->Position is a vec3, Circle.Center
+            // is a vec2. If something does not work, looking here
+            // might be a good idea.
+            Entity->Collider.Circle.Center = Entity->Position;
             break;
         }
         default:

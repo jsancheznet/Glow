@@ -9,9 +9,9 @@
 
 #pragma once
 
-#pragma warning(disable: 4189)
-#pragma warning(disable: 4201)
-#pragma warning(disable: 4100)
+#pragma warning(disable: 4189) // TODO(Jorge): What is this?
+#pragma warning(disable: 4201) // TODO(Jorge): What is this?
+#pragma warning(disable: 4100) // TODO(Jorge): What is this?
 
 #pragma warning(disable:4127) // GLM fails to compile if this warning is turned on!
 #pragma warning(disable: 4201) // GLM warning
@@ -130,9 +130,19 @@ glm::vec3 Normalize(glm::vec3 A)
     return glm::normalize(A);
 }
 
+glm::vec2 Normalize(glm::vec2 A)
+{
+    return glm::normalize(A);
+}
+
 f32 Atan2(f32 y, f32 x)
 {
     return (f32)atan2(y, x);
+}
+
+f32 Distance(glm::vec2 A, glm::vec2 B)
+{
+    return glm::distance(A, B);
 }
 
 #define EPSILON 0.00000011920928955078125f
