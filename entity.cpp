@@ -94,13 +94,8 @@ void E_Update(entity *Entity, f32 TimeStep)
         }
         case Collider_Circle:
         {
-            // Entity->Collider.Circle.Center.x = Entity->Position.x;
-            // Entity->Collider.Circle.Center.y = Entity->Position.y;
-
-            // NOTE(Jorge): Entity->Position is a vec3, Circle.Center
-            // is a vec2. If something does not work, looking here
-            // might be a good idea.
-            Entity->Collider.Circle.Center = Entity->Position;
+            Entity->Collider.Circle.Center.x = Entity->Position.x;
+            Entity->Collider.Circle.Center.y = Entity->Position.y;
             break;
         }
         default:

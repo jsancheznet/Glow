@@ -46,6 +46,7 @@ f32 C_GetOverlap(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
     f32 HugePositiveNumber = 99999999999999.f;
     f32 Min = HugePositiveNumber;
     f32 Max = HugeNegativeNumber;
+
     f32 Values[4] =
     {
         MinA, MaxA, MinB, MaxB
@@ -69,6 +70,33 @@ f32 C_GetOverlap(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
     Result = Abs(Length - TotalLength);
 
     return Result;
+}
+
+void C_GetRectangleVertices(rectangle RectangleInput, glm::vec2 *OutputArray)
+{
+    // 1- Generate the obb vertices around the origin.
+    // 2- Rotate the vertices, and later translate them to the world position.
+
+    /*
+      Vertex0              Vertex1
+         |-----------------|
+         |                 |
+         |        .        | Center   Rotation Angle
+         |                 |
+         |-----------------|
+      Vertex2              Vertex3
+     */
+
+    OutputArray[0] = {-RectangleInput.HalfWidth, RectangleInput.HalfHeight};
+    OutputArray[1] = {+RectangleInput.HalfWidth, RectangleInput.HalfHeight};
+    OutputArray[2] = {-RectangleInput.HalfWidth, -RectangleInput.HalfHeight};
+    OutputArray[3] = {+RectangleInput.HalfWidth, -RectangleInput.HalfHeight};
+
+    // Rotate the vertices and add the RectangleInput.Center, translating the vertices to the correct world position.
+    OutputArray[0] = RectangleInput.Center + glm::rotate(OutputArray[0], glm::radians(RectangleInput.Angle));
+    OutputArray[1] = RectangleInput.Center + glm::rotate(OutputArray[1], glm::radians(RectangleInput.Angle));
+    OutputArray[2] = RectangleInput.Center + glm::rotate(OutputArray[2], glm::radians(RectangleInput.Angle));
+    OutputArray[3] = RectangleInput.Center + glm::rotate(OutputArray[3], glm::radians(RectangleInput.Angle));
 }
 
 rectangle_collision_data C_GenerateRectangleCollisionData(rectangle Input)
@@ -202,8 +230,9 @@ b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Re
                 SmallestOverlap = Overlap;
                 SmallestAxis = glm::normalize(Axes[i]);
 
-                // This if checks the direction in which the obb has to be displaced
-                // Got it from: https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
+                // This if checks the direction in which the obb has
+                // to be displaced Got it from:
+                // https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
                 if(MinA < MinB)
                 {
                     SmallestAxis *= -1;
@@ -218,9 +247,28 @@ b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Re
     return true;
 }
 
-b32 C_CollisionRectangleCircle(rectangle Rectangle, circle Circle, collision_result *CollisionResult)
+glm::vec2 C_FindClosestVertex(glm::vec2 Vertices[4], glm::vec2 CircleCenter)
 {
-    /* TODO
+    glm::vec2 Result = {};
+
+    f32 MinDistance = FLT_MAX;
+    for(u32 i  = 0; i < 4; i++)
+    {
+        f32 CurrentDistance = Distance(Vertices[i], CircleCenter);
+        if(CurrentDistance < MinDistance)
+        {
+            MinDistance = CurrentDistance;
+            Result.x = Vertices[i].x;
+            Result.y = Vertices[i].y;
+        }
+    }
+
+    return (Result);
+}
+
+b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, collision_result *CollisionResult)
+{
+    /*
 
        OBB vs Circle
 
@@ -233,70 +281,134 @@ b32 C_CollisionRectangleCircle(rectangle Rectangle, circle Circle, collision_res
        preciso son las pruebas hechas en los ejes del obb
     */
 
-    f32 HugeNumber = 999999999999.9f; // To know which overlap is the lowest, we need to compare it to a huge number
-    f32 SmallestOverlap = HugeNumber;
+    f32 SmallestOverlap = FLT_MAX;
     glm::vec2 SmallestAxis = {};
 
     { // SECTION: Test for collision on the OBB separation axes
-
-        /*
-          struct rectangle_collision_data
-          {
-              glm::vec2 Vertices[4];
-              glm::vec2 SeparationAxes[2];
-          };
-         */
-        rectangle_collision_data RectData = C_GenerateRectangleCollisionData(Rectangle);
+        rectangle_collision_data RectangleCollisionData = C_GenerateRectangleCollisionData(InputRectangle);
 
         // Get the points of the circle on x,y axes
         // Generate the vertices on model space
-        glm::vec2 CircleVertex1X = {-Circle.Radius, 0.0f};
-        glm::vec2 CircleVertex2X = {Circle.Radius, 0.0f};
-        glm::vec2 CircleVertex1Y = {0.0f, Circle.Radius};
-        glm::vec2 CircleVertex2Y = {0.0f, -Circle.Radius};
+        glm::vec2 CircleVertex1X = {-InputCircle.Radius, 0.0f};
+        glm::vec2 CircleVertex2X = {InputCircle.Radius, 0.0f};
+        glm::vec2 CircleVertex1Y = {0.0f, InputCircle.Radius};
+        glm::vec2 CircleVertex2Y = {0.0f, -InputCircle.Radius};
 
         // Rotate the vertices and add the Circle.Center, translating the vertices to the correct world position.
-        CircleVertex1X = Circle.Center + glm::rotate(CircleVertex1X, glm::radians(Rectangle.Angle));
-        CircleVertex2X = Circle.Center + glm::rotate(CircleVertex2X, glm::radians(Rectangle.Angle));
-        CircleVertex1Y = Circle.Center + glm::rotate(CircleVertex1Y, glm::radians(Rectangle.Angle));
-        CircleVertex2Y = Circle.Center + glm::rotate(CircleVertex2Y, glm::radians(Rectangle.Angle));
+        CircleVertex1X = InputCircle.Center + glm::rotate(CircleVertex1X, glm::radians(InputRectangle.Angle));
+        CircleVertex2X = InputCircle.Center + glm::rotate(CircleVertex2X, glm::radians(InputRectangle.Angle));
+        CircleVertex1Y = InputCircle.Center + glm::rotate(CircleVertex1Y, glm::radians(InputRectangle.Angle));
+        CircleVertex2Y = InputCircle.Center + glm::rotate(CircleVertex2Y, glm::radians(InputRectangle.Angle));
 
-        // Now we have the rectangle vertices, the rectangle SAT axes and the Circle Vertices in world space, let's do this.
-        // Testear en los ejes del obb
-        for(i32 i = 0; i < 2; i++)
-        {
-            // void C_ProjectOBBVertices(rectangle_collision_data Rectangle, glm::vec2 Axis, f32 *Min, f32 *Max)
-            f32 MinA = 0.0f;
-            f32 MaxA = 0.0f;
-            // Project all vertices of obb onto one axis
-            C_ProjectOBBVertices(RectData, RectData.SeparationAxes[i], &MinA, &MaxA);
-
-            f32 MinB = 0.0f;
-            f32 MaxB = 0.0f;
-            // Project circle vertices onto the same axis
-            // Project Vertex1
-            f32 Projection1 = glm::dot(CircleVertex1X, RectData.SeparationAxes[i]);
-            // Project Vertex2
-            f32 Projection2 = glm::dot(CircleVertex2X, RectData.SeparationAxes[i]);
-            // Project Vertex3
-            f32 Projection3 = glm::dot(CircleVertex1Y, RectData.SeparationAxes[i]);
-            // Project Vertex4
-            f32 Projection4 = glm::dot(CircleVertex2Y, RectData.SeparationAxes[i]);
-            // Get the min and max, than do overlapping
-
-            if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
+        { // SECTION: Test collision on the rectangle axes
+            // Now we have the rectangle vertices, the rectangle SAT axes and the Circle Vertices in world space, let's do this.
+            for(i32 i = 0; i < 2; i++)
             {
-                return false;
-            }
-            else
-            {
-                // Calculate overlap
+                // Project all vertices of obb onto one axis
+                f32 MinA = 0.0f;
+                f32 MaxA = 0.0f;
+                C_ProjectOBBVertices(RectangleCollisionData, RectangleCollisionData.SeparationAxes[i], &MinA, &MaxA);
+
+                // Project circle vertices onto the same axis
+                f32 MinB;
+                f32 MaxB;
+
+                f32 Projection1 = glm::dot(CircleVertex1X, RectangleCollisionData.SeparationAxes[i]);
+                f32 Projection2 = glm::dot(CircleVertex2X, RectangleCollisionData.SeparationAxes[i]);
+                f32 Projection3 = glm::dot(CircleVertex1Y, RectangleCollisionData.SeparationAxes[i]);
+                f32 Projection4 = glm::dot(CircleVertex2Y, RectangleCollisionData.SeparationAxes[i]);
+
+                // First iteration
+                MinB = Projection1;
+                MaxB = Projection1;
+
+                // Get MinB, MaxB
+                if(Projection1 > MaxB)
+                {
+                    MaxB = Projection1;
+                }
+                else if(Projection1 < MinB)
+                {
+                    MinB = Projection1;
+                }
+
+                if(Projection2 > MaxB)
+                {
+                    MaxB = Projection2;
+                }
+                else if(Projection2 < MinB)
+                {
+                    MinB = Projection2;
+                }
+
+                if(Projection3 > MaxB)
+                {
+                    MaxB = Projection3;
+                }
+                else if(Projection3 < MinB)
+                {
+                    MinB = Projection3;
+                }
+
+                if(Projection4 > MaxB)
+                {
+                    MaxB = Projection4;
+                }
+                else if(Projection4 < MinB)
+                {
+                    MinB = Projection4;
+                }
+
+                // Get the min and max, than do overlapping
+                if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
+                {
+                    // There is no overlap, according to SAT, the shapes are not colliding, return false.
+                    *CollisionResult = {};
+                    return false;
+                }
+                else
+                {
+                    // if its the SmallestOverlap, set te variable accordingly
+                    f32 Overlap = C_GetOverlap(MinA, MaxA, MinB, MaxB);
+                    if(Overlap < SmallestOverlap)
+                    {
+                        SmallestOverlap = Overlap;
+                        SmallestAxis = glm::normalize(RectangleCollisionData.SeparationAxes[i]);
+
+                        // This if checks the direction in which the obb
+                        // has to be displaced Got it from:
+                        // https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
+                        if(MinA < MinB)
+                        {
+                            SmallestAxis *= -1;
+                        }
+                    }
+                }
             }
         }
+
+    CollisionResult->Overlap = SmallestOverlap;
+    CollisionResult->Direction = SmallestAxis;
+
+    } // ENDSECTION
+
+    { // SECTION: Test for collision using the circle's data
+        // If we got to here, we have found collision on the 2 rect axes.
+
+        glm::vec2 Vertices[4];
+        C_GetRectangleVertices(InputRectangle, Vertices);
+
+        glm::vec2 ClosestVertex = {};
+        ClosestVertex = C_FindClosestVertex(Vertices, InputCircle.Center);
+
+        // Get the ClosestVertex -> CircleCenter Axis
+        glm::vec2 Axis = Normalize(ClosestVertex - InputCircle.Center);
+
+        // Project the obb vertices, get MaxA, MinB
+
+        // Get the Circle Vertices along the axis, How?
+
     }
-
-    // First do OBB vs Circle using only the OBB Axes
-
 
     return true;
 }
@@ -305,6 +417,7 @@ b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
 {
     Assert(CollisionResult);
 
+    // TODO(Jorge): Make sure A or B are independent. Ex: CircleVsRectangle RectangleVsCircle
     if(A.Type == Collider_Rectangle && B.Type == Collider_Rectangle)
     {
         return C_CollisionRectangleRectangle(A.Rectangle, B.Rectangle, CollisionResult);
@@ -323,34 +436,3 @@ b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
         return false;
     }
 }
-
-
-#if 0
-void C_GetRectangleVertices(rectangle Rectangle, glm::vec2 RectangleVertices[4])
-{
-    rectangle_collision_data Result = {};
-
-    // 1- Generate the obb vertices around the origin.
-    // 2- Rotate the vertices, and later translate them to the world position.
-    // 3- Generate the separations axes and normalize them.
-    /*
-      Vertex0              Vertex1
-      |-----------------|
-      |                 |
-      |        .        | Center   Rotation Angle
-      |                 |
-      |-----------------|
-      Vertex2              Vertex3
-    */
-    RectangleVertices[0] = {-Rectangle.HalfWidth, Rectangle.HalfHeight};
-    RectangleVertices[1] = {+Rectangle.HalfWidth, Rectangle.HalfHeight};
-    RectangleVertices[2] = {-Rectangle.HalfWidth, -Rectangle.HalfHeight};
-    RectangleVertices[3] = {+Rectangle.HalfWidth, -Rectangle.HalfHeight};
-
-    // Rotate the vertices and add the Rectangle.Center, translating the vertices to the correct world position.
-    RectangleVertices[0] = Rectangle.Center + glm::rotate(RectangleVertices[0], glm::radians(Rectangle.Angle));
-    RectangleVertices[1] = Rectangle.Center + glm::rotate(RectangleVertices[1], glm::radians(Rectangle.Angle));
-    RectangleVertices[2] = Rectangle.Center + glm::rotate(RectangleVertices[2], glm::radians(Rectangle.Angle));
-    RectangleVertices[3] = Rectangle.Center + glm::rotate(RectangleVertices[3], glm::radians(Rectangle.Angle));
-}
-#endif

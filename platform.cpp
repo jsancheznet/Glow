@@ -47,8 +47,8 @@ window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)
     Result->Width = Width;
     Result->Height = Height;
 
-    // SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    // SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -95,6 +95,8 @@ window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "gloadLoadGL Failed", Result->Handle);
         exit(-4);
     }
+
+    SDL_GL_SetSwapInterval(1);
 
     return (Result);
 }

@@ -105,7 +105,7 @@ f32 Normalize(f32 Input, f32 Minimum, f32 Maximum)
     return (Input - Minimum) / (Maximum - Minimum);
 }
 
-f32 MapRange(f32 Input, f32 InputStart, f32 InputEnd, f32 OutputStart, f32 OutputEnd)
+f32 Remap(f32 Input, f32 InputStart, f32 InputEnd, f32 OutputStart, f32 OutputEnd)
 {
     return (Input - InputStart) / (InputEnd - InputStart) * (OutputEnd - OutputStart) + OutputStart;
 }

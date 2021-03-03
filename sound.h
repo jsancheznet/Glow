@@ -3,7 +3,6 @@
 #include "shared.h"
 
 typedef Mix_Music sound_music;
-typedef Mix_Music sound_test;
 typedef Mix_Chunk sound_effect;
 
 struct sound_system

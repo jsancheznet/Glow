@@ -15,7 +15,6 @@
 
 // TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
 // TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
-
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Make Bullets little! everything will look better.
@@ -29,6 +28,7 @@
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
 
 /*
+
   Palette: https://colorpalettes.net/color-palette-1162/
   #ffa300 // Yellow
   #cf0060 // Redish
@@ -44,6 +44,7 @@
   Green: 04F504
   Purple: AE03FE
   Blue: 1239FF
+
 */
 
 enum state
@@ -58,16 +59,6 @@ enum state
 global u32 WindowWidth = 1366;
 global u32 WindowHeight = 768;
 
-// Game Variables
-global f32 WorldBottom     = -11.0f;
-global f32 WorldTop        = 11.0f;
-global f32 WorldLeft       = -20.0f;
-global f32 WorldRight      = 20.0f;
-global f32 HalfWorldWidth  = WorldRight;
-global f32 HalfWorldHeight = WorldTop;
-global f32 WorldWidth = WorldRight * 2.0f;
-global f32 WorldHeight = WorldTop * 2.0f;
-
 // Application Variables
 global b32 IsRunning = 1;
 global keyboard     *Keyboard;
@@ -80,8 +71,21 @@ global camera       *Camera;
 global state CurrentState = State_Initial;
 global b32 RenderDebugText = 1;
 
+// Game Variables
+global f32 WorldBottom     = -11.0f;
+global f32 WorldTop        = 11.0f;
+global f32 WorldLeft       = -20.0f;
+global f32 WorldRight      = 20.0f;
+global f32 HalfWorldWidth  = WorldRight;
+global f32 HalfWorldHeight = WorldTop;
+global f32 WorldWidth = WorldRight * 2.0f;
+global f32 WorldHeight = WorldTop * 2.0f;
+
 i32 main(i32 Argc, char **Argv)
 {
+
+    printf("FLT_MIN: %100.100f\n", FLT_MIN);
+    printf("FLT_MAX: %5.5f\n", FLT_MAX);
     /*
       GAME IDEA:
       Breakout, but the player paddle can be rotated using the mouse, and can shoot balls/bullets
@@ -104,41 +108,36 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
+    // Game Variables
+    f32 BackgroundWidth = WorldWidth + 5.0f;
+    f32 BackgroundHeight = WorldHeight + 5.0f;
+    f32 PlayerSpeed = 3.0f;
+    f32 PlayerDrag = 0.8f;
+    f32 GreenCircleSpeed = 4.0f;
+    f32 GreenCircleDrag = 0.8f;
+    f32 PurpleCircleSpeed = 0.1f;
+    f32 PurpleCircleDrag = 0.8f;
+
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
     font *MenuFont  = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
 
     texture *PlayerTexture      = R_CreateTexture("textures/Yellow.png");
     texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
-    texture *BallTexture        = R_CreateTexture("textures/Redish.png");
-    texture *GreenCircleTexture = R_CreateTexture("textures/GreenCircle.png");
     texture *PurpleCircleTexture = R_CreateTexture("textures/PurpleCircle.png");
 
-    f32 BackgroundWidth = WorldWidth + 5.0f;
-    f32 BackgroundHeight = WorldHeight + 5.0f;
-    f32 PlayerSpeed = 3.0f;
-    f32 PlayerDrag = 0.8f;
-    f32 BallSpeed = 30.0f;
-    f32 BallDrag = 1.0f;
-    f32 GreenCircleSpeed = 4.0f;
-    f32 GreenCircleDrag = 0.8f;
-    f32 PurpleCircleSpeed = 5.0f;
-    f32 PurpleCircleDrag = 0.8f;
-
-    entity *GreenCircle =  E_CreateEntity(GreenCircleTexture,  glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, GreenCircleSpeed, GreenCircleDrag, Collider_Circle);
-    entity *PurpleCircle = E_CreateEntity(PurpleCircleTexture, glm::vec3(-0.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PurpleCircleSpeed, PurpleCircleDrag, Collider_Circle);
-
-    entity *Background = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
-    entity *SquareBall = E_CreateEntity(BallTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.5f, 0.5f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Rectangle);
-    // Set the acceleration so the ball starts moving once the game starts
-    SquareBall->Acceleration.x += SquareBall->Speed;
-    SquareBall->Acceleration.y += SquareBall->Speed;
+    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
+    entity *PurpleCircle = E_CreateEntity(PurpleCircleTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PurpleCircleSpeed, PurpleCircleDrag, Collider_Circle);
+    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
 
     // Walls
     entity *LeftWall   = E_CreateEntity(PlayerTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *RightWall  = E_CreateEntity(PlayerTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *TopWall    = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
     entity *BottomWall = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
+
+    // Sounds & Music
+    sound_effect *TestFx = S_CreateEffect("audio/Laser_Shoot2.wav"); S_PlayEffect(TestFx);
+    sound_music *TestMusic = S_CreateMusic("audio/SampleSong.mp3"); S_PlayMusic(TestMusic);
 
     SDL_Event Event;
     while(IsRunning)
@@ -169,8 +168,8 @@ i32 main(i32 Argc, char **Argv)
 
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
-            Mouse->WorldPosition.x = MapRange((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
-            Mouse->WorldPosition.y = MapRange((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+            Mouse->WorldPosition.x = Remap((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+            Mouse->WorldPosition.y = Remap((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
 
             switch(CurrentState)
             {
@@ -333,8 +332,6 @@ i32 main(i32 Argc, char **Argv)
                     }
                     case State_Game:
                     {
-                        // Ball->RotationAngle += 100.0f * (f32)Clock->DeltaTime;
-
                         { // Player Rotation according to mouse
                             f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
                             f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
@@ -344,19 +341,21 @@ i32 main(i32 Argc, char **Argv)
                         // Update Entities
                         // TODO(Jorge): Have a single array of entities and update them all on a loop
                         E_Update(Player, (f32)Clock->DeltaTime);
-                        E_Update(SquareBall, (f32)Clock->DeltaTime);
                         E_Update(PurpleCircle, (f32)Clock->DeltaTime);
-                        E_Update(GreenCircle, (f32)Clock->DeltaTime);
 
-
-                        { // Circle vs Circle collision testing
+                        { // Rectangle vs Circle
                             collision_result CollisionResult;
-                            if(E_EntitiesCollide(PurpleCircle, GreenCircle, &CollisionResult))
+                            if(E_EntitiesCollide(Player, PurpleCircle, &CollisionResult))
                             {
-                                // TODO: Move the object back!
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                GreenCircle->Position.x += I.x;
-                                GreenCircle->Position.y += I.y;
+                                // Player->Position.x += I.x / 2.0f;
+                                // Player->Position.y += I.y / 2.0f;
+                                // PurpleCircle->Position.x -= I.x / 2.0f;
+                                // PurpleCircle->Position.y -= I.y / 2.0f;
+                            }
+                            else
+                            {
+                                printf("\n");
                             }
                         }
 
@@ -388,94 +387,31 @@ i32 main(i32 Argc, char **Argv)
                             }
                         }
 
-                        { // Ball Collision with walls
-                            collision_result CollisionResult;
-                            if(E_EntitiesCollide(SquareBall, LeftWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                SquareBall->Position.x += I.x;
-                                SquareBall->Position.y += I.y;
-                                SquareBall->Velocity.x *= -1.0f;
-                            }
-
-                            if(E_EntitiesCollide(SquareBall, RightWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                SquareBall->Position.x += I.x;
-                                SquareBall->Position.y += I.y;
-                                SquareBall->Velocity.x *= -1.0f;
-                            }
-
-                            if(E_EntitiesCollide(SquareBall, TopWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                SquareBall->Position.x += I.x;
-                                SquareBall->Position.y += I.y;
-                                SquareBall->Velocity.y *= -1.0f;
-                            }
-
-                            if(E_EntitiesCollide(SquareBall, BottomWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                SquareBall->Position.x += I.x;
-                                SquareBall->Position.y += I.y;
-                                SquareBall->Velocity.y *= -1.0f;
-                            }
-                        }
-
-                        { // SquareBall vs Player
-                            collision_result CollisionResult;
-                            if(E_EntitiesCollide(SquareBall, Player, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                SquareBall->Position.x += I.x;
-                                SquareBall->Position.y += I.y;
-
-                                // SquareBall->Velocity.x *= -1.0f;
-                                // SquareBall->Velocity.y *= -1.0f;
-
-                                /*
-                                  Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
-                                 */
-                                glm::vec3 SquareBallVelocity = glm::normalize(SquareBall->Velocity);
-                                glm::vec3 MTV = {};
-                                MTV.x = CollisionResult.Direction.x;
-                                MTV.y = CollisionResult.Direction.y;
-                                MTV.z = 0.0f;
-                                MTV = glm::normalize(MTV);
-                                f32 Angle = (f32)(acosf(glm::dot(SquareBallVelocity, MTV)) * 180.0f / PI32);
-                                // printf("Angle Between: %2.2f\n", Angle);
-                                glm::vec2 OldVel = glm::vec2(SquareBall->Velocity.x, SquareBall->Velocity.y);
-                                glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
-
-                                SquareBall->Velocity.x = NewVel.x;
-                                SquareBall->Velocity.y = NewVel.y;
-
-                                // TODO: Now rotate angle
-                            }
-                            // printf("SquareBall->Velocity: %2.2f\t %2.2f\t%2.2f\n", SquareBall->Velocity.x, SquareBall->Velocity.y, glm::length(SquareBall->Velocity));
-                        }
-
-                        { // GreenCircle vs Player
-                            collision_result Result = {};
-                            if(E_EntitiesCollide(Player, GreenCircle, &Result))
-                            {
-                                // TODO(Jorge): Set a breakpoint right here and see what happens and what i need to do
-                            }
-                        }
-
-#if 0
-                        collision_result CollisionResult;
-                        if(E_EntitiesCollide(Player, Enemy, &CollisionResult))
-                        {
-                            glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                            Player->Position.x += I.x / 2.0f;
-                            Player->Position.y += I.y / 2.0f;
-
-                            Enemy->Position.x -= I.x / 2.0f;
-                            Enemy->Position.y -= I.y / 2.0f;
-                        }
-#endif
+                        // { // Ball vs Player
+                        //     collision_result CollisionResult;
+                        //     if(E_EntitiesCollide(Player, Ball, &CollisionResult))
+                        //     {
+                        //         glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                        //         Ball->Position.x += I.x;
+                        //         Ball->Position.y += I.y;
+                        //         /*
+                        //           Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
+                        //          */
+                        //         glm::vec3 BallVelocity = glm::normalize(Ball->Velocity);
+                        //         glm::vec3 MTV = {};
+                        //         MTV.x = CollisionResult.Direction.x;
+                        //         MTV.y = CollisionResult.Direction.y;
+                        //         MTV.z = 0.0f;
+                        //         MTV = glm::normalize(MTV);
+                        //         f32 Angle = (f32)(acosf(glm::dot(BallVelocity, MTV)) * 180.0f / PI32);
+                        //         // printf("Angle Between: %2.2f\n", Angle);
+                        //         glm::vec2 OldVel = glm::vec2(Ball->Velocity.x, Ball->Velocity.y);
+                        //         glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
+                        //         Ball->Velocity.x = NewVel.x;
+                        //         Ball->Velocity.y = NewVel.y;
+                        //         // TODO: Now rotate angle
+                        //     }
+                        // }
 
                         break;
                     }
@@ -537,15 +473,11 @@ i32 main(i32 Argc, char **Argv)
                     R_SetActiveShader(Renderer->Shaders.Texture);
                     R_DrawEntity(Renderer, Background); // Draw the background first
                     R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, GreenCircle);
                     R_DrawEntity(Renderer, PurpleCircle);
                     R_DrawEntity(Renderer, LeftWall);
                     R_DrawEntity(Renderer, RightWall);
                     R_DrawEntity(Renderer, TopWall);
                     R_DrawEntity(Renderer, BottomWall);
-                    R_SetActiveShader(Renderer->Shaders.Ball);
-                    R_DrawEntity(Renderer, SquareBall);
-
 
                     if(RenderDebugText)
                     {

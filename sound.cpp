@@ -68,7 +68,7 @@ sound_system *S_CreateSoundSystem()
     return Result;
 }
 
-sound_effect *S_CreateSoundEffect(char *Filename)
+sound_effect *S_CreateEffect(char *Filename)
 {
     Assert(Filename);
 
@@ -98,7 +98,7 @@ sound_music *S_CreateMusic(char *Filename)
     return Result;
 }
 
-void S_PlaySoundEffect(sound_effect *Fx)
+void S_PlayEffect(sound_effect *Fx)
 {
     /*
       Arg 1, Channel to play on, or -1 for the first free unreserved channel.
