@@ -2,19 +2,6 @@
 
 #include "collision.h"
 
-/* TODO
-
-   OBB vs Circle
-
-   1 Testear en los ejes del obb
-   2 Calcular cual es el vertice mas cercano al centro del circulo
-   3 Testear en el eje paralelo a vertice_obb-centro_circulo
-
-   extra: usar voronoi regiones para encontrar el vertice mas
-   cercano. Esto lo hace mas rapido y supuestamente lo unico que
-   preciso son las pruebas hechas en los ejes del obb
- */
-
 glm::vec2 C_RighthandNormal(glm::vec2 A)
 {
     glm::vec2 Result;
@@ -51,6 +38,7 @@ f32 C_GetOverlap(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
     {
         MinA, MaxA, MinB, MaxB
     };
+
     for(u32 i = 0; i < 4; i++)
     {
         if(Values[i] < Min)
@@ -72,7 +60,7 @@ f32 C_GetOverlap(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
     return Result;
 }
 
-void C_GetRectangleVertices(rectangle RectangleInput, glm::vec2 *OutputArray)
+void C_RectangleVertices(rectangle RectangleInput, glm::vec2 *OutputArray)
 {
     // 1- Generate the obb vertices around the origin.
     // 2- Rotate the vertices, and later translate them to the world position.
@@ -102,30 +90,7 @@ void C_GetRectangleVertices(rectangle RectangleInput, glm::vec2 *OutputArray)
 rectangle_collision_data C_GenerateRectangleCollisionData(rectangle Input)
 {
     rectangle_collision_data Result = {};
-
-    // 1- Generate the obb vertices around the origin.
-    // 2- Rotate the vertices, and later translate them to the world position.
-    // 3- Generate the separations axes and normalize them.
-    /*
-      Vertex0              Vertex1
-         |-----------------|
-         |                 |
-         |        .        | Center   Rotation Angle
-         |                 |
-         |-----------------|
-      Vertex2              Vertex3
-     */
-    Result.Vertices[0] = {-Input.HalfWidth, Input.HalfHeight};
-    Result.Vertices[1] = {+Input.HalfWidth, Input.HalfHeight};
-    Result.Vertices[2] = {-Input.HalfWidth, -Input.HalfHeight};
-    Result.Vertices[3] = {+Input.HalfWidth, -Input.HalfHeight};
-
-    // Rotate the vertices and add the Input.Center, translating the vertices to the correct world position.
-    Result.Vertices[0] = Input.Center + glm::rotate(Result.Vertices[0], glm::radians(Input.Angle));
-    Result.Vertices[1] = Input.Center + glm::rotate(Result.Vertices[1], glm::radians(Input.Angle));
-    Result.Vertices[2] = Input.Center + glm::rotate(Result.Vertices[2], glm::radians(Input.Angle));
-    Result.Vertices[3] = Input.Center + glm::rotate(Result.Vertices[3], glm::radians(Input.Angle));
-
+    C_RectangleVertices(Input, Result.Vertices);
     // Get the separation Axes and Normalize them so we can project vectors onto them
     Result.SeparationAxes[0] = glm::normalize(C_RighthandNormal(Result.Vertices[2] - Result.Vertices[0]));
     Result.SeparationAxes[1] = glm::normalize(C_RighthandNormal(Result.Vertices[0] - Result.Vertices[1]));
@@ -133,7 +98,7 @@ rectangle_collision_data C_GenerateRectangleCollisionData(rectangle Input)
     return (Result);
 }
 
-void C_ProjectOBBVertices(rectangle_collision_data Rectangle, glm::vec2 Axis, f32 *Min, f32 *Max)
+void C_ProjectRectangleVertices(rectangle_collision_data Rectangle, glm::vec2 Axis, f32 *Min, f32 *Max)
 {
     *Min = 0.0f;
     *Max = 0.0f;
@@ -161,6 +126,26 @@ void C_ProjectOBBVertices(rectangle_collision_data Rectangle, glm::vec2 Axis, f3
             *Max = P;
         }
     }
+}
+
+glm::vec2 C_ClosestVertexToPoint(glm::vec2 *Vertices, glm::vec2 Point)
+{
+    glm::vec2 Result = {};
+
+    f32 Dist = FLT_MAX;
+    f32 CurrentDistance;
+
+    for(i32 i = 0; i < 4; i++)
+    {
+        CurrentDistance = Distance(Vertices[i], Point);
+        if(CurrentDistance < Dist)
+        {
+            Dist = CurrentDistance;
+            Result = Vertices[i];
+        }
+    }
+
+    return Result;
 }
 
 b32 C_CollisionCircleCircle(circle A, circle B, collision_result *Result)
@@ -212,11 +197,11 @@ b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Re
         // Project all vertices to one of the axes, keep only the min and max of each obb then do overlapping function
         f32 MinA = 0.0f;
         f32 MaxA = 0.0f;
-        C_ProjectOBBVertices(DataA, Axes[i], &MinA, &MaxA);
+        C_ProjectRectangleVertices(DataA, Axes[i], &MinA, &MaxA);
 
         f32 MinB = 0.0f;
         f32 MaxB = 0.0f;
-        C_ProjectOBBVertices(DataB, Axes[i], &MinB, &MaxB);
+        C_ProjectRectangleVertices(DataB, Axes[i], &MinB, &MaxB);
 
         if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
         {
@@ -247,168 +232,129 @@ b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Re
     return true;
 }
 
-glm::vec2 C_FindClosestVertex(glm::vec2 Vertices[4], glm::vec2 CircleCenter)
-{
-    glm::vec2 Result = {};
-
-    f32 MinDistance = FLT_MAX;
-    for(u32 i  = 0; i < 4; i++)
-    {
-        f32 CurrentDistance = Distance(Vertices[i], CircleCenter);
-        if(CurrentDistance < MinDistance)
-        {
-            MinDistance = CurrentDistance;
-            Result.x = Vertices[i].x;
-            Result.y = Vertices[i].y;
-        }
-    }
-
-    return (Result);
-}
-
 b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, collision_result *CollisionResult)
+
 {
-    /*
-
-       OBB vs Circle
-
-       1) Testear en los ejes del obb
-       2) Calcular cual es el vertice mas cercano al centro del circulo
-       3) Testear en el eje paralelo a vertice_obb-centro_circulo
-
-       extra: usar voronoi regiones para encontrar el vertice mas
-       cercano. Esto lo hace mas rapido y supuestamente lo unico que
-       preciso son las pruebas hechas en los ejes del obb
-    */
-
     f32 SmallestOverlap = FLT_MAX;
     glm::vec2 SmallestAxis = {};
 
-    { // SECTION: Test for collision on the OBB separation axes
-        rectangle_collision_data RectangleCollisionData = C_GenerateRectangleCollisionData(InputRectangle);
+    rectangle_collision_data RectangleCollisionData = C_GenerateRectangleCollisionData(InputRectangle);
 
-        // Get the points of the circle on x,y axes
-        // Generate the vertices on model space
-        glm::vec2 CircleVertex1X = {-InputCircle.Radius, 0.0f};
-        glm::vec2 CircleVertex2X = {InputCircle.Radius, 0.0f};
-        glm::vec2 CircleVertex1Y = {0.0f, InputCircle.Radius};
-        glm::vec2 CircleVertex2Y = {0.0f, -InputCircle.Radius};
+    // Test collision on the rectangle axes
+    // Now we have the rectangle vertices, the rectangle SAT axes and the Circle Vertices in world space, let's do this.
+    for(i32 i = 0; i < 2; i++)
+    {
+        // Project all vertices of obb onto one axis
+        f32 MinA = 0.0f;
+        f32 MaxA = 0.0f;
+        C_ProjectRectangleVertices(RectangleCollisionData, RectangleCollisionData.SeparationAxes[i], &MinA, &MaxA);
 
-        // Rotate the vertices and add the Circle.Center, translating the vertices to the correct world position.
-        CircleVertex1X = InputCircle.Center + glm::rotate(CircleVertex1X, glm::radians(InputRectangle.Angle));
-        CircleVertex2X = InputCircle.Center + glm::rotate(CircleVertex2X, glm::radians(InputRectangle.Angle));
-        CircleVertex1Y = InputCircle.Center + glm::rotate(CircleVertex1Y, glm::radians(InputRectangle.Angle));
-        CircleVertex2Y = InputCircle.Center + glm::rotate(CircleVertex2Y, glm::radians(InputRectangle.Angle));
+        // Project the circle center on the obb separation axes, add and substract radius to get min,max
+        f32 CircleCenter = dot(InputCircle.Center, RectangleCollisionData.SeparationAxes[i]);
+        f32 MinB = CircleCenter - InputCircle.Radius;
+        f32 MaxB = CircleCenter + InputCircle.Radius;
 
-        { // SECTION: Test collision on the rectangle axes
-            // Now we have the rectangle vertices, the rectangle SAT axes and the Circle Vertices in world space, let's do this.
-            for(i32 i = 0; i < 2; i++)
+        // Get the min and max, than do overlapping
+        if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
+        {
+            // There is no overlap, according to SAT, the shapes are not colliding, return false.
+            *CollisionResult = {};
+            return false;
+        }
+        else
+        {
+            // if its the SmallestOverlap, set te variable accordingly
+            f32 Overlap = C_GetOverlap(MinA, MaxA, MinB, MaxB);
+            if(Overlap < SmallestOverlap)
             {
-                // Project all vertices of obb onto one axis
-                f32 MinA = 0.0f;
-                f32 MaxA = 0.0f;
-                C_ProjectOBBVertices(RectangleCollisionData, RectangleCollisionData.SeparationAxes[i], &MinA, &MaxA);
+                SmallestOverlap = Overlap;
+                SmallestAxis = glm::normalize(RectangleCollisionData.SeparationAxes[i]);
 
-                // Project circle vertices onto the same axis
-                f32 MinB;
-                f32 MaxB;
-
-                f32 Projection1 = glm::dot(CircleVertex1X, RectangleCollisionData.SeparationAxes[i]);
-                f32 Projection2 = glm::dot(CircleVertex2X, RectangleCollisionData.SeparationAxes[i]);
-                f32 Projection3 = glm::dot(CircleVertex1Y, RectangleCollisionData.SeparationAxes[i]);
-                f32 Projection4 = glm::dot(CircleVertex2Y, RectangleCollisionData.SeparationAxes[i]);
-
-                // First iteration
-                MinB = Projection1;
-                MaxB = Projection1;
-
-                // Get MinB, MaxB
-                if(Projection1 > MaxB)
+                // This if checks the direction in which the obb
+                // has to be displaced Got it from:
+                // https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
+                if(MinA < MinB)
                 {
-                    MaxB = Projection1;
-                }
-                else if(Projection1 < MinB)
-                {
-                    MinB = Projection1;
-                }
-
-                if(Projection2 > MaxB)
-                {
-                    MaxB = Projection2;
-                }
-                else if(Projection2 < MinB)
-                {
-                    MinB = Projection2;
-                }
-
-                if(Projection3 > MaxB)
-                {
-                    MaxB = Projection3;
-                }
-                else if(Projection3 < MinB)
-                {
-                    MinB = Projection3;
-                }
-
-                if(Projection4 > MaxB)
-                {
-                    MaxB = Projection4;
-                }
-                else if(Projection4 < MinB)
-                {
-                    MinB = Projection4;
-                }
-
-                // Get the min and max, than do overlapping
-                if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
-                {
-                    // There is no overlap, according to SAT, the shapes are not colliding, return false.
-                    *CollisionResult = {};
-                    return false;
-                }
-                else
-                {
-                    // if its the SmallestOverlap, set te variable accordingly
-                    f32 Overlap = C_GetOverlap(MinA, MaxA, MinB, MaxB);
-                    if(Overlap < SmallestOverlap)
-                    {
-                        SmallestOverlap = Overlap;
-                        SmallestAxis = glm::normalize(RectangleCollisionData.SeparationAxes[i]);
-
-                        // This if checks the direction in which the obb
-                        // has to be displaced Got it from:
-                        // https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
-                        if(MinA < MinB)
-                        {
-                            SmallestAxis *= -1;
-                        }
-                    }
+                    SmallestAxis *= -1;
                 }
             }
         }
+    }
 
     CollisionResult->Overlap = SmallestOverlap;
     CollisionResult->Direction = SmallestAxis;
 
-    } // ENDSECTION
 
-    { // SECTION: Test for collision using the circle's data
-        // If we got to here, we have found collision on the 2 rect axes.
 
-        glm::vec2 Vertices[4];
-        C_GetRectangleVertices(InputRectangle, Vertices);
+    // Find the closest vertex of the rectangle to the center of the circle
+    glm::vec2 Vertices[4];
+    C_RectangleVertices(InputRectangle, Vertices);
+    glm::vec2 ClosestVertex = C_ClosestVertexToPoint(Vertices, InputCircle.Center);
 
-        glm::vec2 ClosestVertex = {};
-        ClosestVertex = C_FindClosestVertex(Vertices, InputCircle.Center);
+    // Get the axis to test
+    glm::vec2 Axis = glm::normalize(ClosestVertex - InputCircle.Center);
 
-        // Get the ClosestVertex -> CircleCenter Axis
-        glm::vec2 Axis = Normalize(ClosestVertex - InputCircle.Center);
+    // Project Circle to Axis
+    f32 CircleMin = glm::dot(InputCircle.Center, Axis) - InputCircle.Radius;
+    f32 CircleMax = glm::dot(InputCircle.Center, Axis) + InputCircle.Radius;
 
-        // Project the obb vertices, get MaxA, MinB
+    // Project Rectangle
+    f32 RectMin;
+    f32 RectMax;
+    C_ProjectRectangleVertices(RectangleCollisionData, Axis, &RectMin, &RectMax);
 
-        // Get the Circle Vertices along the axis, How?
+    // Get the min and max, than do overlapping
+    if(!C_Overlapping1D(RectMin, RectMax, CircleMin, CircleMax))
+    {
+        // There is no overlap, according to SAT, the shapes are not colliding, return false.
+        *CollisionResult = {};
 
+        printf("\n");
+        return false;
     }
+    else
+    {
+        printf("Collision\n");
+
+        // if its the SmallestOverlap, set te variable accordingly
+        f32 Overlap = C_GetOverlap(RectMin, RectMax, CircleMin, CircleMax);
+        if(Overlap < SmallestOverlap)
+        {
+            SmallestOverlap = Overlap;
+            SmallestAxis = Axis;
+
+            // This if checks the direction in which the obb
+            // has to be displaced Got it from:
+            // https://gamedev.stackexchange.com/questions/27596/implementing-separating-axis-theorem-sat-and-minimum-translation-vector-mtv/27633#27633
+            if(RectMin < CircleMin)
+            {
+                SmallestAxis *= -1;
+            }
+        }
+    }
+
+#if 0
+    // This is taken from learnopengl.com it's for Circles vs AABB
+
+    glm::vec2 RectangleHalfExtents = glm::vec2(InputRectangle.HalfWidth, InputRectangle.HalfHeight);
+    glm::vec2 Difference = InputCircle.Center - InputRectangle.Center;
+    glm::vec2 Clamped = glm::clamp(Difference, -RectangleHalfExtents, RectangleHalfExtents);
+    glm::vec2 Closest = InputRectangle.Center + Clamped;
+    if(glm::length(InputCircle.Center - Closest) < InputCircle.Radius)
+    {
+        printf("Collision!\n");
+    }
+    else
+    {
+        printf("\n");
+        CollisionResult->Overlap = 0.0f;
+        CollisionResult->Direction = {};
+        return false;
+    }
+#endif
+
+    CollisionResult->Overlap = SmallestOverlap;
+    CollisionResult->Direction = SmallestAxis;
 
     return true;
 }
@@ -417,7 +363,6 @@ b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
 {
     Assert(CollisionResult);
 
-    // TODO(Jorge): Make sure A or B are independent. Ex: CircleVsRectangle RectangleVsCircle
     if(A.Type == Collider_Rectangle && B.Type == Collider_Rectangle)
     {
         return C_CollisionRectangleRectangle(A.Rectangle, B.Rectangle, CollisionResult);

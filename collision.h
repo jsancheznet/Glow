@@ -33,7 +33,6 @@ struct collider
     };
 };
 
-// TODO: Refactor these remaining structs, they dont make much sense
 struct rectangle_collision_data
 {
     glm::vec2 Vertices[4];

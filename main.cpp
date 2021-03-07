@@ -293,6 +293,13 @@ i32 main(i32 Argc, char **Argv)
                         PurpleCircle->Acceleration.y -= PurpleCircle->Speed;
                     }
 
+                    // Debug, TODO: DELETE_ME
+                    i32 Test =0;
+                    if(I_IsPressed(SDL_SCANCODE_Y))
+                    {
+                        Test++;
+                    }
+
                     break;
                 }
                 case State_Pause:
@@ -348,10 +355,10 @@ i32 main(i32 Argc, char **Argv)
                             if(E_EntitiesCollide(Player, PurpleCircle, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                // Player->Position.x += I.x / 2.0f;
-                                // Player->Position.y += I.y / 2.0f;
-                                // PurpleCircle->Position.x -= I.x / 2.0f;
-                                // PurpleCircle->Position.y -= I.y / 2.0f;
+                                Player->Position.x += I.x / 2.0f;
+                                Player->Position.y += I.y / 2.0f;
+                                PurpleCircle->Position.x -= I.x / 2.0f;
+                                PurpleCircle->Position.y -= I.y / 2.0f;
                             }
                             else
                             {

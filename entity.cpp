@@ -66,7 +66,7 @@ entity *E_CreateEntity(texture *Texture,
         default:
         {
             // Invalid code path
-            Assert(0);
+            InvalidCodePath;
             break;
         }
     }
@@ -96,6 +96,7 @@ void E_Update(entity *Entity, f32 TimeStep)
         {
             Entity->Collider.Circle.Center.x = Entity->Position.x;
             Entity->Collider.Circle.Center.y = Entity->Position.y;
+            Entity->Collider.Circle.Radius = Entity->Size.x * 0.5f;
             break;
         }
         default:
