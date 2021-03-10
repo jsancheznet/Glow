@@ -81,6 +81,10 @@ void E_Update(entity *Entity, f32 TimeStep)
     Entity->Acceleration = {};
     Entity->Velocity *= Entity->Drag;
 
+    if(Entity->Size.x < 0.0f) Entity->Size.x = 0.0f;
+    if(Entity->Size.y < 0.0f) Entity->Size.y = 0.0f;
+    if(Entity->Size.z < 0.0f) Entity->Size.z = 0.0f;
+
     // Collision Data
     switch(Entity->Collider.Type)
     {

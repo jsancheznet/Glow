@@ -24,21 +24,13 @@ f32 C_GetOverlap(f32 MinA, f32 MaxA, f32 MinB, f32 MaxB)
     // Get the length of both segments
     f32 LengthA = Abs(MaxA - MinA);
     f32 LengthB = Abs(MaxB - MinB);
-
     // Add the lengths
     f32 TotalLength = LengthA + LengthB;
 
     // Get the Min and Max from MinA,MaxA,MinB,MaxB
-    f32 HugeNegativeNumber = -99999999999999.f;
-    f32 HugePositiveNumber = 99999999999999.f;
-    f32 Min = HugePositiveNumber;
-    f32 Max = HugeNegativeNumber;
-
-    f32 Values[4] =
-    {
-        MinA, MaxA, MinB, MaxB
-    };
-
+    f32 Min = FLT_MAX;
+    f32 Max = -FLT_MAX;
+    f32 Values[4] = { MinA, MaxA, MinB, MaxB};
     for(u32 i = 0; i < 4; i++)
     {
         if(Values[i] < Min)
@@ -333,9 +325,9 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
         }
     }
 
+
 #if 0
     // This is taken from learnopengl.com it's for Circles vs AABB
-
     glm::vec2 RectangleHalfExtents = glm::vec2(InputRectangle.HalfWidth, InputRectangle.HalfHeight);
     glm::vec2 Difference = InputCircle.Center - InputRectangle.Center;
     glm::vec2 Clamped = glm::clamp(Difference, -RectangleHalfExtents, RectangleHalfExtents);
@@ -370,6 +362,10 @@ b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
     else if(A.Type == Collider_Rectangle && B.Type == Collider_Circle)
     {
         return C_CollisionRectangleCircle(A.Rectangle, B.Circle, CollisionResult);
+    }
+    else if(A.Type == Collider_Circle && B.Type == Collider_Rectangle)
+    {
+        return C_CollisionRectangleCircle(B.Rectangle, A.Circle, CollisionResult);
     }
     else if(A.Type == Collider_Circle && B.Type == Collider_Circle)
     {
