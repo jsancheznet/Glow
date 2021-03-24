@@ -13,6 +13,8 @@
 #include "collision.cpp"
 #include "entity.cpp"
 
+// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
+
 // TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
 // TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
@@ -23,7 +25,6 @@
 // TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
 // TODO(Jorge): Remove unused functions from final version
 // TODO(Jorge): Delete all unused data files
-// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
 
@@ -105,8 +106,8 @@ i32 main(i32 Argc, char **Argv)
     f32 PlayerSpeed = 3.0f;
     f32 PlayerDrag = 0.8f;
     f32 PlayerRotationSpeed = 0.5f;
-    f32 BallSpeed = 10.0f;
-    f32 BallDrag = 0.8f;
+    f32 BallSpeed = 30.0f;
+    f32 BallDrag = 1.0f;
 
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
     font *MenuFont  = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
@@ -116,10 +117,10 @@ i32 main(i32 Argc, char **Argv)
     texture *BallTexture        = R_CreateTexture("textures/PurpleCircle.png");
 
     entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
-    Ball->Acceleration.x += 5.0f;
-    Ball->Acceleration.y += 5.0f;
     entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.96f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
+    entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
+    Ball->Acceleration.x += Ball->Speed;
+    Ball->Acceleration.y += Ball->Speed;
 
     // Walls
     entity *LeftWall   = E_CreateEntity(PlayerTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
@@ -267,24 +268,6 @@ i32 main(i32 Argc, char **Argv)
                         Player->RotationAngle -= PlayerRotationSpeed;
                     }
 
-                    // Purple Circle
-                    if(I_IsPressed(SDL_SCANCODE_LEFT))
-                    {
-                        Ball->Acceleration.x -= Ball->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_RIGHT))
-                    {
-                        Ball->Acceleration.x += Ball->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_UP))
-                    {
-                        Ball->Acceleration.y += Ball->Speed;
-                    }
-                    if(I_IsPressed(SDL_SCANCODE_DOWN))
-                    {
-                        Ball->Acceleration.y -= Ball->Speed;
-                    }
-
                     break;
                 }
                 case State_Pause:
@@ -330,7 +313,6 @@ i32 main(i32 Argc, char **Argv)
                             // Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 90.0f;
                         }
 
-
                         // Update Entities
                         // TODO(Jorge): Have a single array of entities and update them all on a loop
                         E_Update(Player, (f32)Clock->DeltaTime);
@@ -341,14 +323,10 @@ i32 main(i32 Argc, char **Argv)
                             if(E_EntitiesCollide(Player, Ball, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Player->Position.x += I.x / 2.0f;
-                                Player->Position.y += I.y / 2.0f;
-                                Ball->Position.x -= I.x / 2.0f;
-                                Ball->Position.y -= I.y / 2.0f;
-                            }
-                            else
-                            {
-                                printf("\n");
+                                // Player->Position.x += I.x / 2.0f;
+                                // Player->Position.y += I.y / 2.0f;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
                             }
                         }
 
@@ -359,24 +337,28 @@ i32 main(i32 Argc, char **Argv)
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
                                 Ball->Position.x -= I.x;
                                 Ball->Position.y -= I.y;
+                                Ball->Velocity.x *= -1;
                             }
                             if(E_EntitiesCollide(Ball, RightWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
                                 Ball->Position.x -= I.x;
                                 Ball->Position.y -= I.y;
+                                Ball->Velocity.x *= -1;
                             }
                             if(E_EntitiesCollide(Ball, TopWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
                                 Ball->Position.x -= I.x;
                                 Ball->Position.y -= I.y;
+                                Ball->Velocity.y *= -1;
                             }
                             if(E_EntitiesCollide(Ball, BottomWall, &CollisionResult))
                             {
                                 glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
                                 Ball->Position.x -= I.x;
                                 Ball->Position.y -= I.y;
+                                Ball->Velocity.y *= -1;
                             }
                         }
 
@@ -407,32 +389,6 @@ i32 main(i32 Argc, char **Argv)
                                 Player->Position.y += I.y;
                             }
                         }
-
-                        // { // Ball vs Player
-                        //     collision_result CollisionResult;
-                        //     if(E_EntitiesCollide(Player, Ball, &CollisionResult))
-                        //     {
-                        //         glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                        //         Ball->Position.x += I.x;
-                        //         Ball->Position.y += I.y;
-                        //         /*
-                        //           Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
-                        //          */
-                        //         glm::vec3 BallVelocity = glm::normalize(Ball->Velocity);
-                        //         glm::vec3 MTV = {};
-                        //         MTV.x = CollisionResult.Direction.x;
-                        //         MTV.y = CollisionResult.Direction.y;
-                        //         MTV.z = 0.0f;
-                        //         MTV = glm::normalize(MTV);
-                        //         f32 Angle = (f32)(acosf(glm::dot(BallVelocity, MTV)) * 180.0f / PI32);
-                        //         // printf("Angle Between: %2.2f\n", Angle);
-                        //         glm::vec2 OldVel = glm::vec2(Ball->Velocity.x, Ball->Velocity.y);
-                        //         glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
-                        //         Ball->Velocity.x = NewVel.x;
-                        //         Ball->Velocity.y = NewVel.y;
-                        //         // TODO: Now rotate angle
-                        //     }
-                        // }
 
                         break;
                     }
@@ -530,34 +486,6 @@ i32 main(i32 Argc, char **Argv)
                                      glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*5),
                                      glm::vec2(1.0f, 1.0f),
                                      glm::vec3(1.0f, 1.0f, 1.0f));
-
-
-                        // // Enemy
-                        // sprintf_s(String, "Enemy Collision Data:");
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
 
                         // Mouse
                         sprintf_s(String, "Mouse:");

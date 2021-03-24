@@ -163,7 +163,6 @@ b32 C_CollisionCircleCircle(circle A, circle B, collision_result *Result)
     }
 }
 
-
 b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Result)
 {
     Assert(Result);
@@ -300,14 +299,10 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
     {
         // There is no overlap, according to SAT, the shapes are not colliding, return false.
         *CollisionResult = {};
-
-        printf("\n");
         return false;
     }
     else
     {
-        printf("Collision\n");
-
         // if its the SmallestOverlap, set te variable accordingly
         f32 Overlap = C_GetOverlap(RectMin, RectMax, CircleMin, CircleMax);
         if(Overlap < SmallestOverlap)
@@ -324,26 +319,6 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
             }
         }
     }
-
-
-#if 0
-    // This is taken from learnopengl.com it's for Circles vs AABB
-    glm::vec2 RectangleHalfExtents = glm::vec2(InputRectangle.HalfWidth, InputRectangle.HalfHeight);
-    glm::vec2 Difference = InputCircle.Center - InputRectangle.Center;
-    glm::vec2 Clamped = glm::clamp(Difference, -RectangleHalfExtents, RectangleHalfExtents);
-    glm::vec2 Closest = InputRectangle.Center + Clamped;
-    if(glm::length(InputCircle.Center - Closest) < InputCircle.Radius)
-    {
-        printf("Collision!\n");
-    }
-    else
-    {
-        printf("\n");
-        CollisionResult->Overlap = 0.0f;
-        CollisionResult->Direction = {};
-        return false;
-    }
-#endif
 
     CollisionResult->Overlap = SmallestOverlap;
     CollisionResult->Direction = SmallestAxis;
