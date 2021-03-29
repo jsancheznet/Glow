@@ -125,6 +125,11 @@ f32 Distance(glm::vec3 A, glm::vec3 B)
     return glm::distance(A, B);
 }
 
+glm::vec2 Direction(glm::vec2 From, glm::vec2 To)
+{
+    return glm::normalize(To - From);
+}
+
 glm::vec3 Normalize(glm::vec3 A)
 {
     return glm::normalize(A);

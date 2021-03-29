@@ -306,13 +306,10 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, glm
         *ResolutionDirection = {};
         *ResolutionOverlap = 0.0f;
 
-        printf("\n");
         return false;
     }
     else
     {
-        printf("Collision\n");
-
         // if its the SmallestOverlap, set te variable accordingly
         f32 Overlap = C_GetOverlap(RectMin, RectMax, CircleMin, CircleMax);
         if(Overlap < SmallestOverlap)

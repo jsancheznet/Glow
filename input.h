@@ -13,10 +13,10 @@ struct mouse
     i32 X;
     i32 Y;
 
-    glm::vec3 WorldPosition;
-
     f32 Sensitivity;
     b32 FirstMouse; // FirstMouse is used only on the first mouse/frame input to avoid a camera jump
+
+    glm::vec3 WorldPosition;
 };
 
 struct keyboard
