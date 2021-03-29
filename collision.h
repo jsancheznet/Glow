@@ -45,9 +45,3 @@ struct obb_projection_result
     f32 Max;
     glm::vec2 Axis;
 };
-
-struct collision_result
-{
-    f32 Overlap;
-    glm::vec2 Direction;
-};

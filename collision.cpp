@@ -140,19 +140,22 @@ glm::vec2 C_ClosestVertexToPoint(glm::vec2 *Vertices, glm::vec2 Point)
     return Result;
 }
 
-b32 C_CollisionCircleCircle(circle A, circle B, collision_result *Result)
+b32 C_CollisionCircleCircle(circle A, circle B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
-    Assert(Result);
+    Assert(ResolutionDirection);
+    Assert(ResolutionOverlap);
 
-    *Result = {};
+    *ResolutionDirection = {};
+    *ResolutionOverlap = 0.0f;
+
     f32 RadiiSum = A.Radius + B.Radius;
     f32 DistanceBetween = Distance(A.Center, B.Center);
 
     if(DistanceBetween < RadiiSum)
     {
         // Collision
-        Result->Overlap = Abs(RadiiSum - DistanceBetween);
-        Result->Direction  = Normalize(A.Center - B.Center);
+        *ResolutionOverlap = Abs(RadiiSum - DistanceBetween);
+        *ResolutionDirection  = Normalize(A.Center - B.Center);
 
         return true;
     }
@@ -163,10 +166,10 @@ b32 C_CollisionCircleCircle(circle A, circle B, collision_result *Result)
     }
 }
 
-
-b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Result)
+b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
-    Assert(Result);
+    Assert(ResolutionDirection);
+    Assert(ResolutionOverlap);
 
     rectangle_collision_data DataA = C_GenerateRectangleCollisionData(A);
     rectangle_collision_data DataB = C_GenerateRectangleCollisionData(B);
@@ -218,15 +221,17 @@ b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Re
         }
     }
 
-    Result->Overlap = SmallestOverlap;
-    Result->Direction = SmallestAxis;
+    *ResolutionOverlap = SmallestOverlap;
+    *ResolutionDirection = SmallestAxis;
 
     return true;
 }
 
-b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, collision_result *CollisionResult)
-
+b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
+    Assert(ResolutionDirection);
+    Assert(ResolutionOverlap);
+
     f32 SmallestOverlap = FLT_MAX;
     glm::vec2 SmallestAxis = {};
 
@@ -250,7 +255,8 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
         if(!C_Overlapping1D(MinA, MaxA, MinB, MaxB))
         {
             // There is no overlap, according to SAT, the shapes are not colliding, return false.
-            *CollisionResult = {};
+            *ResolutionDirection = {};
+            *ResolutionOverlap = 0.0f;
             return false;
         }
         else
@@ -273,10 +279,8 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
         }
     }
 
-    CollisionResult->Overlap = SmallestOverlap;
-    CollisionResult->Direction = SmallestAxis;
-
-
+    *ResolutionOverlap = SmallestOverlap;
+    *ResolutionDirection = SmallestAxis;
 
     // Find the closest vertex of the rectangle to the center of the circle
     glm::vec2 Vertices[4];
@@ -299,7 +303,8 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
     if(!C_Overlapping1D(RectMin, RectMax, CircleMin, CircleMax))
     {
         // There is no overlap, according to SAT, the shapes are not colliding, return false.
-        *CollisionResult = {};
+        *ResolutionDirection = {};
+        *ResolutionOverlap = 0.0f;
 
         printf("\n");
         return false;
@@ -325,51 +330,32 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, col
         }
     }
 
-
-#if 0
-    // This is taken from learnopengl.com it's for Circles vs AABB
-    glm::vec2 RectangleHalfExtents = glm::vec2(InputRectangle.HalfWidth, InputRectangle.HalfHeight);
-    glm::vec2 Difference = InputCircle.Center - InputRectangle.Center;
-    glm::vec2 Clamped = glm::clamp(Difference, -RectangleHalfExtents, RectangleHalfExtents);
-    glm::vec2 Closest = InputRectangle.Center + Clamped;
-    if(glm::length(InputCircle.Center - Closest) < InputCircle.Radius)
-    {
-        printf("Collision!\n");
-    }
-    else
-    {
-        printf("\n");
-        CollisionResult->Overlap = 0.0f;
-        CollisionResult->Direction = {};
-        return false;
-    }
-#endif
-
-    CollisionResult->Overlap = SmallestOverlap;
-    CollisionResult->Direction = SmallestAxis;
+    *ResolutionDirection = SmallestAxis;
+    *ResolutionOverlap = SmallestOverlap;
 
     return true;
 }
 
-b32 C_Collision(collider A, collider B, collision_result *CollisionResult)
+b32 C_Collision(collider A, collider B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
-    Assert(CollisionResult);
+    Assert(ResolutionDirection);
+    Assert(ResolutionOverlap);
 
     if(A.Type == Collider_Rectangle && B.Type == Collider_Rectangle)
     {
-        return C_CollisionRectangleRectangle(A.Rectangle, B.Rectangle, CollisionResult);
+        return C_CollisionRectangleRectangle(A.Rectangle, B.Rectangle, ResolutionDirection, ResolutionOverlap);
     }
     else if(A.Type == Collider_Rectangle && B.Type == Collider_Circle)
     {
-        return C_CollisionRectangleCircle(A.Rectangle, B.Circle, CollisionResult);
+        return C_CollisionRectangleCircle(A.Rectangle, B.Circle, ResolutionDirection, ResolutionOverlap);
     }
     else if(A.Type == Collider_Circle && B.Type == Collider_Rectangle)
     {
-        return C_CollisionRectangleCircle(B.Rectangle, A.Circle, CollisionResult);
+        return C_CollisionRectangleCircle(B.Rectangle, A.Circle, ResolutionDirection, ResolutionOverlap);
     }
     else if(A.Type == Collider_Circle && B.Type == Collider_Circle)
     {
-        return C_CollisionCircleCircle(A.Circle, B.Circle, CollisionResult);
+        return C_CollisionCircleCircle(A.Circle, B.Circle, ResolutionDirection, ResolutionOverlap);
     }
     else
     {

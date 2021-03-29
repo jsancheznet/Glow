@@ -109,9 +109,9 @@ i32 main(i32 Argc, char **Argv)
     f32 BallDrag = 0.8f;
 
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
-    font *MenuFont  = R_CreateFont(Renderer, "fonts/RobotY.ttf", 100, 100);
+    font *MenuFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 100, 100);
 
-    texture *PlayerTexture      = R_CreateTexture("textures/Yellow.png");
+    texture *PlayerTexture      = R_CreateTexture("textures/Player.png");
     texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
     texture *BallTexture        = R_CreateTexture("textures/PurpleCircle.png");
 
@@ -119,7 +119,7 @@ i32 main(i32 Argc, char **Argv)
     entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
     Ball->Acceleration.x += 5.0f;
     Ball->Acceleration.y += 5.0f;
-    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.96f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
+    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.96f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
 
     // Walls
     entity *LeftWall   = E_CreateEntity(PlayerTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
@@ -336,277 +336,258 @@ i32 main(i32 Argc, char **Argv)
                         E_Update(Player, (f32)Clock->DeltaTime);
                         E_Update(Ball, (f32)Clock->DeltaTime);
 
+                        glm::vec2 ResolutionDirection;
+                        f32 ResolutionOverlap;
                         { // Rectangle vs Circle
-                            collision_result CollisionResult;
-                            if(E_EntitiesCollide(Player, Ball, &CollisionResult))
+                            if(E_EntitiesCollide(Player, Ball, &ResolutionDirection, &ResolutionOverlap))
                             {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                glm::vec2 I = ResolutionDirection * ResolutionOverlap;
                                 Player->Position.x += I.x / 2.0f;
                                 Player->Position.y += I.y / 2.0f;
                                 Ball->Position.x -= I.x / 2.0f;
                                 Ball->Position.y -= I.y / 2.0f;
                             }
-                            else
-                            {
-                                printf("\n");
-                            }
-                        }
 
-                        { // Collision Ball/Walls
-                            collision_result CollisionResult;
-                            if(E_EntitiesCollide(Ball, LeftWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x -= I.x;
-                                Ball->Position.y -= I.y;
+                            { // Collision Ball/Walls
+                                if(E_EntitiesCollide(Ball, LeftWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Ball, RightWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Ball, TopWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Ball, BottomWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
                             }
-                            if(E_EntitiesCollide(Ball, RightWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x -= I.x;
-                                Ball->Position.y -= I.y;
-                            }
-                            if(E_EntitiesCollide(Ball, TopWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x -= I.x;
-                                Ball->Position.y -= I.y;
-                            }
-                            if(E_EntitiesCollide(Ball, BottomWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Ball->Position.x -= I.x;
-                                Ball->Position.y -= I.y;
-                            }
-                        }
 
-                        { // Collision Player/Walls
-                            collision_result CollisionResult;
-                            if(E_EntitiesCollide(Player, LeftWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Player->Position.x += I.x;
-                                Player->Position.y += I.y;
+                            { // Collision Player/Walls
+                                if(E_EntitiesCollide(Player, LeftWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Player, RightWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Player, TopWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
+                                if(E_EntitiesCollide(Player, BottomWall, &ResolutionDirection, &ResolutionOverlap))
+                                {
+                                    glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+                                    Ball->Position.x -= I.x;
+                                    Ball->Position.y -= I.y;
+                                }
                             }
-                            if(E_EntitiesCollide(Player, RightWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Player->Position.x += I.x;
-                                Player->Position.y += I.y;
-                            }
-                            if(E_EntitiesCollide(Player, TopWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Player->Position.x += I.x;
-                                Player->Position.y += I.y;
-                            }
-                            if(E_EntitiesCollide(Player, BottomWall, &CollisionResult))
-                            {
-                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                                Player->Position.x += I.x;
-                                Player->Position.y += I.y;
-                            }
-                        }
 
-                        // { // Ball vs Player
-                        //     collision_result CollisionResult;
-                        //     if(E_EntitiesCollide(Player, Ball, &CollisionResult))
-                        //     {
-                        //         glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
-                        //         Ball->Position.x += I.x;
-                        //         Ball->Position.y += I.y;
-                        //         /*
-                        //           Dot product between the mtv and the ball direction gives angle, now rotate the velocity vector
-                        //          */
-                        //         glm::vec3 BallVelocity = glm::normalize(Ball->Velocity);
-                        //         glm::vec3 MTV = {};
-                        //         MTV.x = CollisionResult.Direction.x;
-                        //         MTV.y = CollisionResult.Direction.y;
-                        //         MTV.z = 0.0f;
-                        //         MTV = glm::normalize(MTV);
-                        //         f32 Angle = (f32)(acosf(glm::dot(BallVelocity, MTV)) * 180.0f / PI32);
-                        //         // printf("Angle Between: %2.2f\n", Angle);
-                        //         glm::vec2 OldVel = glm::vec2(Ball->Velocity.x, Ball->Velocity.y);
-                        //         glm::vec2 NewVel = glm::rotate(OldVel, Angle * 2.0f);
-                        //         Ball->Velocity.x = NewVel.x;
-                        //         Ball->Velocity.y = NewVel.y;
-                        //         // TODO: Now rotate angle
-                        //     }
-                        // }
+                            break;
+                        }
+                        case State_Pause:
+                        {
+                            break;
+                        }
+                        default:
+                        {
+                            // Invalid code path
+                            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", "UpdateState invalid code path: default", Window->Handle);
+                            exit(0);;
+                            break;
+                        }
+                    }
+                }
+
+                R_UpdateCamera(Renderer, Camera);
+
+                // FPS
+                char WindowTitle[60];
+                sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", Renderer->FPS);
+                SDL_SetWindowTitle(Window->Handle, WindowTitle);
+
+            } // SECTION END: Update
+
+            { // SECTION: Render
+                R_BeginFrame(Renderer);
+
+                switch(CurrentState)
+                {
+                    case State_Initial:
+                    {
+                        Renderer->BackgroundColor = MenuBackgroundColor;
+                        R_SetActiveShader(Renderer->Shaders.Texture);
+
+                        // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
+                        f32 HardcodedFontWidth = 38.0f * 1.5f;
+                        f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 4;
+                        R_DrawText2D(Renderer, "Untitled", MenuFont,
+                                     glm::vec2(XPos, Window->Height / 2.0f + 50.0f),
+                                     glm::vec2(1.5f, 1.5f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        R_DrawText2D(Renderer, "press space to begin", MenuFont,
+                                     glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 100.0f),
+                                     glm::vec2(0.7, 0.7),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        R_DrawText2D(Renderer, "press escape to exit", MenuFont,
+                                     glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f),
+                                     glm::vec2(0.7, 0.7),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+
+
 
                         break;
                     }
+                    case State_Game:
+                    {
+
+
+                        // TODO(Jorge): set projection matrices so it draws in world space
+                        glColor3f(15.0f, 0.0f, 15.0f);
+                        glBegin(GL_LINES);
+                        glVertex2f(0.0f, 0.0f);
+                        glVertex2f(30.0f, 30.0f);
+                        glEnd();
+
+                        Renderer->BackgroundColor = BackgroundColor;
+                        R_SetActiveShader(Renderer->Shaders.Texture);
+                        R_DrawEntity(Renderer, Background); // Draw the background first
+                        R_DrawEntity(Renderer, Player);
+                        R_DrawEntity(Renderer, Ball);
+                        R_DrawEntity(Renderer, LeftWall);
+                        R_DrawEntity(Renderer, RightWall);
+                        R_DrawEntity(Renderer, TopWall);
+                        R_DrawEntity(Renderer, BottomWall);
+
+                        if(RenderDebugText)
+                        {
+                            char String[80];
+
+                            // Player
+                            sprintf_s(String, "Player Collision Data:");
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(0.0f, Window->Height-DebugFont->Height),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Player->Collider.Rectangle.Center.x, Player->Collider.Rectangle.Center.y);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*2),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "HalfWidth: %4.4f", Player->Collider.Rectangle.HalfWidth);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*3),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "HalfHeight: %4.4f", Player->Collider.Rectangle.HalfHeight);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*4),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "Angle: %4.4f", Player->Collider.Rectangle.Angle);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*5),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+
+
+                            // // Enemy
+                            // sprintf_s(String, "Enemy Collision Data:");
+                            // R_DrawText2D(Renderer, String, DebugFont,
+                            //              glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
+                            //              glm::vec2(1.0f, 1.0f),
+                            //              glm::vec3(1.0f, 1.0f, 1.0f));
+                            // sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
+                            // R_DrawText2D(Renderer, String, DebugFont,
+                            //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
+                            //              glm::vec2(1.0f, 1.0f),
+                            //              glm::vec3(1.0f, 1.0f, 1.0f));
+                            // sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
+                            // R_DrawText2D(Renderer, String, DebugFont,
+                            //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
+                            //              glm::vec2(1.0f, 1.0f),
+                            //              glm::vec3(1.0f, 1.0f, 1.0f));
+                            // sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
+                            // R_DrawText2D(Renderer, String, DebugFont,
+                            //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
+                            //              glm::vec2(1.0f, 1.0f),
+                            //              glm::vec3(1.0f, 1.0f, 1.0f));
+                            // sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
+                            // R_DrawText2D(Renderer, String, DebugFont,
+                            //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
+                            //              glm::vec2(1.0f, 1.0f),
+                            //              glm::vec3(1.0f, 1.0f, 1.0f));
+
+                            // Mouse
+                            sprintf_s(String, "Mouse:");
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(0.0f, Window->Height-DebugFont->Height*11),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "Screen Space Position: X:%d Y:%d", Mouse->X, Mouse->Y);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*12),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+                            sprintf_s(String, "World Position: X:%4.4f Y:%4.4f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
+                            R_DrawText2D(Renderer, String, DebugFont,
+                                         glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*13),
+                                         glm::vec2(1.0f, 1.0f),
+                                         glm::vec3(1.0f, 1.0f, 1.0f));
+
+                            break;
+                        }
+                        else
+                        {
+                            Renderer->BackgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+                        }
+                    }
                     case State_Pause:
                     {
+                        Renderer->BackgroundColor = MenuBackgroundColor;
+                        R_SetActiveShader(Renderer->Shaders.Texture);
+
+                        f32 HardcodedFontWidth = 38.0f * 1.5f;
+                        f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 2.5f;
+                        R_DrawText2D(Renderer, "Pause", MenuFont, glm::vec2(XPos, Window->Height / 2.0f + 50.0f), glm::vec2(1.5f, 1.5f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(Renderer, "press space to continue", MenuFont, glm::vec2(Window->Width / 2.0f - 38.0f * 11.5f * 0.7f, Window->Height / 2.0f - 100.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(Renderer, "press escape to exit", MenuFont, glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
+
                         break;
                     }
                     default:
                     {
-                        // Invalid code path
-                        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", "UpdateState invalid code path: default", Window->Handle);
-                        exit(0);;
                         break;
                     }
                 }
-            }
+                R_EndFrame(Renderer);
 
-            R_UpdateCamera(Renderer, Camera);
+            } // SECTION END: Render
+        }
 
-            // FPS
-            char WindowTitle[60];
-            sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", Renderer->FPS);
-            SDL_SetWindowTitle(Window->Handle, WindowTitle);
-
-        } // SECTION END: Update
-
-        { // SECTION: Render
-            R_BeginFrame(Renderer);
-
-            switch(CurrentState)
-            {
-                case State_Initial:
-                {
-                    Renderer->BackgroundColor = MenuBackgroundColor;
-                    R_SetActiveShader(Renderer->Shaders.Texture);
-
-                    // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
-                    f32 HardcodedFontWidth = 38.0f * 1.5f;
-                    f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 4;
-                    R_DrawText2D(Renderer, "Untitled", MenuFont,
-                                 glm::vec2(XPos, Window->Height / 2.0f + 50.0f),
-                                 glm::vec2(1.5f, 1.5f),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    R_DrawText2D(Renderer, "press space to begin", MenuFont,
-                                 glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 100.0f),
-                                 glm::vec2(0.7, 0.7),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    R_DrawText2D(Renderer, "press escape to exit", MenuFont,
-                                 glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f),
-                                 glm::vec2(0.7, 0.7),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-                    break;
-                }
-                case State_Game:
-                {
-                    Renderer->BackgroundColor = BackgroundColor;
-                    R_SetActiveShader(Renderer->Shaders.Texture);
-                    R_DrawEntity(Renderer, Background); // Draw the background first
-                    R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, Ball);
-                    R_DrawEntity(Renderer, LeftWall);
-                    R_DrawEntity(Renderer, RightWall);
-                    R_DrawEntity(Renderer, TopWall);
-                    R_DrawEntity(Renderer, BottomWall);
-
-                    if(RenderDebugText)
-                    {
-                        char String[80];
-
-                        // Player
-                        sprintf_s(String, "Player Collision Data:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, Window->Height-DebugFont->Height),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Player->Collider.Rectangle.Center.x, Player->Collider.Rectangle.Center.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*2),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfWidth: %4.4f", Player->Collider.Rectangle.HalfWidth);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*3),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfHeight: %4.4f", Player->Collider.Rectangle.HalfHeight);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*4),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Angle: %4.4f", Player->Collider.Rectangle.Angle);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*5),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-
-                        // // Enemy
-                        // sprintf_s(String, "Enemy Collision Data:");
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-
-                        // Mouse
-                        sprintf_s(String, "Mouse:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, Window->Height-DebugFont->Height*11),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Screen Space Position: X:%d Y:%d", Mouse->X, Mouse->Y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*12),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "World Position: X:%4.4f Y:%4.4f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*13),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-                        break;
-                    }
-                    else
-                    {
-                        Renderer->BackgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-                    }
-                }
-                case State_Pause:
-                {
-                    Renderer->BackgroundColor = MenuBackgroundColor;
-                    R_SetActiveShader(Renderer->Shaders.Texture);
-
-                    f32 HardcodedFontWidth = 38.0f * 1.5f;
-                    f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 2.5f;
-                    R_DrawText2D(Renderer, "Pause", MenuFont, glm::vec2(XPos, Window->Height / 2.0f + 50.0f), glm::vec2(1.5f, 1.5f), glm::vec3(1.0f, 1.0f, 1.0f));
-                    R_DrawText2D(Renderer, "press space to continue", MenuFont, glm::vec2(Window->Width / 2.0f - 38.0f * 11.5f * 0.7f, Window->Height / 2.0f - 100.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
-                    R_DrawText2D(Renderer, "press escape to exit", MenuFont, glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-            R_EndFrame(Renderer);
-
-        } // SECTION END: Render
+        SDL_GL_DeleteContext(Window->Handle);
     }
-
-    SDL_GL_DeleteContext(Window->Handle);
 
     return 0;
 }

@@ -3,9 +3,9 @@
 #include "entity.h"
 #include "collision.h"
 
-b32 E_EntitiesCollide(entity *A, entity *B, collision_result *CollisionResult)
+b32 E_EntitiesCollide(entity *A, entity *B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
-    return C_Collision(A->Collider, B->Collider, CollisionResult);
+    return C_Collision(A->Collider, B->Collider, ResolutionDirection, ResolutionOverlap);
 }
 
 entity *E_CreateEntity(texture *Texture,
