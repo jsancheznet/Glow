@@ -17,9 +17,6 @@
 // TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
 // TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
-// TODO(Jorge): Textures transparent background is not blending correctly
-// TODO(Jorge): Make Bullets little! everything will look better.
-// TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
 // TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
 // TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
 // TODO(Jorge): Remove unused functions from final version
@@ -29,27 +26,10 @@
 // TODO(Jorge): Stop rendering walls on release
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
 
-/*
+// TODO(Jorge): Textures transparent background is not blending correctly
+// TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
 
-  Palette: https://colorpalettes.net/color-palette-1162/
-  #ffa300 // Yellow
-  #cf0060 // Redish
-  #ff00ff // Hot Pink
-  #13a8fe // Light Blue
-  #000117 // Background Color
-
-  Other Potential Palette: https://colorpalettes.net/color-palette-1661/
-
-  Other Potential color Palette
-  Red: FF092D
-  Yellow: FDF637
-  Green: 04F504
-  Purple: AE03FE
-  Blue: 1239FF
-
-*/
-
-enum state
+enum gamestate
 {
     State_Initial,
     State_Game,
@@ -70,8 +50,7 @@ global window       *Window;
 global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera       *Camera;
-global state CurrentState = State_Initial;
-global b32 RenderDebugText = 1;
+global gamestate CurrentState = State_Initial;
 
 // Game Variables
 global f32 WorldBottom     = -11.0f;
@@ -83,7 +62,7 @@ global f32 HalfWorldHeight = WorldTop;
 global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
 
-u32 PlayerScore = 101;
+u32 PlayerScore = 0;
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -103,15 +82,6 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // Game Variables
-    f32 BackgroundWidth = WorldWidth + 5.0f;
-    f32 BackgroundHeight = WorldHeight + 5.0f;
-    f32 PlayerSpeed = 3.0f;
-    f32 PlayerDrag = 0.8f;
-    f32 PlayerRotationSpeed = 0.5f;
-    f32 BallSpeed = 10.0f;
-    f32 BallDrag = 0.8f;
-
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
     font *GameFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 100, 100);
     font *UIFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
@@ -122,19 +92,38 @@ i32 main(i32 Argc, char **Argv)
     texture *WallTexture        = R_CreateTexture("textures/Yellow.png");
     texture *RectangleTexture   = R_CreateTexture("textures/Redish.png");
     texture *WandererTexture    = R_CreateTexture("textures/Wanderer.png");
-    texture *BulletTexture    = R_CreateTexture("textures/Bullet.png");
+    texture *BulletTexture      = R_CreateTexture("textures/Bullet.png");
+    texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
 
-    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
-    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Circle);
-    entity *Wanderer     = E_CreateEntity(WandererTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Circle);
-    entity *Rectangle    = E_CreateEntity(RectangleTexture, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 43.0f, 0.0f, 0.0f, Collider_Rectangle);
+    f32 BackgroundWidth = WorldWidth + 5.0f;
+    f32 BackgroundHeight = WorldHeight + 5.0f;
+    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_None, Collider_Rectangle);
+
+    f32 PlayerSpeed = 3.0f;
+    f32 PlayerDrag = 0.8f;
+    f32 PlayerRotationSpeed = 0.5f;
+    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Type_Player, Collider_Circle);
 
     // Walls
-    entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
-    entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
+    entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
+    entity *RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
+    entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
+    entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
+
+    // These are linked lists that hold enemies and bullets fired by the player
+    entity_list *Enemies = E_CreateEntityList(100);
+    entity_list *Bullets = E_CreateEntityList(100);
+
+    entity *TestWanderer1 = E_CreateEntity(WandererTexture, glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
+    entity *TestWanderer2 = E_CreateEntity(WandererTexture, glm::vec3(-2.0f, -4.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
+    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Seeker, Collider_Rectangle);
+    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Seeker, Collider_Rectangle);
+    entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
+    E_PushEntity(Enemies, TestWanderer1);
+    E_PushEntity(Enemies, TestWanderer2);
+    E_PushEntity(Enemies, TestWanderer3);
+    E_PushEntity(Enemies, TestWanderer4);
+    E_PushEntity(Enemies, TestWanderer5);
 
     SDL_Event Event;
     while(IsRunning)
@@ -262,14 +251,17 @@ i32 main(i32 Argc, char **Argv)
                         Player->Acceleration.y -= Player->Speed;
                     }
 
-                    // Bullets
-                    if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT))
+                    // Fire Bullet
+                    if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT))
                     {
-                        // FireBullet(Direction(Player->Position, Mouse->WorldPosition));
-                        glm::vec2 BulletDirection = Direction(Player->Position, Mouse->WorldPosition) * 10.0f;
-                        Player->Acceleration.x += BulletDirection.x;
-                        Player->Acceleration.y += BulletDirection.y;
-                        // FireBullet(Direction(Player->Position, Mouse->WorldPosition));
+                        f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
+                        f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
+                        f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+                        f32 BulletSpeed = 10.0f;
+                        glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
+                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f, 0.11f, 0.0f), RotationAngle, 10.0f, 1.0f, Type_Bullet, Collider_Rectangle);
+                        NewBullet->Acceleration += BulletDirection * BulletSpeed;
+                        E_PushEntity(Bullets, NewBullet);
                     }
 
                     // Handle Window input stuff
@@ -319,58 +311,41 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
+                    // Rotate player according to mouse world position
+                    f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
+                    f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
+                    Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
 
-                    { // TODO(Jorge): remove the braces, and figure out why it does not work
-                        // Rotate player according to mouse world position
-                        f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
-                        f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
-                        Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+                    // Update Player
+                    E_Update(Player, (f32)Clock->DeltaTime);
+
+                    // Update Enemies
+                    for(entity_node *Node = Enemies->Head;
+                        Node != NULL;
+                        Node = Node->Next)
+                    {
+                        E_Update(Node->Entity, (f32)Clock->DeltaTime);
                     }
 
-                    // Update Entities
-                    E_Update(Player, (f32)Clock->DeltaTime);
-                    E_Update(Ball, (f32)Clock->DeltaTime);
-                    E_Update(Rectangle, (f32)Clock->DeltaTime);
-                    E_Update(Wanderer, (f32)Clock->DeltaTime);
+                    // Update Player Bullets
+                    for(entity_node *Node = Bullets->Head;
+                        Node != NULL;
+                        Node = Node->Next)
+                    {
+                        E_Update(Node->Entity, (f32)Clock->DeltaTime);
 
+                        // If the bullet is no longer near the play
+                        // area, delete this. Maybe later just checked
+                        // square distances to avoid a sqrt.
+                        if(Magnitude(Node->Entity->Position) > 30.0f)
+                        {
+                            E_ListFreeNode(Bullets, Node);
+                        }
+                    }
+
+                    // Entities are updated, now let's do collision
                     glm::vec2 ResolutionDirection;
                     f32 ResolutionOverlap;
-
-                    // Player vs Ball
-                    if(E_EntitiesCollide(Player, Ball, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Player->Position.x += I.x / 2.0f;
-                        Player->Position.y += I.y / 2.0f;
-                        Ball->Position.x -= I.x / 2.0f;
-                        Ball->Position.y -= I.y / 2.0f;
-                    }
-
-                    // Collision Ball/Walls
-                    if(E_EntitiesCollide(Ball, LeftWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Ball->Position.x -= I.x;
-                        Ball->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Ball, RightWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Ball->Position.x -= I.x;
-                        Ball->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Ball, TopWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Ball->Position.x -= I.x;
-                        Ball->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Ball, BottomWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Ball->Position.x -= I.x;
-                        Ball->Position.y -= I.y;
-                    }
 
                     // Collision Player vs Walls
                     if(E_EntitiesCollide(Player, LeftWall, &ResolutionDirection, &ResolutionOverlap))
@@ -394,31 +369,51 @@ i32 main(i32 Argc, char **Argv)
                     if(E_EntitiesCollide(Player, BottomWall, &ResolutionDirection, &ResolutionOverlap))
                     {
                         glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Ball->Position.x -= I.x;
-                        Ball->Position.y -= I.y;
+                        Player->Position.x -= I.x;
+                        Player->Position.y -= I.y;
                     }
 
-                    if(E_EntitiesCollide(Player, Rectangle, &ResolutionDirection, &ResolutionOverlap))
+                    // Collision Player vs Enemies
+                    for(entity_node *Node = Enemies->Head;
+                        Node != NULL;
+                        Node = Node->Next)
                     {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Rectangle->Position.x += I.x / 2.0f;
-                        Rectangle->Position.y += I.y / 2.0f;
-                        Player->Position.x -= I.x / 2.0f;
-                        Player->Position.y -= I.y / 2.0f;
+                        if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
+                        {
+                            E_ListFreeNode(Enemies, Node);
+                        }
+                    }
+
+                    // Enemies vs Player Bullets,  note: this is a n^m loop
+                    for(entity_node *Enemy = Enemies->Head;
+                        Enemy != NULL;
+                        Enemy = Enemy->Next)
+                    {
+                        for(entity_node *Bullet = Bullets->Head;
+                            Bullet != NULL;
+                            Bullet = Bullet->Next)
+                        {
+                            if(E_EntitiesCollide(Enemy->Entity, Bullet->Entity, &ResolutionDirection, &ResolutionOverlap))
+                            {
+                                PlayerScore += 1;
+                                E_ListFreeNode(Enemies, Enemy);
+                                E_ListFreeNode(Bullets, Bullet);
+                            }
+                        }
                     }
 
                     break;
-                    case State_Pause:
-                    {
+                }
+                case State_Pause:
+                {
                         break;
-                    }
-                    default:
-                    {
-                        // Invalid code path
-                        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", "UpdateState invalid code path: default", Window->Handle);
-                        exit(0);;
-                        break;
-                    }
+                }
+                default:
+                {
+                    // Invalid code path
+                    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", "UpdateState invalid code path: default", Window->Handle);
+                    exit(0);;
+                    break;
                 }
             }
 
@@ -440,140 +435,38 @@ i32 main(i32 Argc, char **Argv)
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
                     R_SetActiveShader(Renderer->Shaders.Texture);
-
-                    // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
-                    f32 HardcodedFontWidth = 38.0f * 1.5f;
-                    f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 4;
-                    R_DrawText2D(Renderer, "Untitled", GameFont,
-                                 glm::vec2(XPos, Window->Height / 2.0f + 50.0f),
-                                 glm::vec2(1.5f, 1.5f),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    R_DrawText2D(Renderer, "press space to begin", GameFont,
-                                 glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 100.0f),
-                                 glm::vec2(0.7, 0.7),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    R_DrawText2D(Renderer, "press escape to exit", GameFont,
-                                 glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f),
-                                 glm::vec2(0.7, 0.7),
-                                 glm::vec3(1.0f, 1.0f, 1.0f));
-
-
-
                     break;
                 }
                 case State_Game:
                 {
-
-
-                    // // TODO(Jorge): set projection matrices so it draws in world space
-                    // glColor3f(15.0f, 0.0f, 15.0f);
-                    // glBegin(GL_LINES);
-                    // glVertex2f(0.0f, 0.0f);
-                    // glVertex2f(30.0f, 30.0f);
-                    // glEnd();
-
-                    // TODO(Jorge): Place all entities ina  single array and loop over them
                     Renderer->BackgroundColor = BackgroundColor;
+
                     R_SetActiveShader(Renderer->Shaders.Texture);
-                    R_DrawEntity(Renderer, Background); // Draw the background first
+                    R_DrawEntity(Renderer, Background);
                     R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, Ball);
-                    R_DrawEntity(Renderer, LeftWall);
-                    R_DrawEntity(Renderer, RightWall);
-                    R_DrawEntity(Renderer, TopWall);
-                    R_DrawEntity(Renderer, BottomWall);
-                    R_DrawEntity(Renderer, Rectangle);
-                    R_DrawEntity(Renderer, Wanderer);
+
+                    // Draw Enemies
+                    for(entity_node *Node = Enemies->Head;
+                        Node != NULL;
+                        Node = Node->Next)
+                    {
+                        R_DrawEntity(Renderer, Node->Entity);
+                    }
+
+                    // Draw Bullets
+                    for(entity_node *Node = Bullets->Head;
+                        Node != NULL;
+                        Node = Node->Next)
+                    {
+                        R_DrawEntity(Renderer, Node->Entity);
+                    }
 
                     // Draw player score
                     char PlayerScoreString[80];
                     sprintf_s(PlayerScoreString, "Score: %d", PlayerScore);
                     R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-                    if(RenderDebugText)
-                    {
-                        char String[80];
-
-                        // Player
-                        sprintf_s(String, "Player Collision Data:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, Window->Height-DebugFont->Height),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Player->Collider.Rectangle.Center.x, Player->Collider.Rectangle.Center.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*2),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfWidth: %4.4f", Player->Collider.Rectangle.HalfWidth);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*3),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "HalfHeight: %4.4f", Player->Collider.Rectangle.HalfHeight);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*4),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Angle: %4.4f", Player->Collider.Rectangle.Angle);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*5),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-
-                        // // Enemy
-                        // sprintf_s(String, "Enemy Collision Data:");
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(0.0f, Window->Height-DebugFont->Height*6),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Enemy->Rect.Center.x, Enemy->Rect.Center.y);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*7),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfWidth: %4.4f", Enemy->Rect.HalfWidth);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*8),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "HalfHeight: %4.4f", Enemy->Rect.HalfHeight);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*9),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-                        // sprintf_s(String, "Angle: %4.4f", Enemy->Rect.Angle);
-                        // R_DrawText2D(Renderer, String, DebugFont,
-                        //              glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*10),
-                        //              glm::vec2(1.0f, 1.0f),
-                        //              glm::vec3(1.0f, 1.0f, 1.0f));
-
-                        // Mouse
-                        sprintf_s(String, "Mouse:");
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(0.0f, Window->Height-DebugFont->Height*11),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "Screen Space Position: X:%d Y:%d", Mouse->X, Mouse->Y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*12),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-                        sprintf_s(String, "World Position: X:%4.4f Y:%4.4f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
-                        R_DrawText2D(Renderer, String, DebugFont,
-                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*13),
-                                     glm::vec2(1.0f, 1.0f),
-                                     glm::vec3(1.0f, 1.0f, 1.0f));
-
-                        break;
-                    }
-                    else
-                    {
-                        Renderer->BackgroundColor = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-                    }
+                    break;
                 }
                 case State_Pause:
                 {

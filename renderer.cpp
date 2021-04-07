@@ -26,7 +26,7 @@
 global f32 Exposure__ = 2.0f;
 global f32 EnableVSync = 0;
 global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
-global u32 BlurPassCount = 10; // How many times should we blurr the image
+global u32 BlurPassCount = 7; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
 global f32 BrightnessThreshold = 0.1f;

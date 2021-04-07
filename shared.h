@@ -120,6 +120,11 @@ f32 GetRotationAngle(f32 x, f32 y)
     return (( (f32)atan2(y, x) * (f32)180.0f) / 3.14159265359f);
 }
 
+f32 Magnitude(glm::vec3 A)
+{
+    return glm::length(A);
+}
+
 f32 Distance(glm::vec3 A, glm::vec3 B)
 {
     return glm::distance(A, B);

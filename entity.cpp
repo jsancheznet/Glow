@@ -14,6 +14,7 @@ entity *E_CreateEntity(texture *Texture,
                        f32 RotationAngle,
                        f32 Speed,
                        f32 Drag,
+                       entity_type EntityType,
                        collider_type ColliderType)
 {
     entity *Result = (entity*)Malloc(sizeof(entity)); Assert(Result);
@@ -25,6 +26,7 @@ entity *E_CreateEntity(texture *Texture,
     Result->RotationAngle = RotationAngle;
     Result->Speed = Speed;
     Result->Drag = Drag;
+    Result->Type = EntityType;
     Result->Collider = {};
 
     // Initialize Collider with 0, Collider_Null
@@ -109,5 +111,110 @@ void E_Update(entity *Entity, f32 TimeStep)
             Assert(0);
             break;
         }
+    }
+}
+
+entity_list *E_CreateEntityList(u32 MaxEntityCount)
+{
+    Assert(MaxEntityCount > 0);
+
+    entity_list *Result = NULL;
+    Result = (entity_list*)Malloc(sizeof(entity_list)); Assert(Result);
+
+    Result->Count = 0;
+    Result->MaxCount = MaxEntityCount;
+    Result->Head = NULL;
+    Result->Tail = NULL;
+
+    return Result;
+}
+
+// Always pushes an entity to the back of the list
+void E_PushEntity(entity_list *List, entity *Entity)
+{
+    Assert(Entity);
+    Assert(List);
+
+    // Create the Node
+    entity_node *Node = (entity_node*)Malloc(sizeof(entity_node)); Assert(Node);
+    Node->Entity = Entity;
+    Node->Next = NULL;
+    Node->Previous = NULL;
+
+    if(List->Count < List->MaxCount)
+    {
+        // It's the first node on the list
+        if(List->Count == 0)
+        {
+            List->Head = Node;
+            List->Tail = Node;
+            List->Count++;
+        }
+        else
+        {
+            Node->Previous = List->Tail;
+            List->Tail->Next = Node;
+            List->Tail = Node;
+            List->Count++;
+        }
+    }
+    else
+    {
+        printf("List is full, List->Count >= List->MaxCount\n");
+        Free(Node);
+        Free(Entity);
+    }
+}
+
+void E_ListFreeNode(entity_list *List, entity_node *Node)
+{
+    Assert(List);
+    Assert(Node);
+
+    // TODO(Joreg): Rearrange items in order of most likely to improve performance
+
+    if(List->Count == 0)
+    {
+        // List is empty, no item to free
+        return;
+    }
+    else if(List->Count == 1)
+    {
+        // Its the only node
+        List->Head = NULL;
+        List->Tail = NULL;
+        List->Count--;
+        Free(Node->Entity);
+        Free(Node);
+    }
+    else if(Node->Next == NULL)
+    {
+        // Its the last node
+        List->Tail = Node->Previous;
+        List->Tail->Next = NULL;
+        List->Count--;
+
+        Free(Node->Entity);
+        Free(Node);
+    }
+    else if(Node->Previous == NULL)
+    {
+        // Its the first node
+        List->Head = Node->Next;
+        List->Head->Previous = NULL;
+        List->Count--;
+
+        Free(Node->Entity);
+        Free(Node);
+    }
+    else
+    {
+        // Its somewhere in the middle
+        Node->Previous->Next = Node->Next;
+        Node->Next->Previous = Node->Previous;
+        List->Count--;
+
+        Free(Node->Entity);
+        Free(Node);
     }
 }
