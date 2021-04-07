@@ -19,6 +19,6 @@ set LibDirectories=-LIBPATH:%SDLLIB64% -LIBPATH:%FREETYPELIB% -LIBPATH:%SDLMIXER
 set CompilerFlags= -DDEBUG -nologo -W4 -WX -Od -FS %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
 set LinkerFlags=-nologo -DEBUG %LibDirectories%
 
-cl ..\glow.cpp %CompilerFlags% /link %LinkerFlags% -SUBSYSTEM:CONSOLE SDL2.lib SDL2main.lib SDL2_mixer.lib freetype.lib
+cl ..\main.cpp %CompilerFlags% /link %LinkerFlags% -SUBSYSTEM:CONSOLE SDL2.lib SDL2main.lib SDL2_mixer.lib freetype.lib
 
 popd
