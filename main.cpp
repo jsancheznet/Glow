@@ -14,7 +14,12 @@
 #include "entity.cpp"
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // TODO(Jorge): Have a single array of entities and update them all on a loop
+=======
+// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
+
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 =======
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 
@@ -121,6 +126,9 @@ i32 main(i32 Argc, char **Argv)
     entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
     Ball->Acceleration.x += Ball->Speed;
     Ball->Acceleration.y += Ball->Speed;
+<<<<<<< HEAD
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
+=======
 >>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 
     f32 PlayerSpeed = 3.0f;
@@ -276,6 +284,7 @@ i32 main(i32 Argc, char **Argv)
                     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
                     // Fire Bullet
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT))
                     {
@@ -296,6 +305,8 @@ i32 main(i32 Argc, char **Argv)
                         R_ResizeRenderer(Renderer, Window->Width, Window->Height);
                     }
 
+=======
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 =======
 >>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                     break;
@@ -371,6 +382,7 @@ i32 main(i32 Argc, char **Argv)
                         }
                     }
 
+<<<<<<< HEAD
                     // Entities are updated, now let's do collision
                     glm::vec2 ResolutionDirection;
                     f32 ResolutionOverlap;
@@ -410,6 +422,8 @@ i32 main(i32 Argc, char **Argv)
                         {
                             E_ListFreeNode(Enemies, Node);
 =======
+=======
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                         // Update Entities
                         // TODO(Jorge): Have a single array of entities and update them all on a loop
                         E_Update(Player, (f32)Clock->DeltaTime);
@@ -480,6 +494,13 @@ i32 main(i32 Argc, char **Argv)
 <<<<<<< HEAD
 =======
 
+<<<<<<< HEAD
+=======
+                        break;
+                    }
+                    case State_Pause:
+                    {
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                         break;
 >>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                     }
