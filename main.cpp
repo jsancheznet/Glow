@@ -13,7 +13,12 @@
 #include "collision.cpp"
 #include "entity.cpp"
 
+<<<<<<< HEAD
 // TODO(Jorge): Have a single array of entities and update them all on a loop
+=======
+// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
+
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 // TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
 // TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
 // TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
@@ -21,7 +26,6 @@
 // TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
 // TODO(Jorge): Remove unused functions from final version
 // TODO(Jorge): Delete all unused data files
-// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
 // TODO(Jorge): Stop rendering walls on release
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
@@ -82,6 +86,18 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
+<<<<<<< HEAD
+=======
+    // Game Variables
+    f32 BackgroundWidth = WorldWidth + 5.0f;
+    f32 BackgroundHeight = WorldHeight + 5.0f;
+    f32 PlayerSpeed = 3.0f;
+    f32 PlayerDrag = 0.8f;
+    f32 PlayerRotationSpeed = 0.5f;
+    f32 BallSpeed = 30.0f;
+    f32 BallDrag = 1.0f;
+
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
     font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
     font *GameFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 100, 100);
     font *UIFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
@@ -95,9 +111,17 @@ i32 main(i32 Argc, char **Argv)
     texture *BulletTexture      = R_CreateTexture("textures/Bullet.png");
     texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
 
+<<<<<<< HEAD
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
     entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_None, Collider_Rectangle);
+=======
+    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Collider_Rectangle);
+    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -8.96f, 0.0f), glm::vec3(5.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Collider_Rectangle);
+    entity *Ball         = E_CreateEntity(BallTexture, glm::vec3(-10.4f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, BallSpeed, BallDrag, Collider_Circle);
+    Ball->Acceleration.x += Ball->Speed;
+    Ball->Acceleration.y += Ball->Speed;
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 
     f32 PlayerSpeed = 3.0f;
     f32 PlayerDrag = 0.8f;
@@ -251,6 +275,7 @@ i32 main(i32 Argc, char **Argv)
                         Player->Acceleration.y -= Player->Speed;
                     }
 
+<<<<<<< HEAD
                     // Fire Bullet
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT))
                     {
@@ -271,6 +296,8 @@ i32 main(i32 Argc, char **Argv)
                         R_ResizeRenderer(Renderer, Window->Width, Window->Height);
                     }
 
+=======
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                     break;
                 }
                 case State_Pause:
@@ -334,6 +361,7 @@ i32 main(i32 Argc, char **Argv)
                     {
                         E_Update(Node->Entity, (f32)Clock->DeltaTime);
 
+<<<<<<< HEAD
                         // If the bullet is no longer near the play
                         // area, delete this. Maybe later just checked
                         // square distances to avoid a sqrt.
@@ -381,6 +409,55 @@ i32 main(i32 Argc, char **Argv)
                         if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
                         {
                             E_ListFreeNode(Enemies, Node);
+=======
+                        // Update Entities
+                        // TODO(Jorge): Have a single array of entities and update them all on a loop
+                        E_Update(Player, (f32)Clock->DeltaTime);
+                        E_Update(Ball, (f32)Clock->DeltaTime);
+
+                        { // Rectangle vs Circle
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(Player, Ball, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                // Player->Position.x += I.x / 2.0f;
+                                // Player->Position.y += I.y / 2.0f;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
+                            }
+                        }
+
+                        { // Collision Ball/Walls
+                            collision_result CollisionResult;
+                            if(E_EntitiesCollide(Ball, LeftWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
+                                Ball->Velocity.x *= -1;
+                            }
+                            if(E_EntitiesCollide(Ball, RightWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
+                                Ball->Velocity.x *= -1;
+                            }
+                            if(E_EntitiesCollide(Ball, TopWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
+                                Ball->Velocity.y *= -1;
+                            }
+                            if(E_EntitiesCollide(Ball, BottomWall, &CollisionResult))
+                            {
+                                glm::vec2 I = CollisionResult.Direction * CollisionResult.Overlap;
+                                Ball->Position.x -= I.x;
+                                Ball->Position.y -= I.y;
+                                Ball->Velocity.y *= -1;
+                            }
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                         }
                     }
 
@@ -400,6 +477,11 @@ i32 main(i32 Argc, char **Argv)
                                 E_ListFreeNode(Bullets, Bullet);
                             }
                         }
+<<<<<<< HEAD
+=======
+
+                        break;
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                     }
 
                     break;
@@ -450,7 +532,57 @@ i32 main(i32 Argc, char **Argv)
                         Node != NULL;
                         Node = Node->Next)
                     {
+<<<<<<< HEAD
                         R_DrawEntity(Renderer, Node->Entity);
+=======
+                        char String[80];
+
+                        // Player
+                        sprintf_s(String, "Player Collision Data:");
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(0.0f, Window->Height-DebugFont->Height),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "Center: X:%4.4f Y:%4.4f", Player->Collider.Rectangle.Center.x, Player->Collider.Rectangle.Center.y);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*2),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "HalfWidth: %4.4f", Player->Collider.Rectangle.HalfWidth);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*3),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "HalfHeight: %4.4f", Player->Collider.Rectangle.HalfHeight);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*4),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "Angle: %4.4f", Player->Collider.Rectangle.Angle);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*5),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // Mouse
+                        sprintf_s(String, "Mouse:");
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(0.0f, Window->Height-DebugFont->Height*11),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "Screen Space Position: X:%d Y:%d", Mouse->X, Mouse->Y);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*12),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+                        sprintf_s(String, "World Position: X:%4.4f Y:%4.4f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
+                        R_DrawText2D(Renderer, String, DebugFont,
+                                     glm::vec2(DebugFont->Width*2, Window->Height-DebugFont->Height*13),
+                                     glm::vec2(1.0f, 1.0f),
+                                     glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        break;
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
                     }
 
                     // Draw Bullets

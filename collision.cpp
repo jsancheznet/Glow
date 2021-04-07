@@ -166,7 +166,11 @@ b32 C_CollisionCircleCircle(circle A, circle B, glm::vec2 *ResolutionDirection, 
     }
 }
 
+<<<<<<< HEAD
 b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
+=======
+b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, collision_result *Result)
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 {
     Assert(ResolutionDirection);
     Assert(ResolutionOverlap);
@@ -303,9 +307,13 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, glm
     if(!C_Overlapping1D(RectMin, RectMax, CircleMin, CircleMax))
     {
         // There is no overlap, according to SAT, the shapes are not colliding, return false.
+<<<<<<< HEAD
         *ResolutionDirection = {};
         *ResolutionOverlap = 0.0f;
 
+=======
+        *CollisionResult = {};
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
         return false;
     }
     else
@@ -327,8 +335,13 @@ b32 C_CollisionRectangleCircle(rectangle InputRectangle, circle InputCircle, glm
         }
     }
 
+<<<<<<< HEAD
     *ResolutionDirection = SmallestAxis;
     *ResolutionOverlap = SmallestOverlap;
+=======
+    CollisionResult->Overlap = SmallestOverlap;
+    CollisionResult->Direction = SmallestAxis;
+>>>>>>> 6b1935ac85eedd7a2ce9ddeeb2fcd96e0fd4c5e5
 
     return true;
 }
