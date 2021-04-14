@@ -14,18 +14,10 @@
 #include "entity.cpp"
 
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
-
-// TODO(Jorge): Once the project is done. Pull out the SAT implementation into a single header library so it may be reused in other pojects.
-// TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
-// TODO(Jorge): Run through a static code analyzer to find new bugs. maybe clang-tidy? cppcheck?, scan-build?
-// TODO(Jorge): Colors are different while rendering with nVidia card, and Intel card
-// TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
-// TODO(Jorge): Remove unused functions from final version
-// TODO(Jorge): Delete all unused data files
-// TODO(Jorge): Implement R_DrawText2DCentered to remove all hardcoded stuff in text rendering
-// TODO(Jorge): Stop rendering walls on release
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
-
+// TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
+// TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
+// TODO(Jorge): Delete all unused data files
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
 
@@ -117,8 +109,8 @@ i32 main(i32 Argc, char **Argv)
 
     entity *TestWanderer1 = E_CreateEntity(WandererTexture, glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
     entity *TestWanderer2 = E_CreateEntity(WandererTexture, glm::vec3(-2.0f, -4.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
-    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Seeker, Collider_Rectangle);
-    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Seeker, Collider_Rectangle);
+    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
+    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
     entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
     E_PushEntity(Enemies, TestWanderer1);
     E_PushEntity(Enemies, TestWanderer2);
@@ -258,12 +250,50 @@ i32 main(i32 Argc, char **Argv)
                         f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
                         f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
                         f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-                        f32 BulletSpeed = 10.0f;
+                        f32 BulletSpeed = 20.0f;
                         glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
-                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f, 0.11f, 0.0f), RotationAngle, 10.0f, 1.0f, Type_Bullet, Collider_Rectangle);
+                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f, 0.11f, 0.0f), RotationAngle, BulletSpeed, 1.0f, Type_Bullet, Collider_Rectangle);
                         NewBullet->Acceleration += BulletDirection * BulletSpeed;
                         E_PushEntity(Bullets, NewBullet);
                     }
+
+                    // Set "inputs" according to enemy type, i can't figure out a better place to put the enemy AI and i'm not gonna think too much about it
+                    for(entity_node *Node = Enemies->Head;
+                        Node != NULL;
+                        Node = Node->Next)
+                    {
+                        entity *Entity = Node->Entity;
+
+                        switch(Entity->Type)
+                        {
+                            case Type_Seeker:
+                            {
+                                // Get Angle to player, and move towards the player
+                                f32 DeltaX = Entity->Position.x - Player->Position.x;
+                                f32 DeltaY = Entity->Position.y - Player->Position.y;
+                                f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+                                Entity->RotationAngle = RotationAngle;
+                                glm::vec3 SeekerDirection = Direction(Entity->Position, Player->Position);
+                                Entity->Acceleration += SeekerDirection * Entity->Speed;
+                            } break;
+                            case Type_Wanderer:
+                            {
+
+                            } break;
+
+                            case Type_Bullet:
+                            case Type_None:
+                            case Type_Wall:
+                            case Type_Player:
+                            default:
+                            {
+                                InvalidCodePath;
+                                break;
+                            }
+                        }
+
+                    }
+
 
                     // Handle Window input stuff
                     if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))

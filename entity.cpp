@@ -83,11 +83,48 @@ void E_Update(entity *Entity, f32 TimeStep)
     Entity->Acceleration = {};
     Entity->Velocity *= Entity->Drag;
 
+    // Do not allow negative size
     if(Entity->Size.x < 0.0f) Entity->Size.x = 0.0f;
     if(Entity->Size.y < 0.0f) Entity->Size.y = 0.0f;
     if(Entity->Size.z < 0.0f) Entity->Size.z = 0.0f;
 
-    // Collision Data
+#if 0
+    // Update according to entity type
+    switch(Entity->Type)
+    {
+        case Type_Player:
+        {
+            break;
+        }
+        case Type_Seeker:
+        {
+            break;
+        }
+        case Type_Wanderer:
+        {
+            break;
+        }
+        case Type_Bullet:
+        {
+            break;
+        }
+        case Type_Wall:
+        {
+            break;
+        }
+        case Type_None:
+        {  // This is used for types that do not yet have a specific case(entity_typ)
+            break;
+        }
+        default:
+        {
+            InvalidCodePath;
+            break;
+        }
+    }
+#endif
+
+    // Update collision Data
     switch(Entity->Collider.Type)
     {
         case Collider_Rectangle:

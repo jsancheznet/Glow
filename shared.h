@@ -135,6 +135,11 @@ glm::vec2 Direction(glm::vec2 From, glm::vec2 To)
     return glm::normalize(To - From);
 }
 
+glm::vec3 Direction(glm::vec3 From, glm::vec3 To)
+{
+    return glm::normalize(To - From);
+}
+
 glm::vec3 Normalize(glm::vec3 A)
 {
     return glm::normalize(A);
