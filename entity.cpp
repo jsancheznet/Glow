@@ -23,7 +23,7 @@ entity *E_CreateEntity(texture *Texture,
     Result->Position = Position;
     Result->Size = Size;
     Result->Acceleration = glm::vec3(0.0f);
-    Result->RotationAngle = RotationAngle;
+    Result->Angle = RotationAngle;
     Result->Speed = Speed;
     Result->Drag = Drag;
     Result->Type = EntityType;
@@ -52,7 +52,7 @@ entity *E_CreateEntity(texture *Texture,
             // radius of a circle we check if both Size.x and Size.y
             // are the same and set the radius accordingly. If they
             // are not the same it's not a valid size for a circle.
-            if(EqFloats(Size.x, Size.y))
+            if(Equals(Size.x, Size.y))
             {
                 // Size.x and Size.y are equal, it's a valid size for a circle!
                 Result->Collider.Circle.Radius = Size.x * 0.5f;
@@ -88,49 +88,13 @@ void E_Update(entity *Entity, f32 TimeStep)
     if(Entity->Size.y < 0.0f) Entity->Size.y = 0.0f;
     if(Entity->Size.z < 0.0f) Entity->Size.z = 0.0f;
 
-#if 0
-    // Update according to entity type
-    switch(Entity->Type)
-    {
-        case Type_Player:
-        {
-            break;
-        }
-        case Type_Seeker:
-        {
-            break;
-        }
-        case Type_Wanderer:
-        {
-            break;
-        }
-        case Type_Bullet:
-        {
-            break;
-        }
-        case Type_Wall:
-        {
-            break;
-        }
-        case Type_None:
-        {  // This is used for types that do not yet have a specific case(entity_typ)
-            break;
-        }
-        default:
-        {
-            InvalidCodePath;
-            break;
-        }
-    }
-#endif
-
     // Update collision Data
     switch(Entity->Collider.Type)
     {
         case Collider_Rectangle:
         {
             Entity->Collider.Rectangle.Center = glm::vec2(Entity->Position.x, Entity->Position.y);
-            Entity->Collider.Rectangle.Angle = Entity->RotationAngle;
+            Entity->Collider.Rectangle.Angle = Entity->Angle;
             Entity->Collider.Rectangle.HalfWidth = Entity->Size.x * 0.5f;
             Entity->Collider.Rectangle.HalfHeight = Entity->Size.y * 0.5f;
             break;

@@ -1,9 +1,9 @@
 /*
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
- * <jsanchez@monoinfinito.net> wrote this file.  As long as you retain this notice you
+ * <jsanchezsilvera@gmail.com> wrote this file.  As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Jorge Sï¿½nchez
+ * this stuff is worth it, you can buy me a beer in return.
  * ----------------------------------------------------------------------------
  */
 
@@ -13,7 +13,7 @@
 #pragma warning(disable: 4201) // TODO(Jorge): What is this?
 #pragma warning(disable: 4100) // TODO(Jorge): What is this?
 
-#pragma warning(disable:4127) // GLM fails to compile if this warning is turned on!
+#pragma warning(disable:4127)  // GLM fails to compile if this warning is turned on!
 #pragma warning(disable: 4201) // GLM warning
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -23,6 +23,9 @@
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
 #include <glm/gtc/constants.hpp>
 #include <glm/gtx/rotate_vector.hpp> // glm::rotate vector
+
+#define global static
+#define internal_variable static
 
 #include <stdint.h>
 typedef uint8_t   u8;
@@ -37,9 +40,6 @@ typedef float    f32;
 typedef double   f64;
 typedef i32      b32;
 
-#define global static
-#define internal_variable static
-
 #define INLINE __forceinline
 #include <assert.h>
 #define Assert(Expr) assert(Expr)
@@ -49,7 +49,13 @@ typedef i32      b32;
 #define Megabytes(Expr) (Kilobytes(Expr) * 1024)
 #define Gigabytes(Expr) (Megabytes(Expr) * 1024)
 
-#define PI32 3.14159265358979323846
+#define Pi32 3.14159265358979323846
+#define Cosf cosf
+#define Sinf sinf
+#define Pow  pow
+#define Fabs fabs
+
+#define Here() printf("here %s\n", __func__)
 
 global u32 AllocationCount = 0;
 global size_t AllocationSize = 0;
@@ -161,13 +167,20 @@ f32 Distance(glm::vec2 A, glm::vec2 B)
 }
 
 #define EPSILON 0.00000011920928955078125f
-b32 EqFloats(f32 A, f32 B)
+b32 Equals(f32 A, f32 B)
 {
     b32 Result;
 
-    fabs(A - B) <= EPSILON ?  Result = true : Result = false;
+    Fabs(A - B) <= EPSILON ?  Result = true : Result = false;
 
     return Result;
+}
+
+// http://sol.gfxile.net/interpolation/, this site has a nice tutorial covering animation curves
+
+glm::vec3 Lerp(glm::vec3 x, glm::vec3 y, float t)
+{
+    return x * (1.f - t) + y * t;
 }
 
 f32 EaseOutBounce(float Input)
@@ -190,6 +203,24 @@ f32 EaseOutBounce(float Input)
     else
     {
         return n1 * (Input -= 2.625f / d1) * Input + 0.984375f;
+    }
+}
+
+f32 EaseInElastic(f32 Input)
+{
+    f32 c4 = (2.0f * (f32)Pi32) / 3.0f;
+
+    if(Input == 0.0f)
+    {
+        return 0.0f;
+    }
+    else if(Input == 1.0f)
+    {
+        return 1.0f;
+    }
+    else
+    {
+        return -Pow(2.0f, 10.0f * Input - 10.0f) * Sinf((Input * 10.0f - 10.75f) * c4);
     }
 }
 

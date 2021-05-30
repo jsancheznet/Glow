@@ -872,5 +872,16 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
 
 void R_DrawEntity(renderer *Renderer, entity *Entity)
 {
-    R_DrawTexture(Renderer, Entity->Texture, Entity->Position, Entity->Size, glm::vec3(0.0f, 0.0f, 1.0f), Entity->RotationAngle);
+    R_DrawTexture(Renderer, Entity->Texture, Entity->Position, Entity->Size, glm::vec3(0.0f, 0.0f, 1.0f), Entity->Angle);
+}
+
+void R_DrawEntityList(renderer *Renderer, entity_list *List)
+{
+    for(entity_node *Node = List->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        R_DrawEntity(Renderer, Node->Entity);
+    }
+
 }

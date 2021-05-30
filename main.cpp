@@ -12,6 +12,7 @@
 #include "sound.cpp"
 #include "collision.cpp"
 #include "entity.cpp"
+#include "random.cpp"
 
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
@@ -42,7 +43,7 @@ global window       *Window;
 global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera       *Camera;
-global gamestate CurrentState = State_Initial;
+global gamestate     CurrentState = State_Game;
 
 // Game Variables
 global f32 WorldBottom     = -11.0f;
@@ -54,19 +55,23 @@ global f32 HalfWorldHeight = WorldTop;
 global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
 
+// Debug Variables, might want to turn these off on release
+global b32 DrawDebugInformation = 0;
+
 u32 PlayerScore = 0;
+
+f32 AnimationTimer = 0.0f;
 
 i32 main(i32 Argc, char **Argv)
 {
-
     // The following makes the compiler not throw a warning for unused
-    // variables. I don't really want to turn that warning off, it
-    // will surely be useful
+    // variables. I don't really want to turn that warning off, so
+    // here it is, a single line of nonsense.
     Argc; Argv;
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
 
-    Window       = P_CreateOpenGLWindow("Untitled", WindowWidth, WindowHeight);
+    Window       = P_CreateOpenGLWindow("Glow", WindowWidth, WindowHeight);
     Renderer     = R_CreateRenderer(Window);
     Keyboard     = I_CreateKeyboard();
     Mouse        = I_CreateMouse();
@@ -74,19 +79,22 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    font *DebugFont = R_CreateFont(Renderer, "fonts/arial.ttf", 14, 14);
+    // Seed the RNG, GetPerformanceCounter is not the best way, but the results look acceptable
+    RandomSeed((u32)SDL_GetPerformanceCounter());
+
+    font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
     font *GameFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 100, 100);
-    font *UIFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
+    font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
     texture *PlayerTexture      = R_CreateTexture("textures/Player.png");
     texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
-    texture *BallTexture        = R_CreateTexture("textures/PurpleCircle.png");
     texture *WallTexture        = R_CreateTexture("textures/Yellow.png");
-    texture *RectangleTexture   = R_CreateTexture("textures/Redish.png");
     texture *WandererTexture    = R_CreateTexture("textures/Wanderer.png");
     texture *BulletTexture      = R_CreateTexture("textures/Bullet.png");
     texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
-
+    texture *PointerTexture     = R_CreateTexture("textures/Pointer.png");
+    texture *BlackHoleTexture   = R_CreateTexture("textures/BlackHole.png");
+    texture *BouncerTexture     = R_CreateTexture("textures/Bouncer.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
@@ -112,19 +120,31 @@ i32 main(i32 Argc, char **Argv)
     entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
     entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
     entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
+    entity *BlackHole1    = E_CreateEntity(BlackHoleTexture, glm::vec3(7.0f, -9.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, 0.0f, 1.0f, Type_Pickup, Collider_Rectangle);
+    entity *Bouncer1      = E_CreateEntity(BouncerTexture, glm::vec3(4.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Bouncer, Collider_Rectangle);
+
+    entity *Pickup1       = E_CreateEntity(BulletTexture, glm::vec3(RandomBetween(WorldLeft, WorldRight), RandomBetween(WorldBottom, WorldTop),0.0f), glm::vec3(3.0f, 1.0f, 0.0f), 0.0f, 0.0f, 1.0f, Type_Pickup, Collider_Rectangle);
+
     E_PushEntity(Enemies, TestWanderer1);
     E_PushEntity(Enemies, TestWanderer2);
     E_PushEntity(Enemies, TestWanderer3);
     E_PushEntity(Enemies, TestWanderer4);
     E_PushEntity(Enemies, TestWanderer5);
+    E_PushEntity(Enemies, BlackHole1);
+    E_PushEntity(Enemies, Bouncer1);
 
-    SDL_Event Event;
+    E_PushEntity(Enemies, Pickup1);
+
+    entity *AnimationTest = E_CreateEntity(BouncerTexture, glm::vec3(2.0f, -9.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Bouncer, Collider_Rectangle);
+
+    i32 i = 0;
     while(IsRunning)
     {
         P_UpdateClock(Clock);
         R_CalculateFPS(Renderer, Clock);
 
         { // SECTION: Input Handling
+            SDL_Event Event;
             while (SDL_PollEvent(&Event))
             {
                 switch (Event.type)
@@ -134,7 +154,6 @@ i32 main(i32 Argc, char **Argv)
                         IsRunning = 0;
                         break;
                     }
-
                     case SDL_WINDOWEVENT:
                     {
                         if (Event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
@@ -154,14 +173,8 @@ i32 main(i32 Argc, char **Argv)
             {
                 case State_Initial:
                 {
-                    if (I_IsPressed(SDL_SCANCODE_ESCAPE))
-                    {
-                        IsRunning = 0;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_SPACE))
-                    {
-                        CurrentState = State_Game;
-                    }
+                    if (I_IsPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
+                    if (I_IsPressed(SDL_SCANCODE_SPACE))  { CurrentState = State_Game; }
                     if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                     {
                         P_ToggleFullscreen(Window);
@@ -174,8 +187,12 @@ i32 main(i32 Argc, char **Argv)
                     // Game state input handling
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE))
                     {
+                        SDL_SetRelativeMouseMode(SDL_FALSE);
                         CurrentState = State_Pause;
                     }
+
+                    // DrawDebugInformation
+                    if(I_IsPressed(SDL_SCANCODE_F1) && I_WasNotPressed(SDL_SCANCODE_F1)) { DrawDebugInformation = !DrawDebugInformation; }
 
                     if (I_IsPressed(SDL_SCANCODE_LSHIFT))
                     {
@@ -203,46 +220,22 @@ i32 main(i32 Argc, char **Argv)
                         Camera->Front = glm::normalize(Front);
                     }
 
-                    // Handle Camera Input
-                    if (I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime;
-                    }
+                    // Camera Input
+                    if (I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime; }
+                    if (I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime; }
+                    if (I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
+                    if (I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
                     if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
                     {
                         R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                         I_ResetMouse(Mouse);
                     }
 
-                    // Player
-                    if (I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.x -= Player->Speed;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.x += Player->Speed;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.y += Player->Speed;
-                    }
-                    if (I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        Player->Acceleration.y -= Player->Speed;
-                    }
+                    // Player Input
+                    if (I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y += Player->Speed; }
+                    if (I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.x -= Player->Speed; }
+                    if (I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y -= Player->Speed; }
+                    if (I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.x += Player->Speed; }
 
                     // Fire Bullet
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT))
@@ -252,11 +245,13 @@ i32 main(i32 Argc, char **Argv)
                         f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
                         f32 BulletSpeed = 20.0f;
                         glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
-                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f, 0.11f, 0.0f), RotationAngle, BulletSpeed, 1.0f, Type_Bullet, Collider_Rectangle);
+                        f32 ScalingFactor = 3.5f;
+                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, Type_Bullet, Collider_Rectangle);
                         NewBullet->Acceleration += BulletDirection * BulletSpeed;
                         E_PushEntity(Bullets, NewBullet);
                     }
 
+                    // Enemy AI
                     // Set "inputs" according to enemy type, i can't figure out a better place to put the enemy AI and i'm not gonna think too much about it
                     for(entity_node *Node = Enemies->Head;
                         Node != NULL;
@@ -264,6 +259,7 @@ i32 main(i32 Argc, char **Argv)
                     {
                         entity *Entity = Node->Entity;
 
+                        // TODO: Create pickup bullets, and only let the player fire if they have a bullet in his inventory
                         switch(Entity->Type)
                         {
                             case Type_Seeker:
@@ -272,15 +268,27 @@ i32 main(i32 Argc, char **Argv)
                                 f32 DeltaX = Entity->Position.x - Player->Position.x;
                                 f32 DeltaY = Entity->Position.y - Player->Position.y;
                                 f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-                                Entity->RotationAngle = RotationAngle;
+                                Entity->Angle = RotationAngle;
                                 glm::vec3 SeekerDirection = Direction(Entity->Position, Player->Position);
                                 Entity->Acceleration += SeekerDirection * Entity->Speed;
                             } break;
                             case Type_Wanderer:
                             {
-
+                                f32 X = Cosf((f32)Clock->SecondsElapsed);
+                                f32 Y = Sinf((f32)Clock->SecondsElapsed);
+                                Entity->Position.x += X * (f32)Clock->DeltaTime * 3.0f;
+                                Entity->Position.y += Y * (f32)Clock->DeltaTime * 3.0f;
+                                Entity->Angle += 0.4f;
                             } break;
 
+                            case Type_Pickup:
+                            {
+                                // TODO(Jorge): Change size to make the grow and shrink
+                            } break;
+                            case Type_Bouncer:
+                            {
+                                Entity->Acceleration += glm::vec3(1.0f, 1.0f, 0.0f);
+                            } break;
                             case Type_Bullet:
                             case Type_None:
                             case Type_Wall:
@@ -291,11 +299,9 @@ i32 main(i32 Argc, char **Argv)
                                 break;
                             }
                         }
-
                     }
 
-
-                    // Handle Window input stuff
+                    // Handle Window resize Alt+Enter
                     if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                     {
                         P_ToggleFullscreen(Window);
@@ -306,16 +312,8 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Pause:
                 {
-                    if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE))
-                    {
-                        IsRunning = 0;
-                    }
-
-                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE))
-                    {
-                        CurrentState = State_Game;
-                    }
-
+                    if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
+                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE)) { CurrentState = State_Game; }
                     if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
                     {
                         P_ToggleFullscreen(Window);
@@ -345,7 +343,7 @@ i32 main(i32 Argc, char **Argv)
                     // Rotate player according to mouse world position
                     f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
                     f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
-                    Player->RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+                    Player->Angle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
 
                     // Update Player
                     E_Update(Player, (f32)Clock->DeltaTime);
@@ -448,11 +446,6 @@ i32 main(i32 Argc, char **Argv)
 
             R_UpdateCamera(Renderer, Camera);
 
-            // Set the running FPS on window title
-            char WindowTitle[60];
-            sprintf_s(WindowTitle, sizeof(WindowTitle),"Untitled - FPS: %2.2f", Renderer->FPS);
-            SDL_SetWindowTitle(Window->Handle, WindowTitle);
-
         } // SECTION END: Update
 
         { // SECTION: Render
@@ -474,28 +467,56 @@ i32 main(i32 Argc, char **Argv)
 
                     R_DrawEntity(Renderer, Background);
                     R_DrawEntity(Renderer, Player);
+                    R_DrawEntity(Renderer, AnimationTest);
 
-                    // Draw Enemies
-                    for(entity_node *Node = Enemies->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
+                    R_DrawEntityList(Renderer, Enemies);
+                    R_DrawEntityList(Renderer, Bullets);
 
-                        R_DrawEntity(Renderer, Node->Entity);
-                    }
-
-                    // Draw Bullets
-                    for(entity_node *Node = Bullets->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
-                        R_DrawEntity(Renderer, Node->Entity);
-                    }
+                    // Draw Mouse Pointer. The Position needs
+                    // adjustment since R_DrawTexture draws
+                    // centered. Could also create a crosshair image
+                    // and it would be perfect.
+                    glm::vec3 CursorSize = glm::vec3(0.44f, 0.62f, 0.0f);
+                    glm::vec3 CorrectedCursorPosition = glm::vec3(Mouse->WorldPosition.x - (CursorSize.x / 2.0f),
+                                                                  Mouse->WorldPosition.y - (CursorSize.y / 2.0f),
+                                                                  0.1f);
+                    R_DrawTexture(Renderer, PointerTexture, CorrectedCursorPosition, CursorSize, glm::vec3(0.0f), 0.0f);
 
                     // Draw player score
                     char PlayerScoreString[80];
                     sprintf_s(PlayerScoreString, "Score: %d", PlayerScore);
                     R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                    if(DrawDebugInformation)
+                    {
+                        // String buffer used for snprintf
+                        char String[100] = {};
+
+                        // GPU and OpenGL stuff
+                        f32 LeftMargin = 4.0f;
+                        R_DrawText2D(Renderer, "GPU:", DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(Renderer, (char*)Renderer->HardwareVendor, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 2), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        R_DrawText2D(Renderer, (char*)Renderer->HardwareModel, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 3), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"OpenGL Version: %s", Renderer->OpenGLVersion);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 4), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"GLSL Version: %s", Renderer->GLSLVersion);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 5), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // CPU
+                        R_DrawText2D(Renderer, "CPU:", DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 6), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"Cache Line Size: %d", SDL_GetCPUCacheLineSize());
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 7), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"Core Count: %d", SDL_GetCPUCount());
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin * 2, Window->Height - DebugFont->Height * 8), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // FPS Min Ms/Max Ms/ Avg Ms
+                        snprintf(String, sizeof(char) * 99,"FPS: %.4f", Renderer->FPS);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 9), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"Average Ms Per Frame: %.5f", Renderer->AverageMsPerFrame);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 10), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // Mouse World Position
+                    }
 
                     break;
                 }
@@ -514,11 +535,12 @@ i32 main(i32 Argc, char **Argv)
                 }
                 default:
                 {
+                    InvalidCodePath;
                     break;
                 }
             }
-            R_EndFrame(Renderer);
 
+            R_EndFrame(Renderer);
         } // SECTION END: Render
         SDL_GL_DeleteContext(Window->Handle);
     }

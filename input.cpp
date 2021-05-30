@@ -30,8 +30,10 @@ mouse *I_CreateMouse()
     Result->FirstMouse = 1;
     Result->RelX = 0;
     Result->RelY = 0;
-    Result->WorldPosition = glm::vec3(0.0f);
-    // SDL_SetRelativeMouseMode(SDL_TRUE);
+    Result->WorldPosition = glm::vec3(0.0f, 0.0f, 0.1f);
+
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_ShowCursor(SDL_ENABLE);
 
     __Mouse = Result;
 

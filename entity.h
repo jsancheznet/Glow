@@ -10,7 +10,9 @@ enum entity_type
     Type_Player,
     Type_Seeker,
     Type_Wanderer,
+    Type_Bouncer,
     Type_Bullet,
+    Type_Pickup,
     Type_Wall
 };
 
@@ -22,8 +24,9 @@ struct entity
     glm::vec3 Velocity;
     glm::vec3 Acceleration;
     glm::vec3 Size;
+    // glm::vec3 Direction;
     f32 Speed;
-    f32 RotationAngle; // NOTE: Degrees!
+    f32 Angle;
     f32 Drag;
 
     entity_type Type;
