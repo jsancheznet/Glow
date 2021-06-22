@@ -24,7 +24,8 @@
 
 // Global renderer settings
 global f32 Exposure__ = 2.0f;
-global f32 EnableVSync = 0;
+global i32 VSync = 1; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
+global f32 EnableVSync = 1;
 global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
 global u32 BlurPassCount = 7; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
@@ -308,15 +309,8 @@ renderer *R_CreateRenderer(window *Window)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glEnable(GL_BLEND);
 
-        // No V-Sync
-        if(EnableVSync)
-        {
-            SDL_GL_SetSwapInterval(1);
-        }
-        else
-        {
-            SDL_GL_SetSwapInterval(0);
-        }
+        // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
+        SDL_GL_SetSwapInterval(VSync);
 
         Result->HardwareVendor = glGetString(GL_VENDOR);
         Result->HardwareModel = glGetString(GL_RENDERER);

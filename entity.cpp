@@ -10,6 +10,7 @@ b32 E_EntitiesCollide(entity *A, entity *B, glm::vec2 *ResolutionDirection, f32 
 
 entity *E_CreateEntity(texture *Texture,
                        glm::vec3 Position,
+                       glm::vec3 Direction,
                        glm::vec3 Size,
                        f32 RotationAngle,
                        f32 Speed,
@@ -21,6 +22,7 @@ entity *E_CreateEntity(texture *Texture,
 
     Result->Texture = Texture;
     Result->Position = Position;
+    Result->Direction = glm::normalize(Direction);
     Result->Size = Size;
     Result->Acceleration = glm::vec3(0.0f);
     Result->Angle = RotationAngle;
@@ -167,7 +169,7 @@ void E_PushEntity(entity_list *List, entity *Entity)
     }
 }
 
-void E_ListFreeNode(entity_list *List, entity_node *Node)
+void E_FreeNode(entity_list *List, entity_node *Node)
 {
     Assert(List);
     Assert(Node);

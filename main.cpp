@@ -43,7 +43,7 @@ global window       *Window;
 global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera       *Camera;
-global gamestate     CurrentState = State_Game;
+global gamestate     CurrentState = State_Initial;
 
 // Game Variables
 global f32 WorldBottom     = -11.0f;
@@ -54,13 +54,8 @@ global f32 HalfWorldWidth  = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
 global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
-
-// Debug Variables, might want to turn these off on release
-global b32 DrawDebugInformation = 0;
-
-u32 PlayerScore = 0;
-
-f32 AnimationTimer = 0.0f;
+global u32 PlayerScore = 0;
+global b32 DrawDebugInformation = 1;
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -93,51 +88,52 @@ i32 main(i32 Argc, char **Argv)
     texture *BulletTexture      = R_CreateTexture("textures/Bullet.png");
     texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
     texture *PointerTexture     = R_CreateTexture("textures/Pointer.png");
-    texture *BlackHoleTexture   = R_CreateTexture("textures/BlackHole.png");
-    texture *BouncerTexture     = R_CreateTexture("textures/Bouncer.png");
+    texture *KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
+    texture *BlackholeTexture   = R_CreateTexture("textures/BlackHole.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
-    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_None, Collider_Rectangle);
+    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
 
     f32 PlayerSpeed = 3.0f;
     f32 PlayerDrag = 0.8f;
-    f32 PlayerRotationSpeed = 0.5f;
-    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, Type_Player, Collider_Circle);
+    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
 
     // Walls
-    entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
-    entity *RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
-    entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
-    entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, Type_Wall, Collider_Rectangle);
+    entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    entity *RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+
+    // Enemies
+    entity *TestWanderer1 = E_CreateEntity(WandererTexture, glm::vec3(0), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
+    entity *TestWanderer2 = E_CreateEntity(WandererTexture, glm::vec3(-2.0f, -4.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
+    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
+    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
+    entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
+
+    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture,
+                                          glm::vec3(10.0f, 10.0f, 0.0f),
+                                          glm::vec3(Player->Position.x, Player->Position.y, 0.0f),
+                                          glm::vec3(1.0f, 1.0f, 0.0f),
+                                          15.0f, //
+                                          1.0f,
+                                          0.8f,
+                                          EntityType_Kamikaze,
+                                          Collider_Rectangle);
 
     // These are linked lists that hold enemies and bullets fired by the player
-    entity_list *Enemies = E_CreateEntityList(100);
-    entity_list *Bullets = E_CreateEntityList(100);
-
-    entity *TestWanderer1 = E_CreateEntity(WandererTexture, glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
-    entity *TestWanderer2 = E_CreateEntity(WandererTexture, glm::vec3(-2.0f, -4.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
-    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
-    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, Type_Seeker, Collider_Rectangle);
-    entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Wanderer, Collider_Rectangle);
-    entity *BlackHole1    = E_CreateEntity(BlackHoleTexture, glm::vec3(7.0f, -9.0f, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, 0.0f, 1.0f, Type_Pickup, Collider_Rectangle);
-    entity *Bouncer1      = E_CreateEntity(BouncerTexture, glm::vec3(4.0f, -5.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Bouncer, Collider_Rectangle);
-
-    entity *Pickup1       = E_CreateEntity(BulletTexture, glm::vec3(RandomBetween(WorldLeft, WorldRight), RandomBetween(WorldBottom, WorldTop),0.0f), glm::vec3(3.0f, 1.0f, 0.0f), 0.0f, 0.0f, 1.0f, Type_Pickup, Collider_Rectangle);
+    u32 MaxEntityCount = 100;
+    entity_list *Enemies = E_CreateEntityList(MaxEntityCount);
+    entity_list *Bullets = E_CreateEntityList(MaxEntityCount);
 
     E_PushEntity(Enemies, TestWanderer1);
     E_PushEntity(Enemies, TestWanderer2);
     E_PushEntity(Enemies, TestWanderer3);
     E_PushEntity(Enemies, TestWanderer4);
     E_PushEntity(Enemies, TestWanderer5);
-    E_PushEntity(Enemies, BlackHole1);
-    E_PushEntity(Enemies, Bouncer1);
+    E_PushEntity(Enemies, Kamikaze1);
 
-    E_PushEntity(Enemies, Pickup1);
-
-    entity *AnimationTest = E_CreateEntity(BouncerTexture, glm::vec3(2.0f, -9.0f, 0.0f), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, Type_Bouncer, Collider_Rectangle);
-
-    i32 i = 0;
     while(IsRunning)
     {
         P_UpdateClock(Clock);
@@ -180,8 +176,7 @@ i32 main(i32 Argc, char **Argv)
                         P_ToggleFullscreen(Window);
                         R_ResizeRenderer(Renderer, Window->Width, Window->Height);
                     }
-                    break;
-                }
+                } break;
                 case State_Game:
                 {
                     // Game state input handling
@@ -194,9 +189,9 @@ i32 main(i32 Argc, char **Argv)
                     // DrawDebugInformation
                     if(I_IsPressed(SDL_SCANCODE_F1) && I_WasNotPressed(SDL_SCANCODE_F1)) { DrawDebugInformation = !DrawDebugInformation; }
 
+                    // Camera Input
                     if (I_IsPressed(SDL_SCANCODE_LSHIFT))
                     {
-                        // Camera Stuff
                         if (Mouse->FirstMouse)
                         {
                             Camera->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
@@ -205,6 +200,7 @@ i32 main(i32 Argc, char **Argv)
                         }
                         Camera->Yaw += Mouse->RelX * Mouse->Sensitivity;
                         Camera->Pitch += -Mouse->RelY * Mouse->Sensitivity; // reversed since y-coordinates range from bottom to top
+
                         if (Camera->Pitch > 89.0f)
                         {
                             Camera->Pitch = 89.0f;
@@ -219,17 +215,11 @@ i32 main(i32 Argc, char **Argv)
                         Front.z = sin(glm::radians(Camera->Yaw)) * cos(glm::radians(Camera->Pitch));
                         Camera->Front = glm::normalize(Front);
                     }
-
-                    // Camera Input
                     if (I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime; }
                     if (I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime; }
                     if (I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
                     if (I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
-                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT))
-                    {
-                        R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                        I_ResetMouse(Mouse);
-                    }
+                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f)); I_ResetMouse(Mouse); }
 
                     // Player Input
                     if (I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y += Player->Speed; }
@@ -246,7 +236,7 @@ i32 main(i32 Argc, char **Argv)
                         f32 BulletSpeed = 20.0f;
                         glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
                         f32 ScalingFactor = 3.5f;
-                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, Type_Bullet, Collider_Rectangle);
+                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
                         NewBullet->Acceleration += BulletDirection * BulletSpeed;
                         E_PushEntity(Bullets, NewBullet);
                     }
@@ -262,7 +252,7 @@ i32 main(i32 Argc, char **Argv)
                         // TODO: Create pickup bullets, and only let the player fire if they have a bullet in his inventory
                         switch(Entity->Type)
                         {
-                            case Type_Seeker:
+                            case EntityType_Seeker:
                             {
                                 // Get Angle to player, and move towards the player
                                 f32 DeltaX = Entity->Position.x - Player->Position.x;
@@ -272,7 +262,7 @@ i32 main(i32 Argc, char **Argv)
                                 glm::vec3 SeekerDirection = Direction(Entity->Position, Player->Position);
                                 Entity->Acceleration += SeekerDirection * Entity->Speed;
                             } break;
-                            case Type_Wanderer:
+                            case EntityType_Wanderer:
                             {
                                 f32 X = Cosf((f32)Clock->SecondsElapsed);
                                 f32 Y = Sinf((f32)Clock->SecondsElapsed);
@@ -280,19 +270,18 @@ i32 main(i32 Argc, char **Argv)
                                 Entity->Position.y += Y * (f32)Clock->DeltaTime * 3.0f;
                                 Entity->Angle += 0.4f;
                             } break;
-
-                            case Type_Pickup:
+                            case EntityType_Kamikaze:
+                            {
+                                Entity->Acceleration += glm::normalize(Entity->Direction) * Entity->Speed;
+                            }
+                            case EntityType_Pickup:
                             {
                                 // TODO(Jorge): Change size to make the grow and shrink
                             } break;
-                            case Type_Bouncer:
-                            {
-                                Entity->Acceleration += glm::vec3(1.0f, 1.0f, 0.0f);
-                            } break;
-                            case Type_Bullet:
-                            case Type_None:
-                            case Type_Wall:
-                            case Type_Player:
+                            case EntityType_Bullet:
+                            case EntityType_None:
+                            case EntityType_Wall:
+                            case EntityType_Player:
                             default:
                             {
                                 InvalidCodePath;
@@ -368,7 +357,7 @@ i32 main(i32 Argc, char **Argv)
                         // square distances to avoid a sqrt.
                         if(Magnitude(Node->Entity->Position) > 30.0f)
                         {
-                            E_ListFreeNode(Bullets, Node);
+                            E_FreeNode(Bullets, Node);
                         }
                     }
 
@@ -409,11 +398,11 @@ i32 main(i32 Argc, char **Argv)
                     {
                         if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
                         {
-                            E_ListFreeNode(Enemies, Node);
+                            E_FreeNode(Enemies, Node);
                         }
                     }
 
-                    // Enemies vs Player Bullets,  note: this is a n^m loop
+                    // Enemies vs Player Bullets,  note: this is a n*m loop
                     for(entity_node *Enemy = Enemies->Head;
                         Enemy != NULL;
                         Enemy = Enemy->Next)
@@ -425,12 +414,13 @@ i32 main(i32 Argc, char **Argv)
                             if(E_EntitiesCollide(Enemy->Entity, Bullet->Entity, &ResolutionDirection, &ResolutionOverlap))
                             {
                                 PlayerScore += 1;
-                                E_ListFreeNode(Enemies, Enemy);
-                                E_ListFreeNode(Bullets, Bullet);
+                                E_FreeNode(Enemies, Enemy);
+                                E_FreeNode(Bullets, Bullet);
                             }
                         }
                     }
-                }
+
+                } break;
                 case State_Pause:
                 {
                     break;
@@ -439,7 +429,7 @@ i32 main(i32 Argc, char **Argv)
                 {
                     // Invalid code path
                     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", "UpdateState invalid code path: default", Window->Handle);
-                    exit(0);;
+                    exit(0);
                     break;
                 }
             }
@@ -457,6 +447,21 @@ i32 main(i32 Argc, char **Argv)
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
                     R_SetActiveShader(Renderer->Shaders.Texture);
+
+                    // R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                    // Render game title
+                    glm::vec2 GameTitlePos = { (Window->Width - GameFont->Width * 4.0f) / 2.0f, Window->Height - GameFont->Height};
+                    R_DrawText2D(Renderer, "Untitled", GameFont, GameTitlePos, glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f));
+
+                    // Render how to play
+                    R_DrawText2D(Renderer, "Collect Bullets to pickup bullets, avoid and kill enemies", UIFont, glm::vec2(0,0), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f));
+                    // Render press space to begin
+
+                    // Alt+Enter to toggle fullscreen
+
+                    // Shift + WASD to move camera in 3d space, shift + space to reset camera
+
                     break;
                 }
                 case State_Game:
@@ -467,7 +472,7 @@ i32 main(i32 Argc, char **Argv)
 
                     R_DrawEntity(Renderer, Background);
                     R_DrawEntity(Renderer, Player);
-                    R_DrawEntity(Renderer, AnimationTest);
+                    // R_DrawEntity(Renderer, AnimationTest);
 
                     R_DrawEntityList(Renderer, Enemies);
                     R_DrawEntityList(Renderer, Bullets);
@@ -542,8 +547,9 @@ i32 main(i32 Argc, char **Argv)
 
             R_EndFrame(Renderer);
         } // SECTION END: Render
-        SDL_GL_DeleteContext(Window->Handle);
     }
+
+    SDL_GL_DeleteContext(Window->Handle);
 
     return 0;
 }

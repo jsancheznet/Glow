@@ -169,7 +169,7 @@ b32 C_CollisionCircleCircle(circle A, circle B, glm::vec2 *ResolutionDirection, 
 b32 C_CollisionRectangleRectangle(rectangle A, rectangle B, glm::vec2 *ResolutionDirection, f32 *ResolutionOverlap)
 {
     Assert(ResolutionDirection);
-    Assert(ResolutionOverlap);
+        Assert(ResolutionOverlap);
 
     rectangle_collision_data DataA = C_GenerateRectangleCollisionData(A);
     rectangle_collision_data DataB = C_GenerateRectangleCollisionData(B);

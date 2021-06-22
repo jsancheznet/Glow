@@ -6,14 +6,14 @@
 
 enum entity_type
 {
-    Type_None, // This is used for types that do not yet have a specific entity_type
-    Type_Player,
-    Type_Seeker,
-    Type_Wanderer,
-    Type_Bouncer,
-    Type_Bullet,
-    Type_Pickup,
-    Type_Wall
+    EntityType_None, // This is used for types that do not yet have a specific entity_type
+    EntityType_Player,
+    EntityType_Seeker,
+    EntityType_Wanderer,
+    EntityType_Kamikaze,
+    EntityType_Bullet,
+    EntityType_Pickup,
+    EntityType_Wall
 };
 
 struct entity
@@ -23,8 +23,9 @@ struct entity
     glm::vec3 Position;
     glm::vec3 Velocity;
     glm::vec3 Acceleration;
+    glm::vec3 Direction;
     glm::vec3 Size;
-    // glm::vec3 Direction;
+
     f32 Speed;
     f32 Angle;
     f32 Drag;
