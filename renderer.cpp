@@ -752,8 +752,7 @@ void R_DrawTexture(renderer *Renderer, texture *Texture, glm::vec3 Position, glm
     glBindVertexArray(0);
 }
 
-void
-R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
+void R_DrawText2D(renderer *Renderer, char *Text, font *Font, glm::vec2 Position, glm::vec2 Scale, glm::vec3 Color)
 {
     Assert(Renderer);
     Assert(Text);

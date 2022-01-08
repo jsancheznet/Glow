@@ -16,18 +16,18 @@
 
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
-// TODO(Jorge): Once sat algorithm is in a single file header lib, make a blog post detailing how SAT works.
-// TODO(Jorge): Add License to all files, use unlicense or CC0. It seems lawyers and github's code like a standard license rather than simplu stating public domain.
+// TODO(Jorge): Add License to all files
 // TODO(Jorge): Delete all unused data files
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
+// TODO(Jorge): Add a comment on top of this file explaining code layout in this file and what each file/prefix means (R_, P_, I_,...)
 
 enum gamestate
 {
     State_Initial,
     State_Game,
     State_Pause,
-    State_Gameover,
+    State_GameOver,
 };
 
 // Platform
@@ -46,22 +46,22 @@ global camera       *Camera;
 global gamestate     CurrentState = State_Initial;
 
 // Game Variables
-global f32 WorldBottom     = -11.0f;
-global f32 WorldTop        = 11.0f;
-global f32 WorldLeft       = -20.0f;
-global f32 WorldRight      = 20.0f;
-global f32 HalfWorldWidth  = WorldRight;
+global f32 WorldBottom = -11.0f;
+global f32 WorldTop = 11.0f;
+global f32 WorldLeft = -20.0f;
+global f32 WorldRight = 20.0f;
+global f32 HalfWorldWidth = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
 global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
 global u32 PlayerScore = 0;
-global b32 DrawDebugInformation = 1;
+global b32 DebugMode = 0;
 
 i32 main(i32 Argc, char **Argv)
 {
     // The following makes the compiler not throw a warning for unused
     // variables. I don't really want to turn that warning off, so
-    // here it is, a single line of nonsense.
+    // here it is, a line of nonsense.
     Argc; Argv;
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS);
@@ -74,13 +74,17 @@ i32 main(i32 Argc, char **Argv)
     SoundSystem  = S_CreateSoundSystem();
     Camera       = R_CreateCamera(Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // Seed the RNG, GetPerformanceCounter is not the best way, but the results look acceptable
+    // NOTE(Jorge): Seed the RNG, GetPerformanceCounter is not the
+    // best way, but the results look acceptable. I do not have a CPU
+    // that supports RDSEED at the moment.
     RandomSeed((u32)SDL_GetPerformanceCounter());
 
     font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
-    font *GameFont  = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 100, 100);
     font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
+    texture *InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
+    texture *PauseScreenTexture = R_CreateTexture("textures/PauseScreen.png");
+    texture *GameOverTexture    = R_CreateTexture("textures/GameOver.png");
     texture *PlayerTexture      = R_CreateTexture("textures/Player.png");
     texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
     texture *WallTexture        = R_CreateTexture("textures/Yellow.png");
@@ -89,11 +93,14 @@ i32 main(i32 Argc, char **Argv)
     texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
     texture *PointerTexture     = R_CreateTexture("textures/Pointer.png");
     texture *KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
-    texture *BlackholeTexture   = R_CreateTexture("textures/BlackHole.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
     entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+
+    entity *InitialScreen   = E_CreateEntity(InitScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    entity *PauseScreen     = E_CreateEntity(PauseScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    entity *GameOver        = E_CreateEntity(GameOverTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
 
     f32 PlayerSpeed = 3.0f;
     f32 PlayerDrag = 0.8f;
@@ -112,15 +119,7 @@ i32 main(i32 Argc, char **Argv)
     entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
     entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
 
-    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture,
-                                          glm::vec3(10.0f, 10.0f, 0.0f),
-                                          glm::vec3(Player->Position.x, Player->Position.y, 0.0f),
-                                          glm::vec3(1.0f, 1.0f, 0.0f),
-                                          15.0f, //
-                                          1.0f,
-                                          0.8f,
-                                          EntityType_Kamikaze,
-                                          Collider_Rectangle);
+    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture, glm::vec3(10.0f, 10.0f, 0.0f), glm::vec3(Player->Position.x, Player->Position.y, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 15.0f, 1.0f, 0.8f, EntityType_Kamikaze, Collider_Rectangle);
 
     // These are linked lists that hold enemies and bullets fired by the player
     u32 MaxEntityCount = 100;
@@ -162,6 +161,8 @@ i32 main(i32 Argc, char **Argv)
 
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
+
+            // Convert window mouse position to game world position, mainly used to fire bullets from Player->Position to Mouse->WorldPosition
             Mouse->WorldPosition.x = Remap((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
             Mouse->WorldPosition.y = Remap((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
 
@@ -171,11 +172,6 @@ i32 main(i32 Argc, char **Argv)
                 {
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
                     if (I_IsPressed(SDL_SCANCODE_SPACE))  { CurrentState = State_Game; }
-                    if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
-                    {
-                        P_ToggleFullscreen(Window);
-                        R_ResizeRenderer(Renderer, Window->Width, Window->Height);
-                    }
                 } break;
                 case State_Game:
                 {
@@ -187,10 +183,15 @@ i32 main(i32 Argc, char **Argv)
                     }
 
                     // DrawDebugInformation
-                    if(I_IsPressed(SDL_SCANCODE_F1) && I_WasNotPressed(SDL_SCANCODE_F1)) { DrawDebugInformation = !DrawDebugInformation; }
+                    if(I_IsPressed(SDL_SCANCODE_F1) && I_WasNotPressed(SDL_SCANCODE_F1))
+                    {
+                        // Reset camera when disabling debug mode
+                        if(DebugMode) { R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f)); I_ResetMouse(Mouse); }
+                        DebugMode = !DebugMode;
+                    }
 
                     // Camera Input
-                    if (I_IsPressed(SDL_SCANCODE_LSHIFT))
+                    if (I_IsPressed(SDL_SCANCODE_LSHIFT) & DebugMode)
                     {
                         if (Mouse->FirstMouse)
                         {
@@ -214,12 +215,13 @@ i32 main(i32 Argc, char **Argv)
                         Front.y = sin(glm::radians(Camera->Pitch));
                         Front.z = sin(glm::radians(Camera->Yaw)) * cos(glm::radians(Camera->Pitch));
                         Camera->Front = glm::normalize(Front);
+
+                        if (I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime; }
+                        if (I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime; }
+                        if (I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
+                        if (I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
+                        if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f)); I_ResetMouse(Mouse); }
                     }
-                    if (I_IsPressed(SDL_SCANCODE_W) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += Camera->Front * Camera->Speed * (f32)Clock->DeltaTime; }
-                    if (I_IsPressed(SDL_SCANCODE_S) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= Camera->Speed * Camera->Front * (f32)Clock->DeltaTime; }
-                    if (I_IsPressed(SDL_SCANCODE_A) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position -= glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
-                    if (I_IsPressed(SDL_SCANCODE_D) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { Camera->Position += glm::normalize(glm::cross(Camera->Front, Camera->Up)) * Camera->Speed * (f32)Clock->DeltaTime; }
-                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f)); I_ResetMouse(Mouse); }
 
                     // Player Input
                     if (I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y += Player->Speed; }
@@ -290,24 +292,21 @@ i32 main(i32 Argc, char **Argv)
                         }
                     }
 
-                    // Handle Window resize Alt+Enter
-                    if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
-                    {
-                        P_ToggleFullscreen(Window);
-                        R_ResizeRenderer(Renderer, Window->Width, Window->Height);
-                    }
-
                     break;
                 }
                 case State_Pause:
                 {
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
                     if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE)) { CurrentState = State_Game; }
-                    if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
-                    {
-                        P_ToggleFullscreen(Window);
-                        R_ResizeRenderer(Renderer, Window->Width, Window->Height);
-                    }
+
+                    break;
+                }
+                case State_GameOver:
+                {
+                    if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
+
+                    // TODO(Jorge): Reset game in order to play again
+                    // if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE)) { CurrentState = State_Game; }
                     break;
                 }
                 default:
@@ -318,9 +317,17 @@ i32 main(i32 Argc, char **Argv)
                     break;
                 }
             }
+
+            // Toggle fullscreen in every Game_State, that's why its outside of the switch statement
+            if (I_IsReleased(SDL_SCANCODE_RETURN) && I_IsPressed(SDL_SCANCODE_LALT))
+            {
+                P_ToggleFullscreen(Window);
+                R_ResizeRenderer(Renderer, Window->Width, Window->Height);
+            }
+
         } // SECTION END: Input Handling
 
-        {  // SECTION: Update
+        { // SECTION: Update
             switch(CurrentState)
             {
                 case State_Initial:
@@ -425,6 +432,10 @@ i32 main(i32 Argc, char **Argv)
                 {
                     break;
                 }
+                case State_GameOver:
+                {
+                    break;
+                }
                 default:
                 {
                     // Invalid code path
@@ -447,21 +458,7 @@ i32 main(i32 Argc, char **Argv)
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
                     R_SetActiveShader(Renderer->Shaders.Texture);
-
-                    // R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
-
-                    // Render game title
-                    glm::vec2 GameTitlePos = { (Window->Width - GameFont->Width * 4.0f) / 2.0f, Window->Height - GameFont->Height};
-                    R_DrawText2D(Renderer, "Untitled", GameFont, GameTitlePos, glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f));
-
-                    // Render how to play
-                    R_DrawText2D(Renderer, "Collect Bullets to pickup bullets, avoid and kill enemies", UIFont, glm::vec2(0,0), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 0.0f, 1.0f));
-                    // Render press space to begin
-
-                    // Alt+Enter to toggle fullscreen
-
-                    // Shift + WASD to move camera in 3d space, shift + space to reset camera
-
+                    R_DrawEntity(Renderer, InitialScreen);
                     break;
                 }
                 case State_Game:
@@ -472,7 +469,6 @@ i32 main(i32 Argc, char **Argv)
 
                     R_DrawEntity(Renderer, Background);
                     R_DrawEntity(Renderer, Player);
-                    // R_DrawEntity(Renderer, AnimationTest);
 
                     R_DrawEntityList(Renderer, Enemies);
                     R_DrawEntityList(Renderer, Bullets);
@@ -492,7 +488,7 @@ i32 main(i32 Argc, char **Argv)
                     sprintf_s(PlayerScoreString, "Score: %d", PlayerScore);
                     R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
-                    if(DrawDebugInformation)
+                    if(DebugMode)
                     {
                         // String buffer used for snprintf
                         char String[100] = {};
@@ -520,7 +516,13 @@ i32 main(i32 Argc, char **Argv)
                         snprintf(String, sizeof(char) * 99,"Average Ms Per Frame: %.5f", Renderer->AverageMsPerFrame);
                         R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 10), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
+                        // Player World Position
+                        snprintf(String, sizeof(char) * 99,"Player->WorldPosition: X:%.2f Y:%.2f", Player->Position.x, Player->Position.y);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 11), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
                         // Mouse World Position
+                        snprintf(String, sizeof(char) * 99,"Mouse->WorldPosition: X:%.2f Y:%.2f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 12), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
 
                     break;
@@ -529,13 +531,15 @@ i32 main(i32 Argc, char **Argv)
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
                     R_SetActiveShader(Renderer->Shaders.Texture);
+                    R_DrawEntity(Renderer, PauseScreen);
 
-                    f32 HardcodedFontWidth = 38.0f * 1.5f;
-                    f32 XPos = (Window->Width / 2.0f) - HardcodedFontWidth * 2.5f;
-                    R_DrawText2D(Renderer, "Pause", GameFont, glm::vec2(XPos, Window->Height / 2.0f + 50.0f), glm::vec2(1.5f, 1.5f), glm::vec3(1.0f, 1.0f, 1.0f));
-                    R_DrawText2D(Renderer, "press space to continue", GameFont, glm::vec2(Window->Width / 2.0f - 38.0f * 11.5f * 0.7f, Window->Height / 2.0f - 100.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
-                    R_DrawText2D(Renderer, "press escape to exit", GameFont, glm::vec2(Window->Width / 2.0f - 38.0f * 10.0f * 0.7f, Window->Height / 2.0f - 200.0f), glm::vec2(0.7, 0.7), glm::vec3(1.0f, 1.0f, 1.0f));
-
+                    break;
+                }
+                case State_GameOver:
+                {
+                    Renderer->BackgroundColor = MenuBackgroundColor;
+                    R_SetActiveShader(Renderer->Shaders.Texture);
+                    R_DrawEntity(Renderer, GameOver);
                     break;
                 }
                 default:
