@@ -61,7 +61,7 @@ sound_system *S_CreateSoundSystem()
     }
 
     // NOTE: Set volume to 64, half of the max volume
-    i32 InitialVolume = 2;
+    i32 InitialVolume = 8;
     S_SetMusicVolume(Result, InitialVolume);
     S_SetEffectsVolume(Result, InitialVolume);
 

@@ -6,7 +6,7 @@
 
 enum entity_type
 {
-    EntityType_None, // This is used for types that do not yet have a specific entity_type
+    EntityType_None = 0, // This is used for types that do not yet have a specific entity_type
     EntityType_Player,
     EntityType_Seeker,
     EntityType_Wanderer,

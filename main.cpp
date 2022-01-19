@@ -82,6 +82,8 @@ i32 main(i32 Argc, char **Argv)
     font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
     font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
+    sound_music *Song = S_CreateMusic("audio/Music.mp3");
+
     texture *InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
     texture *PauseScreenTexture = R_CreateTexture("textures/PauseScreen.png");
     texture *GameOverTexture    = R_CreateTexture("textures/GameOver.png");
@@ -119,7 +121,15 @@ i32 main(i32 Argc, char **Argv)
     entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
     entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
 
-    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture, glm::vec3(10.0f, 10.0f, 0.0f), glm::vec3(Player->Position.x, Player->Position.y, 0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 15.0f, 1.0f, 0.8f, EntityType_Kamikaze, Collider_Rectangle);
+    glm::vec2 KamikazePosition = {-22.0f, 0.0f};
+    f32 KDeltaX = KamikazePosition.x - Player->Position.x;
+    f32 KDeltaY = KamikazePosition.y - Player->Position.y;
+    f32 KamikazeAngle = (((f32)atan2(KDeltaY, KDeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+    f32 KamikazeSpeed = 5.0f;
+    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture, glm::vec3(-22.0f, 0.0f, 0.0f),
+                                          Player->Position - glm::vec3(-22.0f, 0.0f, 0.0f),
+                                          glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, 0.8f,
+                                          EntityType_Kamikaze, Collider_Rectangle);
 
     // These are linked lists that hold enemies and bullets fired by the player
     u32 MaxEntityCount = 100;
@@ -132,6 +142,14 @@ i32 main(i32 Argc, char **Argv)
     E_PushEntity(Enemies, TestWanderer4);
     E_PushEntity(Enemies, TestWanderer5);
     E_PushEntity(Enemies, Kamikaze1);
+
+    S_PlayMusic(Song);
+
+
+    // TODO(Jorge): Delete all instances of Enemy creation, save one
+    // creation line of each. Create the game director, start adding
+    // stuff into it
+    Here;
 
     while(IsRunning)
     {
@@ -241,6 +259,7 @@ i32 main(i32 Argc, char **Argv)
                         entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
                         NewBullet->Acceleration += BulletDirection * BulletSpeed;
                         E_PushEntity(Bullets, NewBullet);
+
                     }
 
                     // Enemy AI
@@ -275,6 +294,8 @@ i32 main(i32 Argc, char **Argv)
                             case EntityType_Kamikaze:
                             {
                                 Entity->Acceleration += glm::normalize(Entity->Direction) * Entity->Speed;
+                                // printf("Kamikaze->Direction: %.2f %.2f\n", Entity->Direction.x, Entity->Direction.y);
+                                // printf("Kamikaze->Acceleration: %.2f %.2f\n", Entity->Acceleration.x, Entity->Acceleration.y);
                             }
                             case EntityType_Pickup:
                             {
@@ -350,6 +371,14 @@ i32 main(i32 Argc, char **Argv)
                         Node = Node->Next)
                     {
                         E_Update(Node->Entity, (f32)Clock->DeltaTime);
+
+                        if(Node->Entity->Type == EntityType_Kamikaze)
+                        {
+                            if(Magnitude(Node->Entity->Position) > 30.0f)
+                            {
+                                E_FreeNode(Enemies, Node);
+                            }
+                        }
                     }
 
                     // Update Player Bullets

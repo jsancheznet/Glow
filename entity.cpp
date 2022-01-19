@@ -22,7 +22,7 @@ entity *E_CreateEntity(texture *Texture,
 
     Result->Texture = Texture;
     Result->Position = Position;
-    Result->Direction = glm::normalize(Direction);
+    Result->Direction = glm::normalize(Direction); // TODO(Jorge): LA direccion es el vector desde posicion hasta el jugador
     Result->Size = Size;
     Result->Acceleration = glm::vec3(0.0f);
     Result->Angle = RotationAngle;
@@ -220,4 +220,48 @@ void E_FreeNode(entity_list *List, entity_node *Node)
         Free(Node->Entity);
         Free(Node);
     }
+}
+
+void E_PrintEntityData(entity *Entity)
+{
+    /*
+      enum entity_type
+      {
+      EntityType_None, // This is used for types that do not yet have a specific entity_type
+      EntityType_Player,
+      EntityType_Seeker,
+      EntityType_Wanderer,
+      EntityType_Kamikaze,
+      EntityType_Bullet,
+      EntityType_Pickup,
+      EntityType_Wall
+      };
+
+      struct entity
+      {
+      texture *Texture;
+
+      glm::vec3 Position;
+      glm::vec3 Velocity;
+      glm::vec3 Acceleration;
+      glm::vec3 Direction;
+      glm::vec3 Size;
+
+      f32 Speed;
+      f32 Angle;
+      f32 Drag;
+
+      entity_type Type;
+      collider Collider;
+      };
+    */
+
+    printf("Type: %d\n", Entity->Type);
+    printf("Position: %.2f %.2f %.2f\n", Entity->Position.x, Entity->Position.y, Entity->Position.z);
+    printf("Velocity: %.2f %.2f %.2f\n", Entity->Velocity.x, Entity->Velocity.y, Entity->Velocity.z);
+    printf("Acceleration: %.2f %.2f %.2f\n", Entity->Acceleration.x, Entity->Acceleration.y, Entity->Acceleration.z);
+    printf("Direction: %.2f %.2f %.2f\n", Entity->Direction.x, Entity->Direction.y, Entity->Direction.z);
+    printf("Size: %.2f %.2f %.2f\n", Entity->Size.x, Entity->Size.y, Entity->Size.z);
+    printf("Speed: %.2f\nAngle: %.2f\nDrag: %.2f\n", Entity->Speed, Entity->Angle, Entity->Drag);
+    printf("Collider: %d\n", Entity->Collider.Type);
 }
