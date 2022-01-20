@@ -45,6 +45,19 @@ global sound_system *SoundSystem;
 global camera       *Camera;
 global gamestate     CurrentState = State_Initial;
 
+// Textures
+texture *InitScreenTexture  = NULL;
+texture *PauseScreenTexture = NULL;
+texture *GameOverTexture    = NULL;
+texture *PlayerTexture      = NULL;
+texture *BackgroundTexture  = NULL;
+texture *WallTexture        = NULL;
+texture *BulletTexture      = NULL;
+texture *PointerTexture     = NULL;
+texture *WandererTexture    = NULL;
+texture *SeekerTexture      = NULL;
+texture *KamikazeTexture    = NULL;
+
 // Game Variables
 global f32 WorldBottom = -11.0f;
 global f32 WorldTop = 11.0f;
@@ -56,6 +69,45 @@ global f32 WorldWidth = WorldRight * 2.0f;
 global f32 WorldHeight = WorldTop * 2.0f;
 global u32 PlayerScore = 0;
 global b32 DebugMode = 0;
+global i32 EnemySpawnRate = 30;
+
+// Player vars
+global entity *Player = NULL;
+global f32 PlayerSpeed = 3.0f;
+global f32 PlayerDrag = 0.8f;
+
+void SpawnSeeker(entity_list *List)
+{
+    f32 PosX = RandomBetween(WorldLeft, WorldRight);
+    f32 PosY = RandomBetween(WorldBottom, WorldTop);
+    entity *Entity = E_CreateEntity(SeekerTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
+    E_PushEntity(List, Entity);
+}
+
+void SpawnWanderer(entity_list *List)
+{
+    f32 PosX = RandomBetween(WorldLeft, WorldRight);
+    f32 PosY = RandomBetween(WorldBottom, WorldTop);
+    entity *Entity = E_CreateEntity(WandererTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
+    E_PushEntity(List, Entity);
+}
+
+void SpawnKamikaze(entity_list *List)
+{
+    // TODO(Jorge): Random spawn point
+    // glm::vec2 KamikazePosition = {-22.0f, 0.0f};
+    glm::vec2 KamikazePosition = {-22, 0.0f};
+
+    f32 DirectionX = KamikazePosition.x - Player->Position.x;
+    f32 DirectionY = KamikazePosition.y - Player->Position.y;
+    f32 KamikazeAngle = (((f32)atan2(DirectionY, DirectionX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+    f32 KamikazeSpeed = 5.0f;
+    entity *Entity = E_CreateEntity(KamikazeTexture, glm::vec3(-22.0f, 0.0f, 0.0f),
+                                    Player->Position - glm::vec3(-22.0f, 0.0f, 0.0f),
+                                    glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, 0.8f,
+                                    EntityType_Kamikaze, Collider_Rectangle);
+    E_PushEntity(List, Entity);
+}
 
 i32 main(i32 Argc, char **Argv)
 {
@@ -76,25 +128,29 @@ i32 main(i32 Argc, char **Argv)
 
     // NOTE(Jorge): Seed the RNG, GetPerformanceCounter is not the
     // best way, but the results look acceptable. I do not have a CPU
-    // that supports RDSEED at the moment.
+    // that supports RDSEED at the moment. We can probably make
+    // another RNG instance, seed it with performance counter and use
+    // the next random number as the seed for the RNG we really are
+    // going to use.
     RandomSeed((u32)SDL_GetPerformanceCounter());
 
     font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
     font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
     sound_music *Song = S_CreateMusic("audio/Music.mp3");
+    S_PlayMusic(Song);
 
-    texture *InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
-    texture *PauseScreenTexture = R_CreateTexture("textures/PauseScreen.png");
-    texture *GameOverTexture    = R_CreateTexture("textures/GameOver.png");
-    texture *PlayerTexture      = R_CreateTexture("textures/Player.png");
-    texture *BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
-    texture *WallTexture        = R_CreateTexture("textures/Yellow.png");
-    texture *WandererTexture    = R_CreateTexture("textures/Wanderer.png");
-    texture *BulletTexture      = R_CreateTexture("textures/Bullet.png");
-    texture *SeekerTexture      = R_CreateTexture("textures/Seeker.png");
-    texture *PointerTexture     = R_CreateTexture("textures/Pointer.png");
-    texture *KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
+    InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
+    PauseScreenTexture = R_CreateTexture("textures/PauseScreen.png");
+    GameOverTexture    = R_CreateTexture("textures/GameOver.png");
+    PlayerTexture      = R_CreateTexture("textures/Player.png");
+    BackgroundTexture  = R_CreateTexture("textures/DeepBlue.png");
+    WallTexture        = R_CreateTexture("textures/Yellow.png");
+    BulletTexture      = R_CreateTexture("textures/Bullet.png");
+    PointerTexture     = R_CreateTexture("textures/Pointer.png");
+    WandererTexture    = R_CreateTexture("textures/Wanderer.png");
+    SeekerTexture      = R_CreateTexture("textures/Seeker.png");
+    KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
 
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
@@ -104,9 +160,8 @@ i32 main(i32 Argc, char **Argv)
     entity *PauseScreen     = E_CreateEntity(PauseScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
     entity *GameOver        = E_CreateEntity(GameOverTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
 
-    f32 PlayerSpeed = 3.0f;
-    f32 PlayerDrag = 0.8f;
-    entity *Player       = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
+
+    Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
 
     // Walls
     entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
@@ -114,42 +169,10 @@ i32 main(i32 Argc, char **Argv)
     entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
     entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
 
-    // Enemies
-    entity *TestWanderer1 = E_CreateEntity(WandererTexture, glm::vec3(0), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
-    entity *TestWanderer2 = E_CreateEntity(WandererTexture, glm::vec3(-2.0f, -4.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
-    entity *TestWanderer3 = E_CreateEntity(SeekerTexture, glm::vec3(4.0f, 2.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
-    entity *TestWanderer4 = E_CreateEntity(SeekerTexture, glm::vec3(-1.0f, 5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 00.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
-    entity *TestWanderer5 = E_CreateEntity(WandererTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
-
-    glm::vec2 KamikazePosition = {-22.0f, 0.0f};
-    f32 KDeltaX = KamikazePosition.x - Player->Position.x;
-    f32 KDeltaY = KamikazePosition.y - Player->Position.y;
-    f32 KamikazeAngle = (((f32)atan2(KDeltaY, KDeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-    f32 KamikazeSpeed = 5.0f;
-    entity *Kamikaze1    = E_CreateEntity(KamikazeTexture, glm::vec3(-22.0f, 0.0f, 0.0f),
-                                          Player->Position - glm::vec3(-22.0f, 0.0f, 0.0f),
-                                          glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, 0.8f,
-                                          EntityType_Kamikaze, Collider_Rectangle);
-
-    // These are linked lists that hold enemies and bullets fired by the player
+    // Bullet and enemies containers
     u32 MaxEntityCount = 100;
     entity_list *Enemies = E_CreateEntityList(MaxEntityCount);
     entity_list *Bullets = E_CreateEntityList(MaxEntityCount);
-
-    E_PushEntity(Enemies, TestWanderer1);
-    E_PushEntity(Enemies, TestWanderer2);
-    E_PushEntity(Enemies, TestWanderer3);
-    E_PushEntity(Enemies, TestWanderer4);
-    E_PushEntity(Enemies, TestWanderer5);
-    E_PushEntity(Enemies, Kamikaze1);
-
-    S_PlayMusic(Song);
-
-
-    // TODO(Jorge): Delete all instances of Enemy creation, save one
-    // creation line of each. Create the game director, start adding
-    // stuff into it
-    Here;
 
     while(IsRunning)
     {
@@ -259,7 +282,6 @@ i32 main(i32 Argc, char **Argv)
                         entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
                         NewBullet->Acceleration += BulletDirection * BulletSpeed;
                         E_PushEntity(Bullets, NewBullet);
-
                     }
 
                     // Enemy AI
@@ -357,11 +379,24 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
+                    // Spawn Enemies
+                    if(RandomBetween(0, EnemySpawnRate) == 15)
+                    {
+                        SpawnSeeker(Enemies);
+                    }
+                    if(RandomBetween(0, EnemySpawnRate) == 16)
+                    {
+                        SpawnKamikaze(Enemies);
+                    }
+                    if(RandomBetween(0, EnemySpawnRate) == 17)
+                    {
+                        SpawnWanderer(Enemies);
+                    }
+
                     // Rotate player according to mouse world position
                     f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
                     f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
                     Player->Angle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-
                     // Update Player
                     E_Update(Player, (f32)Clock->DeltaTime);
 
@@ -552,6 +587,10 @@ i32 main(i32 Argc, char **Argv)
                         // Mouse World Position
                         snprintf(String, sizeof(char) * 99,"Mouse->WorldPosition: X:%.2f Y:%.2f", Mouse->WorldPosition.x, Mouse->WorldPosition.y);
                         R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 12), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // Entity Count
+                        snprintf(String, sizeof(char) * 99,"EntityCount: %d", Enemies->Count + Bullets->Count + 1); // The + 1 means the player
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 13), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
 
                     break;

@@ -4,14 +4,11 @@
   https://en.wikipedia.org/wiki/Xorshift
 */
 
-// TODO(Jorge): Implement Xorshift+ instead of regular Xorshift, it's much better according to wikipedia
-
 #include <stdint.h>
 #include "shared.h"
 
 #include <stdint.h>
 
-// TODO(Jorge): We need to seed the RNG by changing this value
 global u32 _State = 1;
 
 inline
@@ -40,6 +37,13 @@ i32 RandomI32()
 	X ^= X >> 17;
 	X ^= X << 5;
 	return _State= X;
+}
+
+inline
+i32 RandomBetween(i32 Min, i32 Max)
+{
+    Assert(Min < Max);
+    return Min + (i32)( RandomU32() / (i32) ( 0xffffffff/ (Max-Min)));
 }
 
 inline
