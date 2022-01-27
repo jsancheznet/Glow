@@ -53,3 +53,9 @@ f32 RandomBetween(f32 Min, f32 Max)
 
     return Min + (f32)( RandomU32() / (f32) ( 0xffffffff/ (Max-Min)));
 }
+
+inline
+b32 RandomBool()
+{
+    return RandomU32() % 2;
+}

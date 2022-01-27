@@ -27,7 +27,7 @@ global f32 Exposure__ = 2.0f;
 global i32 VSync = 1; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
 global f32 EnableVSync = 1;
 global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
-global u32 BlurPassCount = 7; // How many times should we blurr the image
+global u32 BlurPassCount = 6; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
 global f32 BrightnessThreshold = 0.1f;
@@ -846,6 +846,10 @@ camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, gl
     Result->Projection = glm::perspective(glm::radians(Result->FoV), (f32)WindowWidth / (f32)WindowHeight, Result->Near, Result->Far);
     Result->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
 
+    // This was previously on the game loop, it needs to set this values to avoid a camera jump
+    Result->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
+    Result->Pitch = 0.0f;
+
     return (Result);
 }
 
@@ -861,6 +865,8 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
     Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
     Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
     Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+    Camera->Yaw = -90.0f;
+    Camera->Pitch = 0.0f;
 }
 
 void R_DrawEntity(renderer *Renderer, entity *Entity)

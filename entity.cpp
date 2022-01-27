@@ -222,6 +222,18 @@ void E_FreeNode(entity_list *List, entity_node *Node)
     }
 }
 
+void E_EmptyList(entity_list *List)
+{
+    if(List->Count == 0) { return; }
+
+    for(entity_node *Node = List->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        E_FreeNode(List, Node);
+    }
+}
+
 void E_PrintEntityData(entity *Entity)
 {
     /*

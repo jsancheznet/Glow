@@ -16,10 +16,11 @@
 
 // TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
 // TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
-// TODO(Jorge): Add License to all files
+// TODO(Jorge): Add License to readme file, remove from all other files
 // TODO(Jorge): Delete all unused data files
 // TODO(Jorge): Textures transparent background is not blending correctly
 // TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
+// TODO(Jorge): Maybe put all configuration on globals.cpp and include all headers before the globals.cpp and every other .cpp file
 // TODO(Jorge): Add a comment on top of this file explaining code layout in this file and what each file/prefix means (R_, P_, I_,...)
 
 enum gamestate
@@ -46,35 +47,53 @@ global camera       *Camera;
 global gamestate     CurrentState = State_Initial;
 
 // Textures
-texture *InitScreenTexture  = NULL;
-texture *PauseScreenTexture = NULL;
-texture *GameOverTexture    = NULL;
-texture *PlayerTexture      = NULL;
-texture *BackgroundTexture  = NULL;
-texture *WallTexture        = NULL;
-texture *BulletTexture      = NULL;
-texture *PointerTexture     = NULL;
-texture *WandererTexture    = NULL;
-texture *SeekerTexture      = NULL;
-texture *KamikazeTexture    = NULL;
+global texture *InitScreenTexture  = NULL;
+global texture *PauseScreenTexture = NULL;
+global texture *GameOverTexture    = NULL;
+global texture *PlayerTexture      = NULL;
+global texture *BackgroundTexture  = NULL;
+global texture *WallTexture        = NULL;
+global texture *BulletTexture      = NULL;
+global texture *PointerTexture     = NULL;
+global texture *WandererTexture    = NULL;
+global texture *SeekerTexture      = NULL;
+global texture *KamikazeTexture    = NULL;
+
+// Sounds/Music
+global sound_music  *Song = NULL;
+global sound_effect *Shot = NULL;
+global sound_effect *PlayerDeath = NULL;
+global sound_effect *PlayerDamage = NULL;
 
 // Game Variables
-global f32 WorldBottom = -11.0f;
-global f32 WorldTop = 11.0f;
-global f32 WorldLeft = -20.0f;
-global f32 WorldRight = 20.0f;
-global f32 HalfWorldWidth = WorldRight;
+global f32 WorldBottom     = -11.0f;
+global f32 WorldTop        = 11.0f;
+global f32 WorldLeft       = -20.0f;
+global f32 WorldRight      = 20.0f;
+global f32 HalfWorldWidth  = WorldRight;
 global f32 HalfWorldHeight = WorldTop;
-global f32 WorldWidth = WorldRight * 2.0f;
-global f32 WorldHeight = WorldTop * 2.0f;
-global u32 PlayerScore = 0;
-global b32 DebugMode = 0;
-global i32 EnemySpawnRate = 30;
+global f32 WorldWidth      = WorldRight * 2.0f;
+global f32 WorldHeight     = WorldTop * 2.0f;
+global u32 PlayerScore     = 0;
+global b32 DebugMode       = 0;
+global i32 EnemySpawnRate  = 50;
+global f32 BulletSpeed     = 20.0f;
+global entity *LeftWall = NULL;
+global entity *RightWall = NULL;
+global entity *TopWall = NULL;
+global entity *BottomWall = NULL;
+
+// Bullet and enemies containers
+u32 MaxEntityCount = 100;
+entity_list *Enemies = E_CreateEntityList(MaxEntityCount);
+entity_list *Bullets = E_CreateEntityList(MaxEntityCount);
 
 // Player vars
-global entity *Player = NULL;
-global f32 PlayerSpeed = 3.0f;
-global f32 PlayerDrag = 0.8f;
+global entity *Player                  = NULL;
+global f32 PlayerSpeed                 = 3.0f;
+global f32 PlayerDrag                  = 0.8f;
+global u32 PlayerLives                 = 3;
+global glm::vec3 PlayerInitialPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
 void SpawnSeeker(entity_list *List)
 {
@@ -94,19 +113,262 @@ void SpawnWanderer(entity_list *List)
 
 void SpawnKamikaze(entity_list *List)
 {
-    // TODO(Jorge): Random spawn point
-    // glm::vec2 KamikazePosition = {-22.0f, 0.0f};
-    glm::vec2 KamikazePosition = {-22, 0.0f};
+    f32 PosX = 0;
+    f32 PosY = 0;
+    f32 Padding = 3.0f;
 
+    // Random PosX
+    if(RandomBool())
+    {
+        // Left
+        PosX = RandomBetween(WorldLeft - Padding, WorldLeft);
+    }
+    else
+    {
+        // Right
+        PosX = RandomBetween(WorldRight, WorldRight + Padding);
+    }
+
+    // Random  PosY
+    if(RandomBool())
+    {
+        // Top
+        PosY = RandomBetween(WorldTop, WorldTop + Padding);
+    }
+    else
+    {
+        // Bottom
+        PosY = RandomBetween(WorldBottom - Padding, WorldBottom);
+    }
+
+    glm::vec3 KamikazePosition = {PosX, PosY, 0.0f};
     f32 DirectionX = KamikazePosition.x - Player->Position.x;
     f32 DirectionY = KamikazePosition.y - Player->Position.y;
-    f32 KamikazeAngle = (((f32)atan2(DirectionY, DirectionX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+    f32 KamikazeAngle = GetDirectionAngle(DirectionY, DirectionX);
     f32 KamikazeSpeed = 5.0f;
-    entity *Entity = E_CreateEntity(KamikazeTexture, glm::vec3(-22.0f, 0.0f, 0.0f),
-                                    Player->Position - glm::vec3(-22.0f, 0.0f, 0.0f),
+    entity *Entity = E_CreateEntity(KamikazeTexture, KamikazePosition,
+                                    Player->Position - KamikazePosition,
                                     glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, 0.8f,
                                     EntityType_Kamikaze, Collider_Rectangle);
     E_PushEntity(List, Entity);
+}
+
+void SpawnEnemies()
+{
+    if(RandomBetween(0, EnemySpawnRate) == 15)
+    {
+        SpawnSeeker(Enemies);
+    }
+    if(RandomBetween(0, EnemySpawnRate) == 16)
+    {
+        SpawnKamikaze(Enemies);
+    }
+    if(RandomBetween(0, EnemySpawnRate) == 17)
+    {
+        SpawnWanderer(Enemies);
+    }
+}
+
+void UpdateEnemyAI()
+{
+    // Enemy AI
+    // Set "inputs" according to enemy type, i can't figure out a better place to put the enemy AI and i'm not gonna think too much about it
+    for(entity_node *Node = Enemies->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        entity *Entity = Node->Entity;
+
+        switch(Entity->Type)
+        {
+            case EntityType_Seeker:
+            {
+                // Get Angle to player, and move towards the player
+                f32 DeltaX = Entity->Position.x - Player->Position.x;
+                f32 DeltaY = Entity->Position.y - Player->Position.y;
+                f32 RotationAngle = GetDirectionAngle(DeltaY, DeltaX);
+                Entity->Angle = RotationAngle;
+                glm::vec3 SeekerDirection = Direction(Entity->Position, Player->Position);
+                Entity->Acceleration += SeekerDirection * Entity->Speed;
+            } break;
+            case EntityType_Wanderer:
+            {
+                f32 X = Cosf((f32)Clock->SecondsElapsed);
+                f32 Y = Sinf((f32)Clock->SecondsElapsed);
+                Entity->Position.x += X * (f32)Clock->DeltaTime * 3.0f;
+                Entity->Position.y += Y * (f32)Clock->DeltaTime * 3.0f;
+                Entity->Angle += 0.4f;
+            } break;
+            case EntityType_Kamikaze:
+            {
+                Entity->Acceleration += glm::normalize(Entity->Direction) * Entity->Speed;
+                break;
+            }
+            case EntityType_Pickup:
+            case EntityType_Bullet:
+            case EntityType_None:
+            case EntityType_Wall:
+            case EntityType_Player:
+            default:
+            {
+                InvalidCodePath;
+                break;
+            }
+        }
+    }
+
+}
+
+void UpdateEnemies()
+{
+    for(entity_node *Node = Enemies->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        E_Update(Node->Entity, (f32)Clock->DeltaTime);
+
+        if(Node->Entity->Type == EntityType_Kamikaze)
+        {
+            if(Magnitude(Node->Entity->Position) > 30.0f)
+            {
+                E_FreeNode(Enemies, Node);
+            }
+        }
+    }
+}
+
+void UpdateBullets()
+{
+    for(entity_node *Node = Bullets->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        E_Update(Node->Entity, (f32)Clock->DeltaTime);
+
+        // If the bullet is no longer near the play
+        // area, delete this. Maybe later just checked
+        // square distances to avoid a sqrt.
+        if(Magnitude(Node->Entity->Position) > 30.0f)
+        {
+            E_FreeNode(Bullets, Node);
+        }
+    }
+}
+
+void UpdatePlayer()
+{
+    // Rotate player according to mouse world position
+    f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
+    f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
+    Player->Angle = GetDirectionAngle(DeltaY, DeltaX);
+    E_Update(Player, (f32)Clock->DeltaTime);
+}
+
+void FireBullet()
+{
+    f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
+    f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
+    f32 RotationAngle = GetDirectionAngle(DeltaY, DeltaX);
+    glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
+    f32 ScalingFactor = 3.5f;
+    entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
+    NewBullet->Acceleration += BulletDirection * BulletSpeed;
+    E_PushEntity(Bullets, NewBullet);
+    S_PlayEffect(Shot);
+}
+
+void UpdateWorldMousePosition()
+{
+    // Convert window mouse position to game world position, mainly used to fire bullets from Player->Position to Mouse->WorldPosition
+    Mouse->WorldPosition.x = Remap((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
+    Mouse->WorldPosition.y = Remap((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+}
+
+void CollisionPlayerVsWalls()
+{
+    glm::vec2 ResolutionDirection;
+    f32 ResolutionOverlap;
+
+    // Collision Player vs Walls
+    if(E_EntitiesCollide(Player, LeftWall, &ResolutionDirection, &ResolutionOverlap))
+    {
+        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+        Player->Position.x -= I.x;
+        Player->Position.y -= I.y;
+    }
+    if(E_EntitiesCollide(Player, RightWall, &ResolutionDirection, &ResolutionOverlap))
+    {
+        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+        Player->Position.x -= I.x;
+        Player->Position.y -= I.y;
+    }
+    if(E_EntitiesCollide(Player, TopWall, &ResolutionDirection, &ResolutionOverlap))
+    {
+        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+        Player->Position.x -= I.x;
+        Player->Position.y -= I.y;
+    }
+    if(E_EntitiesCollide(Player, BottomWall, &ResolutionDirection, &ResolutionOverlap))
+    {
+        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
+        Player->Position.x -= I.x;
+        Player->Position.y -= I.y;
+    }
+}
+
+void CollisionPlayerVsEnemies()
+{
+    glm::vec2 ResolutionDirection;
+    f32 ResolutionOverlap;
+
+    // Collision Player vs Enemies
+    for(entity_node *Node = Enemies->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
+        {
+            // Player got hit, play dmg sound effect, check if dead
+            E_FreeNode(Enemies, Node);
+            PlayerLives--;
+
+            if(PlayerLives < 1)
+            {
+                S_PlayEffect(PlayerDeath);
+                EnableBloom = 0;
+                CurrentState = State_GameOver;
+            }
+            else
+            {
+                S_PlayEffect(PlayerDamage);
+            }
+
+        }
+    }
+}
+
+void CollisionEnemiesVsBullets()
+{
+    glm::vec2 ResolutionDirection;
+    f32 ResolutionOverlap;
+
+    // Enemies vs Player Bullets,  note: this is a n*m loop
+    for(entity_node *Enemy = Enemies->Head;
+        Enemy != NULL;
+        Enemy = Enemy->Next)
+    {
+        for(entity_node *Bullet = Bullets->Head;
+            Bullet != NULL;
+            Bullet = Bullet->Next)
+        {
+            if(E_EntitiesCollide(Enemy->Entity, Bullet->Entity, &ResolutionDirection, &ResolutionOverlap))
+            {
+                PlayerScore += 1;
+                E_FreeNode(Enemies, Enemy);
+                E_FreeNode(Bullets, Bullet);
+            }
+        }
+    }
 }
 
 i32 main(i32 Argc, char **Argv)
@@ -134,12 +396,17 @@ i32 main(i32 Argc, char **Argv)
     // going to use.
     RandomSeed((u32)SDL_GetPerformanceCounter());
 
+    // TODO(Jorge): Move these 2 to global declaration
     font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
     font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
-    sound_music *Song = S_CreateMusic("audio/Music.mp3");
-    S_PlayMusic(Song);
+    // Load music and sounds
+    Song         = S_CreateMusic("audio/Music.mp3");
+    Shot         = S_CreateEffect("audio/shoot-01.wav");
+    PlayerDeath  = S_CreateEffect("audio/explosion-01.wav");
+    PlayerDamage = S_CreateEffect("audio/explosion-06.wav");
 
+    // Load textures
     InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
     PauseScreenTexture = R_CreateTexture("textures/PauseScreen.png");
     GameOverTexture    = R_CreateTexture("textures/GameOver.png");
@@ -152,27 +419,26 @@ i32 main(i32 Argc, char **Argv)
     SeekerTexture      = R_CreateTexture("textures/Seeker.png");
     KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
 
+    // TODO(Jorge): Move these to global declaration
     f32 BackgroundWidth = WorldWidth + 5.0f;
     f32 BackgroundHeight = WorldHeight + 5.0f;
     entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
 
+    // TODO(Jorge): Move these to global declaration
     entity *InitialScreen   = E_CreateEntity(InitScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
     entity *PauseScreen     = E_CreateEntity(PauseScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
     entity *GameOver        = E_CreateEntity(GameOverTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
 
-
-    Player = E_CreateEntity(PlayerTexture, glm::vec3(0.0f, -5.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
-
     // Walls
-    entity *LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    entity *RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    entity *TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    entity *BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
 
-    // Bullet and enemies containers
-    u32 MaxEntityCount = 100;
-    entity_list *Enemies = E_CreateEntityList(MaxEntityCount);
-    entity_list *Bullets = E_CreateEntityList(MaxEntityCount);
+    // Create Player
+    Player = E_CreateEntity(PlayerTexture, PlayerInitialPosition, glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
+
+    S_PlayMusic(Song);
 
     while(IsRunning)
     {
@@ -203,27 +469,28 @@ i32 main(i32 Argc, char **Argv)
             I_UpdateKeyboard(Keyboard);
             I_UpdateMouse(Mouse);
 
-            // Convert window mouse position to game world position, mainly used to fire bullets from Player->Position to Mouse->WorldPosition
-            Mouse->WorldPosition.x = Remap((f32)(Mouse->X), 0.0f, (f32)Window->Width, Camera->Position.x - HalfWorldWidth, Camera->Position.x + HalfWorldWidth);
-            Mouse->WorldPosition.y = Remap((f32)(Mouse->Y), 0.0f, (f32)Window->Height, Camera->Position.y + HalfWorldHeight, Camera->Position.y - HalfWorldHeight);
+            UpdateWorldMousePosition();
 
             switch (CurrentState)
             {
                 case State_Initial:
                 {
+                    EnableBloom = 0;
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
-                    if (I_IsPressed(SDL_SCANCODE_SPACE))  { CurrentState = State_Game; }
-                } break;
+                    if (I_IsPressed(SDL_SCANCODE_SPACE))  { CurrentState = State_Game; EnableBloom = 1; }
+                    break;
+                }
                 case State_Game:
                 {
-                    // Game state input handling
+                    // Press escape to pause game
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE))
                     {
-                        SDL_SetRelativeMouseMode(SDL_FALSE);
                         CurrentState = State_Pause;
+                        S_PauseMusic();
+                        EnableBloom = 0;
                     }
 
-                    // DrawDebugInformation
+                    // F1 -> Draw Debug Info Toggle
                     if(I_IsPressed(SDL_SCANCODE_F1) && I_WasNotPressed(SDL_SCANCODE_F1))
                     {
                         // Reset camera when disabling debug mode
@@ -234,12 +501,6 @@ i32 main(i32 Argc, char **Argv)
                     // Camera Input
                     if (I_IsPressed(SDL_SCANCODE_LSHIFT) & DebugMode)
                     {
-                        if (Mouse->FirstMouse)
-                        {
-                            Camera->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
-                            Camera->Pitch = 0.0f;
-                            Mouse->FirstMouse = false;
-                        }
                         Camera->Yaw += Mouse->RelX * Mouse->Sensitivity;
                         Camera->Pitch += -Mouse->RelY * Mouse->Sensitivity; // reversed since y-coordinates range from bottom to top
 
@@ -270,77 +531,22 @@ i32 main(i32 Argc, char **Argv)
                     if (I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y -= Player->Speed; }
                     if (I_IsPressed(SDL_SCANCODE_D) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.x += Player->Speed; }
 
-                    // Fire Bullet
-                    if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT))
-                    {
-                        f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
-                        f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
-                        f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-                        f32 BulletSpeed = 20.0f;
-                        glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
-                        f32 ScalingFactor = 3.5f;
-                        entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
-                        NewBullet->Acceleration += BulletDirection * BulletSpeed;
-                        E_PushEntity(Bullets, NewBullet);
-                    }
+                    // Fire Bullet on Mouse Button Left press
+                    if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT)) { FireBullet(); }
 
-                    // Enemy AI
-                    // Set "inputs" according to enemy type, i can't figure out a better place to put the enemy AI and i'm not gonna think too much about it
-                    for(entity_node *Node = Enemies->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
-                        entity *Entity = Node->Entity;
-
-                        // TODO: Create pickup bullets, and only let the player fire if they have a bullet in his inventory
-                        switch(Entity->Type)
-                        {
-                            case EntityType_Seeker:
-                            {
-                                // Get Angle to player, and move towards the player
-                                f32 DeltaX = Entity->Position.x - Player->Position.x;
-                                f32 DeltaY = Entity->Position.y - Player->Position.y;
-                                f32 RotationAngle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-                                Entity->Angle = RotationAngle;
-                                glm::vec3 SeekerDirection = Direction(Entity->Position, Player->Position);
-                                Entity->Acceleration += SeekerDirection * Entity->Speed;
-                            } break;
-                            case EntityType_Wanderer:
-                            {
-                                f32 X = Cosf((f32)Clock->SecondsElapsed);
-                                f32 Y = Sinf((f32)Clock->SecondsElapsed);
-                                Entity->Position.x += X * (f32)Clock->DeltaTime * 3.0f;
-                                Entity->Position.y += Y * (f32)Clock->DeltaTime * 3.0f;
-                                Entity->Angle += 0.4f;
-                            } break;
-                            case EntityType_Kamikaze:
-                            {
-                                Entity->Acceleration += glm::normalize(Entity->Direction) * Entity->Speed;
-                                // printf("Kamikaze->Direction: %.2f %.2f\n", Entity->Direction.x, Entity->Direction.y);
-                                // printf("Kamikaze->Acceleration: %.2f %.2f\n", Entity->Acceleration.x, Entity->Acceleration.y);
-                            }
-                            case EntityType_Pickup:
-                            {
-                                // TODO(Jorge): Change size to make the grow and shrink
-                            } break;
-                            case EntityType_Bullet:
-                            case EntityType_None:
-                            case EntityType_Wall:
-                            case EntityType_Player:
-                            default:
-                            {
-                                InvalidCodePath;
-                                break;
-                            }
-                        }
-                    }
+                    UpdateEnemyAI();
 
                     break;
                 }
                 case State_Pause:
                 {
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
-                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE)) { CurrentState = State_Game; }
+                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE))
+                    {
+                        CurrentState = State_Game;
+                        S_ResumeMusic();
+                        EnableBloom = 1;
+                    }
 
                     break;
                 }
@@ -348,8 +554,16 @@ i32 main(i32 Argc, char **Argv)
                 {
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE) && I_WasNotPressed(SDL_SCANCODE_ESCAPE)) { IsRunning = 0; }
 
-                    // TODO(Jorge): Reset game in order to play again
-                    // if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE)) { CurrentState = State_Game; }
+                    if (I_IsPressed(SDL_SCANCODE_SPACE) && I_WasNotPressed(SDL_SCANCODE_SPACE))
+                    {
+                        PlayerScore = 0;
+                        CurrentState = State_Game;
+                        E_EmptyList(Enemies);
+                        E_EmptyList(Bullets);
+                        Player->Position = PlayerInitialPosition;
+                        PlayerLives = 3;
+                        EnableBloom = 1;
+                    }
                     break;
                 }
                 default:
@@ -379,119 +593,18 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
-                    // Spawn Enemies
-                    if(RandomBetween(0, EnemySpawnRate) == 15)
-                    {
-                        SpawnSeeker(Enemies);
-                    }
-                    if(RandomBetween(0, EnemySpawnRate) == 16)
-                    {
-                        SpawnKamikaze(Enemies);
-                    }
-                    if(RandomBetween(0, EnemySpawnRate) == 17)
-                    {
-                        SpawnWanderer(Enemies);
-                    }
+                    SpawnEnemies();
 
-                    // Rotate player according to mouse world position
-                    f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
-                    f32 DeltaY = Player->Position.y - Mouse->WorldPosition.y;
-                    Player->Angle = (((f32)atan2(DeltaY, DeltaX) * (f32)180.0f) / 3.14159265359f) + 180.0f;
-                    // Update Player
-                    E_Update(Player, (f32)Clock->DeltaTime);
+                    UpdatePlayer();
+                    UpdateEnemies();
+                    UpdateBullets();
 
-                    // Update Enemies
-                    for(entity_node *Node = Enemies->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
-                        E_Update(Node->Entity, (f32)Clock->DeltaTime);
+                    CollisionPlayerVsWalls();
+                    CollisionPlayerVsEnemies();
+                    CollisionEnemiesVsBullets();
 
-                        if(Node->Entity->Type == EntityType_Kamikaze)
-                        {
-                            if(Magnitude(Node->Entity->Position) > 30.0f)
-                            {
-                                E_FreeNode(Enemies, Node);
-                            }
-                        }
-                    }
-
-                    // Update Player Bullets
-                    for(entity_node *Node = Bullets->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
-                        E_Update(Node->Entity, (f32)Clock->DeltaTime);
-
-                        // If the bullet is no longer near the play
-                        // area, delete this. Maybe later just checked
-                        // square distances to avoid a sqrt.
-                        if(Magnitude(Node->Entity->Position) > 30.0f)
-                        {
-                            E_FreeNode(Bullets, Node);
-                        }
-                    }
-
-                    // Entities are updated, now let's do collision
-                    glm::vec2 ResolutionDirection;
-                    f32 ResolutionOverlap;
-
-                    // Collision Player vs Walls
-                    if(E_EntitiesCollide(Player, LeftWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Player->Position.x -= I.x;
-                        Player->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Player, RightWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Player->Position.x -= I.x;
-                        Player->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Player, TopWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Player->Position.x -= I.x;
-                        Player->Position.y -= I.y;
-                    }
-                    if(E_EntitiesCollide(Player, BottomWall, &ResolutionDirection, &ResolutionOverlap))
-                    {
-                        glm::vec2 I = ResolutionDirection * ResolutionOverlap;
-                        Player->Position.x -= I.x;
-                        Player->Position.y -= I.y;
-                    }
-
-                    // Collision Player vs Enemies
-                    for(entity_node *Node = Enemies->Head;
-                        Node != NULL;
-                        Node = Node->Next)
-                    {
-                        if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
-                        {
-                            E_FreeNode(Enemies, Node);
-                        }
-                    }
-
-                    // Enemies vs Player Bullets,  note: this is a n*m loop
-                    for(entity_node *Enemy = Enemies->Head;
-                        Enemy != NULL;
-                        Enemy = Enemy->Next)
-                    {
-                        for(entity_node *Bullet = Bullets->Head;
-                            Bullet != NULL;
-                            Bullet = Bullet->Next)
-                        {
-                            if(E_EntitiesCollide(Enemy->Entity, Bullet->Entity, &ResolutionDirection, &ResolutionOverlap))
-                            {
-                                PlayerScore += 1;
-                                E_FreeNode(Enemies, Enemy);
-                                E_FreeNode(Bullets, Bullet);
-                            }
-                        }
-                    }
-
-                } break;
+                    break;
+                }
                 case State_Pause:
                 {
                     break;
@@ -548,9 +661,13 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawTexture(Renderer, PointerTexture, CorrectedCursorPosition, CursorSize, glm::vec3(0.0f), 0.0f);
 
                     // Draw player score
-                    char PlayerScoreString[80];
-                    sprintf_s(PlayerScoreString, "Score: %d", PlayerScore);
-                    R_DrawText2D(Renderer, PlayerScoreString, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                    char StringBuffer[80];
+                    sprintf_s(StringBuffer, "Score: %d", PlayerScore);
+                    R_DrawText2D(Renderer, StringBuffer, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height * 2), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                    // Draw player Lives
+                    sprintf_s(StringBuffer, "Lives: %d", PlayerLives);
+                    R_DrawText2D(Renderer, StringBuffer, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
                     if(DebugMode)
                     {

@@ -61,7 +61,7 @@ sound_system *S_CreateSoundSystem()
     }
 
     // NOTE: Set volume to 64, half of the max volume
-    i32 InitialVolume = 8;
+    i32 InitialVolume = 2;
     S_SetMusicVolume(Result, InitialVolume);
     S_SetEffectsVolume(Result, InitialVolume);
 
@@ -119,4 +119,14 @@ void S_PlayMusic(sound_music *Song)
     {
         printf("Mix_PlayMusic: %s\n", Mix_GetError());
     }
+}
+
+void S_PauseMusic()
+{
+    Mix_PauseMusic();
+}
+
+void S_ResumeMusic()
+{
+    Mix_ResumeMusic();
 }

@@ -174,6 +174,12 @@ b32 Equals(f32 A, f32 B)
     return Result;
 }
 
+inline f32
+GetDirectionAngle(f32 Y, f32 X)
+{
+    return (((f32)atan2(Y, X) * (f32)180.0f) / 3.14159265359f) + 180.0f;
+}
+
 // http://sol.gfxile.net/interpolation/, this site has a nice tutorial covering animation curves
 
 glm::vec3 Lerp(glm::vec3 x, glm::vec3 y, float t)

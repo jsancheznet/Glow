@@ -27,7 +27,6 @@ mouse *I_CreateMouse()
 
     Result->ButtonState = 0;
     Result->Sensitivity = 0.3f;
-    Result->FirstMouse = 1;
     Result->RelX = 0;
     Result->RelY = 0;
     Result->WorldPosition = glm::vec3(0.0f, 0.0f, 0.1f);
@@ -44,7 +43,6 @@ void I_ResetMouse(mouse *Mouse)
 {
     Mouse->ButtonState = 0;
     Mouse->Sensitivity = 0.3f;
-    Mouse->FirstMouse = 1;
     Mouse->RelX = 0;
     Mouse->RelY = 0;
     // SDL_SetRelativeMouseMode(SDL_TRUE);
