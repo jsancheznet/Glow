@@ -20,13 +20,11 @@
 #include "renderer.h"
 #include "entity.h"
 
-// NOTE: Textures used by the renderer 32 floating point srgb textures
-
-// Global renderer settings
-global f32 Exposure__ = 2.0f;
+// Renderer settings
+global f32 RendererExposure = 2.0f;
 global i32 VSync = 1; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
-global f32 EnableVSync = 1;
-global i32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
+global b32 EnableVSync = 1;
+global b32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
 global u32 BlurPassCount = 6; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
@@ -317,7 +315,7 @@ renderer *R_CreateRenderer(window *Window)
         Result->OpenGLVersion = glGetString(GL_VERSION);
         Result->GLSLVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
 
-        Result->Exposure = Exposure__;
+        Result->Exposure = RendererExposure;
     }
     glViewport(0, 0, Window->Width, Window->Height);
 
@@ -829,7 +827,7 @@ void R_CalculateFPS(renderer *Renderer, clock *Clock)
     }
 }
 
-camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
+camera *R_CreateCamera(i32 Width, i32 Height, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
 {
     camera *Result;
     Result = (camera*)Malloc(sizeof(camera));
@@ -843,8 +841,8 @@ camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, gl
     Result->Near = 0.1f;
     Result->Far = 1500.0f;
     Result->View = glm::lookAt(Result->Position, Result->Position + Result->Front, Result->Up);
-    Result->Projection = glm::perspective(glm::radians(Result->FoV), (f32)WindowWidth / (f32)WindowHeight, Result->Near, Result->Far);
-    Result->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+    Result->Projection = glm::perspective(glm::radians(Result->FoV), (f32)Width / (f32)Height, Result->Near, Result->Far);
+    Result->Ortho = glm::ortho(0.0f, (f32)Width, 0.0f, (f32)Height);
 
     // This was previously on the game loop, it needs to set this values to avoid a camera jump
     Result->Yaw = -90.0f; // Set the Yaw to -90 so the mouse faces to 0, 0, 0 in the first frame X
@@ -853,7 +851,7 @@ camera *R_CreateCamera(i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, gl
     return (Result);
 }
 
-void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
+void R_ResetCamera(camera *Camera, i32 Width, i32 Height, glm::vec3 Position, glm::vec3 Front, glm::vec3 Up)
 {
     Camera->Position = Position;
     Camera->Front = Front;
@@ -863,8 +861,8 @@ void R_ResetCamera(camera *Camera, i32 WindowWidth, i32 WindowHeight, glm::vec3 
     Camera->Near = 0.1f;
     Camera->Far = 1500.0f;
     Camera->View = glm::lookAt(Camera->Position, Camera->Position + Camera->Front, Camera->Up);
-    Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)WindowWidth / (f32)WindowHeight, Camera->Near, Camera->Far);
-    Camera->Ortho = glm::ortho(0.0f, (f32)WindowWidth, 0.0f, (f32)WindowHeight);
+    Camera->Projection = glm::perspective(glm::radians(Camera->FoV), (f32)Width / (f32)Height, Camera->Near, Camera->Far);
+    Camera->Ortho = glm::ortho(0.0f, (f32)Width, 0.0f, (f32)Height);
     Camera->Yaw = -90.0f;
     Camera->Pitch = 0.0f;
 }

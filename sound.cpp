@@ -68,7 +68,7 @@ sound_system *S_CreateSoundSystem()
     return Result;
 }
 
-sound_effect *S_CreateEffect(char *Filename)
+sound_effect *S_CreateSoundEffect(char *Filename)
 {
     Assert(Filename);
 
@@ -98,7 +98,7 @@ sound_music *S_CreateMusic(char *Filename)
     return Result;
 }
 
-void S_PlayEffect(sound_effect *Fx)
+void S_PlaySoundEffect(sound_effect *Fx)
 {
     /*
       Arg 1, Channel to play on, or -1 for the first free unreserved channel.
@@ -108,14 +108,14 @@ void S_PlayEffect(sound_effect *Fx)
     Mix_PlayChannel( -1, Fx, 0 );
 }
 
-void S_PlayMusic(sound_music *Song)
+void S_PlayMusic(sound_music *Music)
 {
     /*
 
       Arg 1, Pointer to Mix_Music to play.
       Arg 2, loops number of times to play through the music. 0 plays the music zero times... -1 plays the music forever (or as close as it can get to that)
      */
-    if(Mix_PlayMusic(Song, -1) == -1)
+    if(Mix_PlayMusic(Music, -1) == -1)
     {
         printf("Mix_PlayMusic: %s\n", Mix_GetError());
     }

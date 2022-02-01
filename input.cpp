@@ -3,8 +3,10 @@
 #include "shared.h"
 #include "input.h"
 
-// TODO: Avoid the use of these hacky shortcuts
-global keyboard *__Keyboard = NULL; // Variable to be used as shortcut inside this file
+// TODO(Jorge): Get rid of this dirty shortcut hack. I did this so i
+// would not have to pass Mouse and Keyboard pointers to every
+// function.
+global keyboard *__Keyboard = NULL;
 global mouse *__Mouse = NULL;
 
 keyboard *I_CreateKeyboard()

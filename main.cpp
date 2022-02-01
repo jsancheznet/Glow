@@ -1,3 +1,47 @@
+/*
+
+  There are several functions which start with a capital letter plus an underscore. I did that to separate subsystems, here's a list of the subsystems
+
+  P_ - P stands for platform layer (it's not technically a platform layer but naming things is hard), functions are located in platform.cpp
+  R_ - R stands for renderer, everything renderer is in renderer.cpp
+  I_ - I stands for input, everything mouse and keyboard is here, input.cpp
+  S_ - S stands for Sound, everything sound related is in sound.cpp
+  C_ - C stands for collision, everything related to collision is inside collision.cpp
+  E_ - E stands for entity, everything related is in entity.cpp
+  random.cpp - contains the random number generator
+
+
+  --- Game loop overall layout
+
+  There are 4 main states in which the game might be in.
+    - Initial (The first screen, the one that pop ups when the game is executed)
+    - Game (This is the game)
+    - Pause (Pause screen)
+    - GameOver (When you die/lose)
+
+    the game loop consists of 3 switch statements, one for input, one
+    for update and one for render. so the main loop looks something
+    like the following.
+
+    Game Loop
+        switch(Game state)
+        {
+          Do Input for player and AI
+        }
+
+        switch(Game state)
+        {
+          Do update for all entities
+        }
+
+        switch(Game state)
+        {
+          Draw things
+        }
+    End Game Loop
+
+ */
+
 #include <stdio.h>
 
 #include "external/glad.c"
@@ -14,15 +58,6 @@
 #include "entity.cpp"
 #include "random.cpp"
 
-// TODO(Jorge): Make sure all movement uses DeltaTime so movement is independent from framerate
-// TODO(Jorge): When the game starts, make sure the windows console does not start. (open the game in windows explorer)
-// TODO(Jorge): Add License to readme file, remove from all other files
-// TODO(Jorge): Delete all unused data files
-// TODO(Jorge): Textures transparent background is not blending correctly
-// TODO(Jorge): Sound system should be able to play two sound effects on top of each other!
-// TODO(Jorge): Maybe put all configuration on globals.cpp and include all headers before the globals.cpp and every other .cpp file
-// TODO(Jorge): Add a comment on top of this file explaining code layout in this file and what each file/prefix means (R_, P_, I_,...)
-
 enum gamestate
 {
     State_Initial,
@@ -31,12 +66,10 @@ enum gamestate
     State_GameOver,
 };
 
-// Platform
+// Application Variables
 global u32 WindowWidth = 1366;
 global u32 WindowHeight = 768;
-
-// Application Variables
-global b32 IsRunning = 1;
+global b32 IsRunning;
 global keyboard     *Keyboard;
 global mouse        *Mouse;
 global clock        *Clock;
@@ -44,7 +77,7 @@ global window       *Window;
 global renderer     *Renderer;
 global sound_system *SoundSystem;
 global camera       *Camera;
-global gamestate     CurrentState = State_Initial;
+global gamestate     CurrentState;
 
 // Textures
 global texture *InitScreenTexture  = NULL;
@@ -59,6 +92,10 @@ global texture *WandererTexture    = NULL;
 global texture *SeekerTexture      = NULL;
 global texture *KamikazeTexture    = NULL;
 
+// Fonts
+font *DebugFont = NULL;
+font *UIFont = NULL;
+
 // Sounds/Music
 global sound_music  *Song = NULL;
 global sound_effect *Shot = NULL;
@@ -66,27 +103,35 @@ global sound_effect *PlayerDeath = NULL;
 global sound_effect *PlayerDamage = NULL;
 
 // Game Variables
-global f32 WorldBottom     = -11.0f;
-global f32 WorldTop        = 11.0f;
-global f32 WorldLeft       = -20.0f;
-global f32 WorldRight      = 20.0f;
-global f32 HalfWorldWidth  = WorldRight;
-global f32 HalfWorldHeight = WorldTop;
-global f32 WorldWidth      = WorldRight * 2.0f;
-global f32 WorldHeight     = WorldTop * 2.0f;
-global u32 PlayerScore     = 0;
-global b32 DebugMode       = 0;
-global i32 EnemySpawnRate  = 50;
-global f32 BulletSpeed     = 20.0f;
-global entity *LeftWall = NULL;
-global entity *RightWall = NULL;
-global entity *TopWall = NULL;
-global entity *BottomWall = NULL;
+global f32 WorldBottom      = -11.0f;
+global f32 WorldTop         = 11.0f;
+global f32 WorldLeft        = -20.0f;
+global f32 WorldRight       = 20.0f;
+global f32 HalfWorldWidth   = WorldRight;
+global f32 HalfWorldHeight  = WorldTop;
+global f32 WorldWidth       = WorldRight * 2.0f;
+global f32 WorldHeight      = WorldTop * 2.0f;
+global f32 BackgroundWidth  = WorldWidth + 5.0f;
+global f32 BackgroundHeight = WorldHeight + 5.0f;
+global u32 PlayerScore      = 0;
+global b32 DebugMode        = 0;
+global i32 EnemySpawnRate   = 50;
+global f32 BulletSpeed      = 20.0f;
+global entity *LeftWall     = NULL;
+global entity *RightWall    = NULL;
+global entity *TopWall      = NULL;
+global entity *BottomWall   = NULL;
+
+// Entities
+entity *GameBackground = NULL;
+entity *InitialScreen  = NULL;
+entity *PauseScreen    = NULL;
+entity *GameOverScreen = NULL;
 
 // Bullet and enemies containers
-u32 MaxEntityCount = 100;
-entity_list *Enemies = E_CreateEntityList(MaxEntityCount);
-entity_list *Bullets = E_CreateEntityList(MaxEntityCount);
+u32 MaxEntityCount   = 100;
+entity_list *Enemies = NULL;
+entity_list *Bullets = NULL;
 
 // Player vars
 global entity *Player                  = NULL;
@@ -113,6 +158,8 @@ void SpawnWanderer(entity_list *List)
 
 void SpawnKamikaze(entity_list *List)
 {
+    // Spawns an enemy that flies directly to the player position.
+
     f32 PosX = 0;
     f32 PosY = 0;
     f32 Padding = 3.0f;
@@ -169,7 +216,7 @@ void SpawnEnemies()
     }
 }
 
-void UpdateEnemyAI()
+void ApplyEnemyInputs()
 {
     // Enemy AI
     // Set "inputs" according to enemy type, i can't figure out a better place to put the enemy AI and i'm not gonna think too much about it
@@ -219,7 +266,7 @@ void UpdateEnemyAI()
 
 }
 
-void UpdateEnemies()
+void UpdateEnemyPositions()
 {
     for(entity_node *Node = Enemies->Head;
         Node != NULL;
@@ -237,7 +284,7 @@ void UpdateEnemies()
     }
 }
 
-void UpdateBullets()
+void UpdateBulletPositions()
 {
     for(entity_node *Node = Bullets->Head;
         Node != NULL;
@@ -255,7 +302,7 @@ void UpdateBullets()
     }
 }
 
-void UpdatePlayer()
+void UpdatePlayerPosition()
 {
     // Rotate player according to mouse world position
     f32 DeltaX = Player->Position.x - Mouse->WorldPosition.x;
@@ -274,7 +321,7 @@ void FireBullet()
     entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
     NewBullet->Acceleration += BulletDirection * BulletSpeed;
     E_PushEntity(Bullets, NewBullet);
-    S_PlayEffect(Shot);
+    S_PlaySoundEffect(Shot);
 }
 
 void UpdateWorldMousePosition()
@@ -334,13 +381,14 @@ void CollisionPlayerVsEnemies()
 
             if(PlayerLives < 1)
             {
-                S_PlayEffect(PlayerDeath);
+                S_PlaySoundEffect(PlayerDeath);
                 EnableBloom = 0;
                 CurrentState = State_GameOver;
+                R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
             }
             else
             {
-                S_PlayEffect(PlayerDamage);
+                S_PlaySoundEffect(PlayerDamage);
             }
 
         }
@@ -371,6 +419,15 @@ void CollisionEnemiesVsBullets()
     }
 }
 
+void GameBegin()
+{
+    IsRunning = 1;
+    CurrentState = State_Initial;
+    Enemies = E_CreateEntityList(MaxEntityCount);
+    Bullets = E_CreateEntityList(MaxEntityCount);
+    S_PlayMusic(Song);
+}
+
 i32 main(i32 Argc, char **Argv)
 {
     // The following makes the compiler not throw a warning for unused
@@ -396,15 +453,15 @@ i32 main(i32 Argc, char **Argv)
     // going to use.
     RandomSeed((u32)SDL_GetPerformanceCounter());
 
-    // TODO(Jorge): Move these 2 to global declaration
-    font *DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
-    font *UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
+    // Load Fonts
+    DebugFont = R_CreateFont(Renderer, "fonts/LiberationMono-Regular.ttf", 14, 14);
+    UIFont    = R_CreateFont(Renderer, "fonts/NovaSquare-Regular.ttf", 30, 30);
 
     // Load music and sounds
     Song         = S_CreateMusic("audio/Music.mp3");
-    Shot         = S_CreateEffect("audio/shoot-01.wav");
-    PlayerDeath  = S_CreateEffect("audio/explosion-01.wav");
-    PlayerDamage = S_CreateEffect("audio/explosion-06.wav");
+    Shot         = S_CreateSoundEffect("audio/Shoot1.wav");
+    PlayerDeath  = S_CreateSoundEffect("audio/Explosion1.wav");
+    PlayerDamage = S_CreateSoundEffect("audio/Explosion6.wav");
 
     // Load textures
     InitScreenTexture  = R_CreateTexture("textures/InitialScreen.png");
@@ -419,27 +476,18 @@ i32 main(i32 Argc, char **Argv)
     SeekerTexture      = R_CreateTexture("textures/Seeker.png");
     KamikazeTexture    = R_CreateTexture("textures/Kamikaze.png");
 
-    // TODO(Jorge): Move these to global declaration
-    f32 BackgroundWidth = WorldWidth + 5.0f;
-    f32 BackgroundHeight = WorldHeight + 5.0f;
-    entity *Background   = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    // Create Game Entities
+    InitialScreen  = E_CreateEntity(InitScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    PauseScreen    = E_CreateEntity(PauseScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    GameOverScreen = E_CreateEntity(GameOverTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    GameBackground = E_CreateEntity(BackgroundTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
+    LeftWall       = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    RightWall      = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    TopWall        = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    BottomWall     = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
+    Player         = E_CreateEntity(PlayerTexture, PlayerInitialPosition, glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
 
-    // TODO(Jorge): Move these to global declaration
-    entity *InitialScreen   = E_CreateEntity(InitScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
-    entity *PauseScreen     = E_CreateEntity(PauseScreenTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
-    entity *GameOver        = E_CreateEntity(GameOverTexture, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0), glm::vec3(BackgroundWidth, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_None, Collider_Rectangle);
-
-    // Walls
-    LeftWall   = E_CreateEntity(WallTexture, glm::vec3(WorldLeft - 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    RightWall  = E_CreateEntity(WallTexture, glm::vec3(WorldRight + 1.0f, 0.0f, 0.0f), glm::vec3(0.0f), glm::vec3(1.0f, BackgroundHeight, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    TopWall    = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldTop + 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-    BottomWall = E_CreateEntity(WallTexture, glm::vec3(0.0f, WorldBottom - 1.0f, 0.0f), glm::vec3(0.0f), glm::vec3(BackgroundWidth, 1.0f, 0.0f), 0.0f, 0.0f, 0.0f, EntityType_Wall, Collider_Rectangle);
-
-    // Create Player
-    Player = E_CreateEntity(PlayerTexture, PlayerInitialPosition, glm::vec3(0.0f), glm::vec3(1.0f, 1.0f, 0.0f), 0.0f, PlayerSpeed, PlayerDrag, EntityType_Player, Collider_Circle);
-
-    S_PlayMusic(Song);
-
+    GameBegin();
     while(IsRunning)
     {
         P_UpdateClock(Clock);
@@ -498,7 +546,10 @@ i32 main(i32 Argc, char **Argv)
                         DebugMode = !DebugMode;
                     }
 
-                    // Camera Input
+                    // Camera Movement, this only applies when Debug
+                    // Info is shown. press shift + WASD + Mouse to
+                    // move the camera. Shift+Space to reset the
+                    // camera.
                     if (I_IsPressed(SDL_SCANCODE_LSHIFT) & DebugMode)
                     {
                         Camera->Yaw += Mouse->RelX * Mouse->Sensitivity;
@@ -525,7 +576,7 @@ i32 main(i32 Argc, char **Argv)
                         if (I_IsPressed(SDL_SCANCODE_SPACE) && I_IsPressed(SDL_SCANCODE_LSHIFT)) { R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f)); I_ResetMouse(Mouse); }
                     }
 
-                    // Player Input
+                    // Player Input and movement
                     if (I_IsPressed(SDL_SCANCODE_W) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y += Player->Speed; }
                     if (I_IsPressed(SDL_SCANCODE_A) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.x -= Player->Speed; }
                     if (I_IsPressed(SDL_SCANCODE_S) && I_IsNotPressed(SDL_SCANCODE_LSHIFT)) { Player->Acceleration.y -= Player->Speed; }
@@ -534,7 +585,7 @@ i32 main(i32 Argc, char **Argv)
                     // Fire Bullet on Mouse Button Left press
                     if(I_IsMouseButtonPressed(SDL_BUTTON_LEFT) && I_WasMouseButtonNotPressed(SDL_BUTTON_LEFT)) { FireBullet(); }
 
-                    UpdateEnemyAI();
+                    ApplyEnemyInputs();
 
                     break;
                 }
@@ -545,6 +596,7 @@ i32 main(i32 Argc, char **Argv)
                     {
                         CurrentState = State_Game;
                         S_ResumeMusic();
+                        R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                         EnableBloom = 1;
                     }
 
@@ -563,6 +615,7 @@ i32 main(i32 Argc, char **Argv)
                         Player->Position = PlayerInitialPosition;
                         PlayerLives = 3;
                         EnableBloom = 1;
+                        R_ResetCamera(Camera, Window->Width, Window->Height, glm::vec3(0.0f, 0.0f, 11.5f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                     }
                     break;
                 }
@@ -595,9 +648,9 @@ i32 main(i32 Argc, char **Argv)
                 {
                     SpawnEnemies();
 
-                    UpdatePlayer();
-                    UpdateEnemies();
-                    UpdateBullets();
+                    UpdatePlayerPosition();
+                    UpdateEnemyPositions();
+                    UpdateBulletPositions();
 
                     CollisionPlayerVsWalls();
                     CollisionPlayerVsEnemies();
@@ -644,7 +697,7 @@ i32 main(i32 Argc, char **Argv)
 
                     R_SetActiveShader(Renderer->Shaders.Texture);
 
-                    R_DrawEntity(Renderer, Background);
+                    R_DrawEntity(Renderer, GameBackground);
                     R_DrawEntity(Renderer, Player);
 
                     R_DrawEntityList(Renderer, Enemies);
@@ -669,6 +722,10 @@ i32 main(i32 Argc, char **Argv)
                     sprintf_s(StringBuffer, "Lives: %d", PlayerLives);
                     R_DrawText2D(Renderer, StringBuffer, UIFont, glm::vec2(Window->Width - UIFont->Width * 5 , Window->Height-UIFont->Height), glm::vec2(1.0f, 1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 
+                    // Draw debug data to the screen, the current text
+                    // rendering implementation sucks ass, so while
+                    // rendering the debug data the frame tanks unless
+                    // the computer is powerful.
                     if(DebugMode)
                     {
                         // String buffer used for snprintf
@@ -724,7 +781,7 @@ i32 main(i32 Argc, char **Argv)
                 {
                     Renderer->BackgroundColor = MenuBackgroundColor;
                     R_SetActiveShader(Renderer->Shaders.Texture);
-                    R_DrawEntity(Renderer, GameOver);
+                    R_DrawEntity(Renderer, GameOverScreen);
                     break;
                 }
                 default:
