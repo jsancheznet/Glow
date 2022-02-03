@@ -1,13 +1,13 @@
 # How to build
 
 1. Install visual studio and make sure to install C++ support
-2. From the start menu open the "x64 Native Tools Command Prompt for VS 2019" (the command prompt MUST be in x64 or else the build fails) look for the text "Environment initialized for: 'x64'" when the window opens
+2. From the windows start menu open the "x64 Native Tools Command Prompt for VS 2019" (the command prompt MUST be in x64 or else the build fails) look for the text "Environment initialized for: 'x64'" when the command prompt opens
 3. Go to the main project directory and run build.bat
 4. The executable is now inside the build directory and it's called "main.exe"
 
 # How to play
 
-It's a twin shooter style of game, use WASD to move, left mouse click to fire a bullet where the mouse is. Kill, Evade and collect points.
+WASD to move, left mouse click to fire a bullet where the mouse is. Kill, Evade and collect points.
 
 # Debug Mode
 
