@@ -1,12 +1,20 @@
 # How to build
 
-open developer command prompt
+1. Install visual studio and make sure to install C++ support
+2. From the start menu open the "x64 Native Tools Command Prompt for VS 2019" (the command prompt MUST be in x64 or else the build fails) look for the text "Environment initialized for: 'x64'" when the window opens
+3. Go to the main project directory and run build.bat
+4. The executable is now inside the build directory and it's called "main.exe"
 
-This project uses the visual studio command line tools to compile, in
-order to activate these you first need to run vcvarsall.bat. After
-this is done just run build.bat
+# How to play
 
-# keys to play and debug mode
+It's a twin shooter style of game, use WASD to move, left mouse click to fire a bullet where the mouse is. Kill, Evade and collect points.
+
+# Debug Mode
+
+If you press F1 you will toggle debug mode, some of the available
+debug info will be drawn to the screen. While in debug mode you may
+also move the camara by holding Shift+WASD keys, press Shift+Space to
+reset the camera to it's original position.
 
 # License
 
