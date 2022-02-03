@@ -1,12 +1,12 @@
-# Compiling
+# How to build
+
+open developer command prompt
 
 This project uses the visual studio command line tools to compile, in
 order to activate these you first need to run vcvarsall.bat. After
 this is done just run build.bat
 
-# Status
-
-This project is not finished.
+# keys to play and debug mode
 
 # License
 

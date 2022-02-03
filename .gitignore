@@ -1,3 +1,4 @@
+build/.vs/*
 build/models/
 build/shaders/OLD/
 build/.vs/main/v16/.suo
@@ -16,7 +17,6 @@ build/.vs/test/v16/ipch/AutoPCH/b6a46f153cfa098f/TEST.ipch
 build/.vs/test/v16/ipch/AutoPCH/cebed94fed42ac71/TEST.ipch
 build/.vs/test/v16/ipch/AutoPCH/cb73823ce0b24f9b/TEST.ipch
 build/.vs/test/v16/ipch/AutoPCH/d81a7fc8425bb7d5/TEST.ipch
-build/freetype.dll
 build/main.exe
 build/main.exp
 build/main.ilk
@@ -24,7 +24,6 @@ build/main.lib
 build/main.obj
 build/main.pdb
 build/main.sln
-build/SDL2.dll
 build/.vs/main/v16/.suo
 build/.vs/main/v16/.suo
 build/.vs/main/v16/.suo
