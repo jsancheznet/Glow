@@ -17,7 +17,7 @@ set IncludeDirectories=-I%SDLINCLUDE% -I%GLADINCLUDE% -I%GLM% -I%FREETYPEINCLUDE
 set LibDirectories=-LIBPATH:%SDLLIB64% -LIBPATH:%FREETYPELIB% -LIBPATH:%SDLMIXER_LIB%
 
 REM set CompilerFlags= -DDEBUG -nologo -W4 -WX -Ot -FS %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
-set CompilerFlags= -nologo -W4 -WX -Ot -FS %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
+set CompilerFlags= -nologo -W4 -Ot -FS %IncludeDirectories% -Zi -EHsc -MD /D "_WINDOWS"
 set LinkerFlags=-nologo -DEBUG %LibDirectories%
 
 REM cl ..\main.cpp %CompilerFlags% /link %LinkerFlags% -SUBSYSTEM:CONSOLE SDL2.lib SDL2main.lib SDL2_mixer.lib freetype.lib
