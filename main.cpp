@@ -156,7 +156,7 @@ void SpawnWanderer(entity_list *List)
     E_PushEntity(List, Entity);
 }
 
-void SpawnKamikaze(entity_list *List)
+void SpawnKamikaze(entity_list *List) 
 {
     // Spawns an enemy that flies directly to the player position.
 
