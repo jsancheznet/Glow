@@ -1,6 +1,6 @@
 # Screenshots
 
-![Main Menu](./screenshots/MainMenu.png | width=100)
+![Main Menu](./screenshots/MainMenu.png|width=400px)
 ![Main Menu](./screenshots/Game1.png)
 ![Main Menu](./screenshots/Game2.png)
 ![Main Menu](./screenshots/GameOver.png)
