@@ -137,7 +137,7 @@ entity_list *Bullets = NULL;
 global entity *Player                  = NULL;
 global f32 PlayerSpeed                 = 3.0f;
 global f32 PlayerDrag                  = 0.8f;
-global u32 PlayerLives                 = 1500;
+global u32 PlayerLives                 = 10;
 global glm::vec3 PlayerInitialPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
 void SpawnSeeker(entity_list *List)
