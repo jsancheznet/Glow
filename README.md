@@ -1,3 +1,7 @@
+# Screenshots
+
+![Main Menu](./screenshots/MainMenu.png)
+
 # How to build
 
 1. Install visual studio and make sure to install C++ support

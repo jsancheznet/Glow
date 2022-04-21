@@ -22,8 +22,7 @@
 
 // Renderer settings
 global f32 RendererExposure = 2.0f;
-global i32 VSync = 1; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
-global b32 EnableVSync = 1;
+global i32 VSync = 0; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
 global b32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
 global u32 BlurPassCount = 6; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);

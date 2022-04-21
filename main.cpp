@@ -156,7 +156,7 @@ void SpawnWanderer(entity_list *List)
     E_PushEntity(List, Entity);
 }
 
-void SpawnKamikaze(entity_list *List) 
+void SpawnKamikaze(entity_list *List)
 {
     // Spawns an enemy that flies directly to the player position.
 
@@ -530,6 +530,12 @@ i32 main(i32 Argc, char **Argv)
                 }
                 case State_Game:
                 {
+                    // Explore/Screenshot mode
+                    // if(I_IsPressed(SDL_SCANCODE_Z))
+                    // {
+                    //     Here!;
+                    // }
+
                     // Press escape to pause game
                     if (I_IsPressed(SDL_SCANCODE_ESCAPE))
                     {
