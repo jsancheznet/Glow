@@ -1,6 +1,9 @@
 # Screenshots
 
 ![Main Menu](./screenshots/MainMenu.png)
+![Main Menu](./screenshots/Game1.png)
+![Main Menu](./screenshots/Game2.png)
+![Main Menu](./screenshots/GameOver.png)
 
 # How to build
 
