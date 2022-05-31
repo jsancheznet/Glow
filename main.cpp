@@ -40,6 +40,19 @@
         }
     End Game Loop
 
+
+
+    --- TODO LIST ---
+
+    - Make enemy spawns independent from frame rate
+
+    - Create a Spawn Entity List, when enemies spawn add the to that
+      list. The purpose of the list is to animate them from back to
+      front with tweening, once they are in place, move them to the
+      regular enemy list
+
+    - Show score after losing
+
  */
 
 #include <stdio.h>
