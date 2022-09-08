@@ -128,7 +128,7 @@ global f32 BackgroundWidth  = WorldWidth + 5.0f;
 global f32 BackgroundHeight = WorldHeight + 5.0f;
 global u32 PlayerScore      = 0;
 global b32 DebugMode        = 0;
-global i32 EnemySpawnRate   = 50;
+global i32 EnemySpawnRate   = 2000;
 global f32 BulletSpeed      = 20.0f;
 global entity *LeftWall     = NULL;
 global entity *RightWall    = NULL;
@@ -276,7 +276,6 @@ void ApplyEnemyInputs()
             }
         }
     }
-
 }
 
 void UpdateEnemyPositions()
@@ -436,8 +435,8 @@ void GameBegin()
 {
     IsRunning = 1;
     CurrentState = State_Initial;
-    Enemies = E_CreateEntityList(MaxEntityCount);
-    Bullets = E_CreateEntityList(MaxEntityCount);
+    Enemies         = E_CreateEntityList(MaxEntityCount);
+    Bullets         = E_CreateEntityList(MaxEntityCount);
     S_PlayMusic(Song);
 }
 
