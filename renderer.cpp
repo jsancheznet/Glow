@@ -298,7 +298,6 @@ renderer *R_CreateRenderer(window *Window)
     Result->BackgroundColor = BackgroundColor;
 
     { // SECTION: OpenGL "Configuration"
-
         glFrontFace(GL_CCW);
         glEnable(GL_MULTISAMPLE);
         glEnable(GL_DEPTH_TEST);
@@ -879,5 +878,4 @@ void R_DrawEntityList(renderer *Renderer, entity_list *List)
     {
         R_DrawEntity(Renderer, Node->Entity);
     }
-
 }

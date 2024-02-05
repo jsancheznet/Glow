@@ -1,3 +1,16 @@
+# Features
+## Renderer
+ - Modern OpenGL
+ - HDR
+ - Bloom
+ - Text Rendering using FreeType
+ - Textured Quads
+
+## Gameplay
+ - SAT Collision Detection
+ - Xorshift random number generator
+ - Platform & Sound done with libSDL
+
 # Screenshots
 
 ![Main Menu](./screenshots/Game1.png)

@@ -10,9 +10,9 @@
 #pragma once
 
 #pragma warning(disable: 4100) // TODO(Jorge): What is this?, Disable it, and fix the code
-
 #pragma warning(disable: 4127)  // GLM fails to compile if this warning is turned on!
 #pragma warning(disable: 4201) // GLM warning
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/vec3.hpp> // glm::vec3

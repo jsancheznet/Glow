@@ -91,9 +91,9 @@ struct texture
 struct character
 {
     u32 TextureID;
-    glm::ivec2 Size; // Size of glyph
+    glm::ivec2 Size;    // Size of glyph
     glm::ivec2 Bearing; // Offset from baseline to left/top of glyph
-    u32 Advance; // Offset to advance to next glyph
+    u32 Advance;        // Offset to advance to next glyph
 };
 
 struct font
