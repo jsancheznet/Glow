@@ -3,13 +3,13 @@
  - Modern OpenGL
  - HDR
  - Bloom
- - Text Rendering using FreeType
+ - Text Rendering with FreeType
  - Textured Quads
 
 ## Gameplay
  - SAT Collision Detection
  - Xorshift random number generator
- - Platform & Sound done with libSDL
+ - Platform & Sound with libSDL
 
 # Screenshots
 
