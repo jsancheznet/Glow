@@ -1,66 +1,73 @@
-# Features
-## Renderer
- - Modern OpenGL
- - HDR
- - Bloom
- - Text Rendering with FreeType
- - Textured Quads
+# Glow
 
-## Gameplay
- - SAT Collision Detection
- - Xorshift random number generator
- - Platform & Sound with libSDL
+A C++ / OpenGL game project focused on real-time rendering, gameplay programming, and low-level game systems.
 
-# Screenshots
+## Features
 
-![Main Menu](./screenshots/Game1.png)
-![Main Menu](./screenshots/Game3.png)
-![Main Menu](./screenshots/Game2.png)
+### Rendering
+
+* Modern OpenGL
+* HDR rendering
+* Bloom
+* FreeType text rendering
+* Textured quads
+
+### Gameplay
+
+* SAT collision detection
+* Xorshift random number generator
+* Player movement and shooting
+* Scoring system
+* SDL audio
+
+## Screenshots
+
+![Gameplay](./screenshots/Game1.png)
+![Gameplay](./screenshots/Game3.png)
+![Gameplay](./screenshots/Game2.png)
 ![Main Menu](./screenshots/MainMenu.png)
-![Main Menu](./screenshots/Pause.png)
-![Main Menu](./screenshots/GameOver.png)
+![Pause Menu](./screenshots/Pause.png)
+![Game Over](./screenshots/GameOver.png)
 
-# How to build
+## Build
 
-1. Install visual studio and make sure to install C++ support
-2. From the windows start menu open the "x64 Native Tools Command Prompt for VS 2019" (the command prompt MUST be in x64 or else the build fails) look for the text "Environment initialized for: 'x64'" when the command prompt opens
-3. Go to the main project directory and run build.bat
-4. The executable is now inside the build directory and it's called "main.exe"
+### Requirements
 
-# How to play
+* Windows
+* Visual Studio 2019 with C++ development tools
 
-WASD to move, left mouse click to fire a bullet where the mouse is. Kill, Evade and collect points.
+### Instructions
 
-# Debug Mode
+1. Open **x64 Native Tools Command Prompt for VS 2019**.
+2. Navigate to the project directory.
+3. Run:
 
-If you press F1 you will toggle debug mode, some of the available
-debug info will be drawn to the screen. While in debug mode you may
-also move the camara by holding Shift+WASD keys, press Shift+Space to
-reset the camera to it's original position.
+```text
+build.bat
+```
 
-# License
+4. The executable will be generated in the `build` directory as `main.exe`.
 
-This is free and unencumbered software released into the public domain.
+> **Note:** The build must be performed from the x64 Native Tools command prompt.
 
-Anyone is free to copy, modify, publish, use, compile, sell, or
-distribute this software, either in source code form or as a compiled
-binary, for any purpose, commercial or non-commercial, and by any
-means.
+## How to Play
 
-In jurisdictions that recognize copyright laws, the author or authors
-of this software dedicate any and all copyright interest in the
-software to the public domain. We make this dedication for the benefit
-of the public at large and to the detriment of our heirs and
-successors. We intend this dedication to be an overt act of
-relinquishment in perpetuity of all present and future rights to this
-software under copyright law.
+* **WASD** — Move
+* **Left Mouse Button** — Fire toward the mouse cursor
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+Kill enemies, evade attacks, and collect points.
 
-For more information, please refer to <http://unlicense.org/>
+## Debug Mode
+
+Press **F1** to toggle debug mode.
+
+While debug mode is enabled:
+
+* **Shift + WASD** — Move the camera
+* **Shift + Space** — Reset the camera
+
+Debug information is displayed on screen while debug mode is active.
+
+## License
+
+Public domain. See [LICENSE](./LICENSE).
