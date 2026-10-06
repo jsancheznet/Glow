@@ -28,6 +28,8 @@ struct renderer
     u32 TextTexCoordsBuffer;
     u32 UnitQuadVAO;
     u32 UnitQuadVBO;
+    u32 DebugLineVAO;
+    u32 DebugLineVBO;
 
     struct Shaders
     {
@@ -37,6 +39,7 @@ struct renderer
         u32 Texture;
         u32 Text;
         u32 Ball;
+        u32 Debug; // Collider outlines
     } Shaders;
 
     u32 Framebuffer;

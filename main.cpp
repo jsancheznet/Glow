@@ -564,6 +564,11 @@ i32 main(i32 Argc, char **Argv)
                         DebugMode = !DebugMode;
                     }
 
+                    // F2 -> HDR Toggle, F3 -> Bloom Toggle, F4 -> Draw Colliders Toggle
+                    if(I_IsPressed(SDL_SCANCODE_F2) && I_WasNotPressed(SDL_SCANCODE_F2)) { EnableHDR = !EnableHDR; }
+                    if(I_IsPressed(SDL_SCANCODE_F3) && I_WasNotPressed(SDL_SCANCODE_F3)) { BloomUserEnabled = !BloomUserEnabled; }
+                    if(I_IsPressed(SDL_SCANCODE_F4) && I_WasNotPressed(SDL_SCANCODE_F4)) { DrawColliders = !DrawColliders; }
+
                     // Camera Movement, this only applies when Debug
                     // Info is shown. press shift + WASD + Mouse to
                     // move the camera. Shift+Space to reset the
@@ -721,6 +726,19 @@ i32 main(i32 Argc, char **Argv)
                     R_DrawEntityList(Renderer, Enemies);
                     R_DrawEntityList(Renderer, Bullets);
 
+                    // Draw collision primitives
+                    if(DrawColliders)
+                    {
+                        R_DrawCollider(Renderer, &Player->Collider, glm::vec3(0.0f, 1.0f, 0.0f));
+                        R_DrawEntityListColliders(Renderer, Enemies, glm::vec3(1.0f, 0.0f, 0.0f));
+                        R_DrawEntityListColliders(Renderer, Bullets, glm::vec3(1.0f, 1.0f, 0.0f));
+                        R_DrawCollider(Renderer, &LeftWall->Collider, glm::vec3(0.0f, 1.0f, 1.0f));
+                        R_DrawCollider(Renderer, &RightWall->Collider, glm::vec3(0.0f, 1.0f, 1.0f));
+                        R_DrawCollider(Renderer, &TopWall->Collider, glm::vec3(0.0f, 1.0f, 1.0f));
+                        R_DrawCollider(Renderer, &BottomWall->Collider, glm::vec3(0.0f, 1.0f, 1.0f));
+                        R_SetActiveShader(Renderer->Shaders.Texture);
+                    }
+
                     // Draw Mouse Pointer. The Position needs
                     // adjustment since R_DrawTexture draws
                     // centered. Could also create a crosshair image
@@ -783,6 +801,14 @@ i32 main(i32 Argc, char **Argv)
                         // Entity Count
                         snprintf(String, sizeof(char) * 99,"EntityCount: %d", Enemies->Count + Bullets->Count + 1); // The + 1 means the player
                         R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 13), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+
+                        // Render toggles
+                        snprintf(String, sizeof(char) * 99,"[F2] HDR: %s", EnableHDR ? "ON" : "OFF");
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 14), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"[F3] Bloom: %s", BloomUserEnabled ? "ON" : "OFF");
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 15), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+                        snprintf(String, sizeof(char) * 99,"[F4] Colliders: %s", DrawColliders ? "ON" : "OFF");
+                        R_DrawText2D(Renderer, String, DebugFont, glm::vec2(LeftMargin, Window->Height - DebugFont->Height * 16), glm::vec2(1.0f), glm::vec3(1.0f, 1.0f, 1.0f));
                     }
 
                     break;

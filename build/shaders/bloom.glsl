@@ -19,6 +19,7 @@ in vec2 TexCoords;
 uniform sampler2D Scene;
 uniform sampler2D BloomBlur;
 uniform bool Bloom;
+uniform bool HDR;
 uniform float Exposure;
 
 void main()
@@ -32,8 +33,17 @@ void main()
         HDRColor += BloomColor; // additive blending
     }
 
-    // tone mapping
-    vec3 Result = vec3(1.0) - exp(-HDRColor * Exposure);
+    vec3 Result;
+    if(HDR)
+    {
+        // tone mapping
+        Result = vec3(1.0) - exp(-HDRColor * Exposure);
+    }
+    else
+    {
+        // LDR, just clamp to the displayable range
+        Result = clamp(HDRColor, 0.0, 1.0);
+    }
     // also gamma correct while we're at it
     Result = pow(Result, vec3(1.0 / Gamma));
     FragmentColor = vec4(Result, 1.0);
