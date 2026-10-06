@@ -1,5 +1,9 @@
 # Glow
 
+![Glow gameplay: bloom, debug mode and SAT collision view](./screenshots/glow.gif)
+
+▶ [Watch in full quality on YouTube](https://youtu.be/Y5EoJorOp7E)
+
 A C++ / OpenGL game project focused on real-time rendering, gameplay programming, and low-level game systems.
 
 ## Features
@@ -9,8 +13,10 @@ A C++ / OpenGL game project focused on real-time rendering, gameplay programming
 * Modern OpenGL
 * HDR rendering
 * Bloom
+* Gamma correction
 * FreeType text rendering
 * Textured quads
+* Debug mode with live frame stats and collider rendering
 
 ### Gameplay
 
@@ -67,6 +73,14 @@ While debug mode is enabled:
 * **Shift + Space** — Reset the camera
 
 Debug information is displayed on screen while debug mode is active.
+
+## Render Toggles
+
+Available during gameplay:
+
+* **F2** — Toggle HDR tone mapping (off clamps colors instead)
+* **F3** — Toggle bloom
+* **F4** — Toggle drawing of entity collision primitives
 
 ## License
 

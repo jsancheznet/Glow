@@ -19,11 +19,16 @@
 #include "shared.h"
 #include "renderer.h"
 #include "entity.h"
+#include "collision.cpp" // C_RectangleVertices, needed to draw colliders
 
 // Renderer settings
 global f32 RendererExposure = 2.0f;
 global i32 VSync = 0; // Vsync, 0 disabled, 1 enabled, -1 adaptive vsync
-global b32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader.
+global b32 EnableBloom = 1; // NOTE: This turns off a boolean in the bloom glsl shader. Set by the game state (menus disable it).
+global b32 BloomUserEnabled = 1; // User toggle (F3), combined with EnableBloom
+global b32 EnableHDR = 1; // User toggle (F2), when disabled colors are clamped instead of tonemapped
+global b32 DrawColliders = 0; // User toggle (F4), draws collision primitives of entities
+global u32 DebugLineMaxVertices = 64;
 global u32 BlurPassCount = 6; // How many times should we blurr the image
 global glm::vec4 BackgroundColor = glm::vec4(0.01f, 0.01f, 0.01f, 1.0f);
 global glm::vec4 MenuBackgroundColor = glm::vec4(0.005f, 0.005f, 0.005f, 1.0f);
@@ -193,7 +198,8 @@ void R_EndFrame(renderer *Renderer)
     glBindTexture(GL_TEXTURE_2D, Renderer->ColorBuffer);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, Renderer->PingPongBuffer[!Horizontal]);
-    R_SetUniform(Renderer->Shaders.Bloom, "Bloom", EnableBloom);
+    R_SetUniform(Renderer->Shaders.Bloom, "Bloom", EnableBloom && BloomUserEnabled);
+    R_SetUniform(Renderer->Shaders.Bloom, "HDR", EnableHDR);
     R_SetUniform(Renderer->Shaders.Bloom, "Exposure", Renderer->Exposure);
     R_DrawUnitQuad(Renderer);
 
@@ -342,6 +348,8 @@ renderer *R_CreateRenderer(window *Window)
         Result->Shaders.Text = R_CreateShader("shaders/text.glsl");
         glUseProgram(Result->Shaders.Text);
         R_SetUniform(Result->Shaders.Text, "Text", 0);
+
+        Result->Shaders.Debug = R_CreateShader("shaders/debug.glsl");
     }
 
     { // SUBSECTION: Upload vertex data to GPU
@@ -384,12 +392,24 @@ renderer *R_CreateRenderer(window *Window)
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(f32), 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
+
+        // Debug lines (collider outlines), updated every draw
+        glGenVertexArrays(1, &Result->DebugLineVAO);
+        glBindVertexArray(Result->DebugLineVAO);
+        glGenBuffers(1, &Result->DebugLineVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, Result->DebugLineVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * DebugLineMaxVertices, NULL, GL_DYNAMIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 
     { // SECTION: Uniform Buffer Object for the Camera Matrices
 
         u32 UniformBlockIndexTextureShader;
         u32 UniformBlockIndexTextShader;
+        u32 UniformBlockIndexDebugShader;
 
         // glGetUniformBlockIndex gets the index of the uniform
         // buffer. With newer version of opengl you can set the index
@@ -397,9 +417,11 @@ renderer *R_CreateRenderer(window *Window)
         // sadly we cannot use this feature.
         UniformBlockIndexTextureShader = glGetUniformBlockIndex(Result->Shaders.Texture, "CameraMatrices");
         UniformBlockIndexTextShader = glGetUniformBlockIndex(Result->Shaders.Text, "CameraMatrices");
+        UniformBlockIndexDebugShader = glGetUniformBlockIndex(Result->Shaders.Debug, "CameraMatrices");
         // Sets a uniform block to a specific binding point
         glUniformBlockBinding(Result->Shaders.Texture, UniformBlockIndexTextureShader, 0);
         glUniformBlockBinding(Result->Shaders.Text, UniformBlockIndexTextShader, 0);
+        glUniformBlockBinding(Result->Shaders.Debug, UniformBlockIndexDebugShader, 0);
 
         glGenBuffers(1,&Result->UniformCameraBuffer);
         glBindBuffer(GL_UNIFORM_BUFFER, Result->UniformCameraBuffer);
@@ -877,5 +899,68 @@ void R_DrawEntityList(renderer *Renderer, entity_list *List)
         Node = Node->Next)
     {
         R_DrawEntity(Renderer, Node->Entity);
+    }
+}
+
+void R_DrawCollider(renderer *Renderer, collider *Collider, glm::vec3 Color)
+{
+    Assert(Renderer);
+    Assert(Collider);
+
+    // Slightly in front of the sprites so the outline is not hidden by the depth test
+    f32 Z = 0.05f;
+    glm::vec3 Vertices[64];
+    u32 VertexCount = 0;
+
+    switch(Collider->Type)
+    {
+        case Collider_Rectangle:
+        {
+            // C_RectangleVertices order is 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right
+            glm::vec2 Corners[4];
+            C_RectangleVertices(Collider->Rectangle, Corners);
+            Vertices[0] = glm::vec3(Corners[0], Z);
+            Vertices[1] = glm::vec3(Corners[1], Z);
+            Vertices[2] = glm::vec3(Corners[3], Z);
+            Vertices[3] = glm::vec3(Corners[2], Z);
+            VertexCount = 4;
+        } break;
+        case Collider_Circle:
+        {
+            VertexCount = 32;
+            for(u32 i = 0; i < VertexCount; i++)
+            {
+                f32 Angle = ((f32)i / (f32)VertexCount) * glm::two_pi<f32>();
+                Vertices[i] = glm::vec3(Collider->Circle.Center.x + Cosf(Angle) * Collider->Circle.Radius,
+                                        Collider->Circle.Center.y + Sinf(Angle) * Collider->Circle.Radius,
+                                        Z);
+            }
+        } break;
+        case Collider_Null:
+        default:
+        {
+            return;
+        }
+    }
+
+    Assert(VertexCount <= DebugLineMaxVertices);
+
+    glUseProgram(Renderer->Shaders.Debug);
+    R_SetUniform(Renderer->Shaders.Debug, "Color", Color);
+    glBindVertexArray(Renderer->DebugLineVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, Renderer->DebugLineVBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3) * VertexCount, Vertices);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDrawArrays(GL_LINE_LOOP, 0, VertexCount); Renderer->CurrentDrawCallsPerFrame++;
+    glBindVertexArray(0);
+}
+
+void R_DrawEntityListColliders(renderer *Renderer, entity_list *List, glm::vec3 Color)
+{
+    for(entity_node *Node = List->Head;
+        Node != NULL;
+        Node = Node->Next)
+    {
+        R_DrawCollider(Renderer, &Node->Entity->Collider, Color);
     }
 }
