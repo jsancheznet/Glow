@@ -35,3 +35,8 @@ build/.vs/main/v16/.suo
 *.ipch
 build/.vs/main/v16/.suo
 *.zip
+
+*.exe
+*.pdb
+*.obj
+.vs/
