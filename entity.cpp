@@ -80,10 +80,22 @@ entity *E_CreateEntity(texture *Texture,
 
 void E_Update(entity *Entity, f32 TimeStep)
 {
-    Entity->Position = 0.5f * Entity->Acceleration * (TimeStep * TimeStep) + Entity->Velocity + Entity->Position;
-    Entity->Velocity = Entity->Acceleration * TimeStep + Entity->Velocity;
+    // Velocity is in units/second and Drag is a damping rate per
+    // second, solving dv/dt = Acceleration - Drag * v exactly over the
+    // TimeStep so the result does not depend on the frame rate. With
+    // constant Acceleration the entity tends to a top speed of
+    // Acceleration / Drag. Drag = 0 means no damping.
+    if(Entity->Drag > 0.0f)
+    {
+        f32 Damping = expf(-Entity->Drag * TimeStep);
+        Entity->Velocity = Entity->Velocity * Damping + (Entity->Acceleration / Entity->Drag) * (1.0f - Damping);
+    }
+    else
+    {
+        Entity->Velocity += Entity->Acceleration * TimeStep;
+    }
+    Entity->Position += Entity->Velocity * TimeStep;
     Entity->Acceleration = {};
-    Entity->Velocity *= Entity->Drag;
 
     // Do not allow negative size
     if(Entity->Size.x < 0.0f) Entity->Size.x = 0.0f;
@@ -226,10 +238,13 @@ void E_EmptyList(entity_list *List)
 {
     if(List->Count == 0) { return; }
 
+    entity_node *Next = NULL;
     for(entity_node *Node = List->Head;
         Node != NULL;
-        Node = Node->Next)
+        Node = Next)
     {
+        // Grab Next before E_FreeNode frees Node
+        Next = Node->Next;
         E_FreeNode(List, Node);
     }
 }

@@ -148,8 +148,10 @@ entity_list *Bullets = NULL;
 
 // Player vars
 global entity *Player                  = NULL;
-global f32 PlayerSpeed                 = 3.0f;
-global f32 PlayerDrag                  = 0.8f;
+// Drag is velocity damping per second, top speed is Speed / Drag.
+// 13.4 matches the old 0.8 per frame drag at 60fps.
+global f32 PlayerSpeed                 = 12.0f * 13.4f; // 12 units/second top speed
+global f32 PlayerDrag                  = 13.4f;
 global u32 PlayerLives                 = 10;
 global glm::vec3 PlayerInitialPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
@@ -157,7 +159,7 @@ void SpawnSeeker(entity_list *List)
 {
     f32 PosX = RandomBetween(WorldLeft, WorldRight);
     f32 PosY = RandomBetween(WorldBottom, WorldTop);
-    entity *Entity = E_CreateEntity(SeekerTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 2.0f, 0.8f, EntityType_Seeker, Collider_Rectangle);
+    entity *Entity = E_CreateEntity(SeekerTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 8.0f * 13.4f, 13.4f, EntityType_Seeker, Collider_Rectangle); // 8 units/second top speed
     E_PushEntity(List, Entity);
 }
 
@@ -165,7 +167,7 @@ void SpawnWanderer(entity_list *List)
 {
     f32 PosX = RandomBetween(WorldLeft, WorldRight);
     f32 PosY = RandomBetween(WorldBottom, WorldTop);
-    entity *Entity = E_CreateEntity(WandererTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 1.0f, EntityType_Wanderer, Collider_Rectangle);
+    entity *Entity = E_CreateEntity(WandererTexture, glm::vec3(PosX, PosY, 0.0f), glm::vec3(0), glm::vec3(1.0f), 0.0f, 0.0f, 0.0f, EntityType_Wanderer, Collider_Rectangle);
     E_PushEntity(List, Entity);
 }
 
@@ -205,10 +207,11 @@ void SpawnKamikaze(entity_list *List)
     f32 DirectionX = KamikazePosition.x - Player->Position.x;
     f32 DirectionY = KamikazePosition.y - Player->Position.y;
     f32 KamikazeAngle = GetDirectionAngle(DirectionY, DirectionX);
-    f32 KamikazeSpeed = 5.0f;
+    f32 KamikazeDrag = 13.4f;
+    f32 KamikazeSpeed = 20.0f * KamikazeDrag; // 20 units/second top speed
     entity *Entity = E_CreateEntity(KamikazeTexture, KamikazePosition,
                                     Player->Position - KamikazePosition,
-                                    glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, 0.8f,
+                                    glm::vec3(1.0f, 1.0f, 0.0f), KamikazeAngle, KamikazeSpeed, KamikazeDrag,
                                     EntityType_Kamikaze, Collider_Rectangle);
     E_PushEntity(List, Entity);
 }
@@ -257,7 +260,7 @@ void ApplyEnemyInputs()
                 f32 Y = Sinf((f32)Clock->SecondsElapsed);
                 Entity->Position.x += X * (f32)Clock->DeltaTime * 3.0f;
                 Entity->Position.y += Y * (f32)Clock->DeltaTime * 3.0f;
-                Entity->Angle += 0.4f;
+                Entity->Angle += 24.0f * (f32)Clock->DeltaTime; // Degrees per second, was 0.4 per frame at 60fps
             } break;
             case EntityType_Kamikaze:
             {
@@ -280,10 +283,14 @@ void ApplyEnemyInputs()
 
 void UpdateEnemyPositions()
 {
+    entity_node *Next = NULL;
     for(entity_node *Node = Enemies->Head;
         Node != NULL;
-        Node = Node->Next)
+        Node = Next)
     {
+        // Grab Next before E_FreeNode can free Node
+        Next = Node->Next;
+
         E_Update(Node->Entity, (f32)Clock->DeltaTime);
 
         if(Node->Entity->Type == EntityType_Kamikaze)
@@ -298,10 +305,14 @@ void UpdateEnemyPositions()
 
 void UpdateBulletPositions()
 {
+    entity_node *Next = NULL;
     for(entity_node *Node = Bullets->Head;
         Node != NULL;
-        Node = Node->Next)
+        Node = Next)
     {
+        // Grab Next before E_FreeNode can free Node
+        Next = Node->Next;
+
         E_Update(Node->Entity, (f32)Clock->DeltaTime);
 
         // If the bullet is no longer near the play
@@ -330,8 +341,11 @@ void FireBullet()
     f32 RotationAngle = GetDirectionAngle(DeltaY, DeltaX);
     glm::vec3 BulletDirection = glm::normalize(Mouse->WorldPosition - Player->Position);
     f32 ScalingFactor = 3.5f;
-    entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 1.0f, EntityType_Bullet, Collider_Rectangle);
-    NewBullet->Acceleration += BulletDirection * BulletSpeed;
+    entity *NewBullet = E_CreateEntity(BulletTexture, Player->Position, glm::vec3(0.0f), glm::vec3(0.31f * ScalingFactor, 0.11f * ScalingFactor, 0.0f), RotationAngle, BulletSpeed, 0.0f, EntityType_Bullet, Collider_Rectangle);
+    // Bullets have no drag, so give them their speed directly instead
+    // of a one frame acceleration (that made the speed depend on the
+    // frame time when firing)
+    NewBullet->Velocity = BulletDirection * BulletSpeed;
     E_PushEntity(Bullets, NewBullet);
     S_PlaySoundEffect(Shot);
 }
@@ -381,10 +395,14 @@ void CollisionPlayerVsEnemies()
     f32 ResolutionOverlap;
 
     // Collision Player vs Enemies
+    entity_node *Next = NULL;
     for(entity_node *Node = Enemies->Head;
         Node != NULL;
-        Node = Node->Next)
+        Node = Next)
     {
+        // Grab Next before E_FreeNode can free Node
+        Next = Node->Next;
+
         if(E_EntitiesCollide(Player, Node->Entity, &ResolutionDirection, &ResolutionOverlap))
         {
             // Player got hit, play dmg sound effect, check if dead
@@ -413,19 +431,27 @@ void CollisionEnemiesVsBullets()
     f32 ResolutionOverlap;
 
     // Enemies vs Player Bullets,  note: this is a n*m loop
+    entity_node *NextEnemy = NULL;
     for(entity_node *Enemy = Enemies->Head;
         Enemy != NULL;
-        Enemy = Enemy->Next)
+        Enemy = NextEnemy)
     {
+        // Grab Next pointers before E_FreeNode can free the nodes
+        NextEnemy = Enemy->Next;
+
+        entity_node *NextBullet = NULL;
         for(entity_node *Bullet = Bullets->Head;
             Bullet != NULL;
-            Bullet = Bullet->Next)
+            Bullet = NextBullet)
         {
+            NextBullet = Bullet->Next;
+
             if(E_EntitiesCollide(Enemy->Entity, Bullet->Entity, &ResolutionDirection, &ResolutionOverlap))
             {
                 PlayerScore += 1;
-                E_FreeNode(Enemies, Enemy);
                 E_FreeNode(Bullets, Bullet);
+                E_FreeNode(Enemies, Enemy);
+                break; // Enemy is freed, stop testing it against other bullets
             }
         }
     }

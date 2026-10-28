@@ -82,7 +82,7 @@ window *P_CreateOpenGLWindow(char *Title, u32 Width, u32 Height)
 	i32 MinorVersion;
     i32 MajorVersion;
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &MajorVersion);
-    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &MinorVersion);
+    SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &MinorVersion);
     if(MajorVersion != 3 || MinorVersion != 3)
     {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error", "This program needs opengl 3.3 support, update your video drivers if you see this message", Result->Handle);

@@ -92,5 +92,5 @@ b32 I_IsMouseButtonPressed(i32 Input)
 
 b32 I_WasMouseButtonNotPressed(i32 Input)
 {
-    return !__Mouse->PrevButtonState & SDL_BUTTON(Input);
+    return !(__Mouse->PrevButtonState & SDL_BUTTON(Input));
 }
