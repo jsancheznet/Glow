@@ -2,7 +2,7 @@
 
 ![Glow gameplay: bloom, debug mode and SAT collision view](./screenshots/glow.gif)
 
-▶ [Watch in full quality on YouTube](https://youtu.be/Y5EoJorOp7E)
+[Watch in full quality on YouTube](https://youtu.be/Y5EoJorOp7E)
 
 A C++ / OpenGL game project focused on real-time rendering, gameplay programming, and low-level game systems.
 
